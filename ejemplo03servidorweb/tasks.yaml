@@ -1,0 +1,36 @@
+- hosts: webservers
+  tasks:
+    - name: Instalando nginx
+      apt:
+        name: nginx
+        state: latest
+    - name: Servicio arrancado
+      service:
+        name: nginx
+        state: started
+        enabled: true
+    - name: Instalando elinks
+      apt:
+        name: elinks
+        state: latest
+    - name: Habilitar UFW
+      ufw:
+        state: enabled
+        policy: allow
+    - name: abrir el firewall para 80
+      ufw:
+        rule: allow
+        port: "80"
+        proto: tcp
+    - name: abrir el firewall para 443
+      ufw:
+        rule: allow
+        port: "443"
+        proto: tcp
+    - name: Copia el fichero index.html
+      ansible.builtin.copy:
+        src: index.html
+        dest: /var/www/html/index.html
+        owner: www-data
+        group: www-data
+        mode: '0644'
