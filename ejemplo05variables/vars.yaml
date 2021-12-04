@@ -1,0 +1,7 @@
+mariadb_socket: /run/mysqld/mysqld.sock
+mysql_root_password: test
+database_name: test
+database_user: test
+database_password: test
+mysql:
+  privileges: "ALL"

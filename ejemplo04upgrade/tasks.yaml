@@ -1,3 +1,4 @@
+---
 - hosts: ubuntu
   tasks:
     - name: Update apt-get repo and cache
@@ -21,3 +22,4 @@
         post_reboot_delay: 30
         test_command: uptime
       when: reboot_required_file.stat.exists
+...
