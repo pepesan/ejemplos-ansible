@@ -16,7 +16,15 @@
     - name: Habilitar UFW
       ufw:
         state: enabled
-        policy: allow
+        policy: deny
+    - name: Habilitar el log
+      ufw:
+        logging: 'on'
+    - name: abrir el firewall para 22
+      ufw:
+        rule: allow
+        port: "22"
+        proto: tcp
     - name: abrir el firewall para 80
       ufw:
         rule: allow
