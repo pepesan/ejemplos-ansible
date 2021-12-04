@@ -1,0 +1,10 @@
+---
+- hosts: all
+  tasks:
+    - debug:
+        msg: play1
+- name: Deploy webservers
+  import_playbook: tasks/webservers.yaml
+- name: Deploy Databases
+  import_playbook: tasks/databases.yaml
+
