@@ -1,0 +1,11 @@
+[ubuntu]
+u1.local
+u2.local
+u3.local
+u4.local
+[webservers]
+u1.local
+u2.local
+[databases]
+u3.local
+u4.local
