@@ -1,0 +1,49 @@
+---
+- hosts: webservers
+  tasks:
+    - name: Copy file with owner and permissions
+      ansible.builtin.copy:
+        src: ./data.html
+        dest: /var/www/html/data.html
+        owner: www-data
+        group: www-data
+        mode: '0644'
+    - name: Create a directory if it does not exist
+      ansible.builtin.file:
+        path: /var/www/html/wordpress
+        state: directory
+        mode: '0755'
+    - name: Update modification and access time of given file
+      ansible.builtin.file:
+        path: /var/www/html/data.html
+        state: file
+        modification_time: now
+        access_time: now
+    - name: Recursively change ownership of a directory
+      ansible.builtin.file:
+        path: /var/www/html
+        state: directory
+        recurse: yes
+        owner: www-data
+        group: www-data
+    - name: Copy file with owner and permissions
+      ansible.builtin.copy:
+        src: ./data.html
+        dest: /var/www/html/wordpress/data.html
+        owner: www-data
+        group: www-data
+        mode: '0644'
+    - name: Remove file (delete file)
+      ansible.builtin.file:
+        path: /var/www/html/wordpress/data.html
+        state: absent
+    - name: Create a directory if it does not exist
+      ansible.builtin.file:
+        path: /var/www/html/drupal
+        state: directory
+        mode: '0755'
+    - name: Recursively remove directory
+      ansible.builtin.file:
+        path: /var/www/html/drupal
+        state: absent
+...
