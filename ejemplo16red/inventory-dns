@@ -1,0 +1,7 @@
+[ubuntu]
+u1.local
+u2.local
+[webservers]
+u1.local
+u2.local
+

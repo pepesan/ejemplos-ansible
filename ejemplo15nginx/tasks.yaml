@@ -1,0 +1,66 @@
+---
+- hosts: webservers
+  tasks:
+    - name: Instalando nginx
+      apt:
+        name: nginx
+        state: latest
+    - name: Servicio arrancado
+      service:
+        name: nginx
+        state: started
+        enabled: true
+    - name: Instalando elinks
+      apt:
+        name: elinks
+        state: latest
+    - name: Habilitar UFW
+      ufw:
+        state: enabled
+        policy: deny
+    - name: Habilitar el log
+      ufw:
+        logging: 'on'
+    - name: abrir el firewall para 22
+      ufw:
+        rule: allow
+        port: "22"
+        proto: tcp
+    - name: abrir el firewall para 80
+      ufw:
+        rule: allow
+        port: "80"
+        proto: tcp
+    - name: abrir el firewall para 443
+      ufw:
+        rule: allow
+        port: "443"
+        proto: tcp
+    - name: Copia el fichero default
+      ansible.builtin.copy:
+        src: default
+        dest: /etc/nginx/sites-available/default
+        owner: root
+        group: root
+        mode: '0644'
+    - name: Copia el fichero index.html
+      ansible.builtin.copy:
+        src: index.html
+        dest: /var/www/html/index.html
+        owner: www-data
+        group: www-data
+        mode: '0644'
+    - name: Servicio arrancado
+      service:
+        name: nginx
+        state: restarted
+        enabled: true
+    # Gather status info from nginx on localhost
+    - name: Get current http stats
+      community.general.nginx_status_info:
+        url: http://localhost/nginx_status
+      register: result
+    #- name: show debug
+    #  ansible.builtin.debug:
+    #    var: output
+...
