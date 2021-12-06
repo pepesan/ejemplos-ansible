@@ -1,0 +1,44 @@
+---
+- hosts: local-docker
+  tasks:
+    - name: Install Docker Module for Python
+      pip:
+        name: docker
+    - name: Pull an image
+      community.docker.docker_image:
+        name: nginx:latest
+        source: pull
+    - name: deploy nginx docker container
+      community.docker.docker_container:
+        image: nginx:latest
+        name: nginx
+        state: started
+        restart: yes
+        ports:
+          - "80:80"
+    - name: destroy nginx docker container
+      community.docker.docker_container:
+        name: nginx
+        state: absent
+    - name: Create a volume
+      community.docker.docker_volume:
+        name: nginx-html-volume
+    - name: deploy nginx docker container with volume and ports
+      community.docker.docker_container:
+        image: nginx:latest
+        name: nginx
+        state: started
+        restart: yes
+        ports:
+          - "80:80"
+        volumes:
+          - "nginx-html-volume:/var/www/html:rw"
+    - name: destroy a volume
+      community.docker.docker_volume:
+        name: nginx-html-volume
+        state: absent
+    - name: destroy nginx docker container
+      community.docker.docker_container:
+        name: nginx
+        state: absent
+...
