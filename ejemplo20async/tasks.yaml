@@ -1,0 +1,9 @@
+---
+- hosts: red
+  tasks:
+    - name: Simulate long running op (5 sec), wait for up to 15 sec, poll every 1 sec
+      command: /bin/sleep 5
+      async: 15
+      poll: 0
+...
+
