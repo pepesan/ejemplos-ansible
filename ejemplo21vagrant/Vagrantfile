@@ -8,12 +8,16 @@
 # backwards compatibility). Please don't change it unless you know what
 # you're doing.
 Vagrant.configure("2") do |config|
-  config.vm.boot_timeout=12000
+  #config.vm.boot_timeout=12000
   # add new hosts, vagrant boxes and give ip to machines
-  config.vm.define "ubuntu" do |ubuntu|
-    ubuntu.vm.hostname="ubuntu"
-    ubuntu.vm.box="bento/ubuntu-20.04"
-    ubuntu.vm.network "private_network", ip:"192.168.33.10"
+  config.ssh.insert_key = false
+  config.vm.provider :virtualbox do |vb|
+    vb.customize ["modifyvm", :id, "--memory", "256"]
+  end
+  config.vm.define "centos" do |ubuntu|
+    ubuntu.vm.hostname="centos"
+    ubuntu.vm.box="geerlingguy/centos7"
+    ubuntu.vm.network "private_network", ip:"192.168.60.7"
   end
 end
 VAGRANTFILE_API_VERSION = "2"

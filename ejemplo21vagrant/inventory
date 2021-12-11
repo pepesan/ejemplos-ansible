@@ -1,6 +1,8 @@
 # Lines beginning with a # are comments, and are only included for
 # illustration. These comments are overkill for most inventory files.
 # Application servers
+[centos]
+192.168.60.7
 [app]
 192.168.60.4
 192.168.60.5
