@@ -1,6 +1,8 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
+
+
 # All Vagrant configuration is done below. The "2" in Vagrant.configure
 # configures the configuration version (we support older styles for
 # backwards compatibility). Please don't change it unless you know what
@@ -13,4 +15,29 @@ Vagrant.configure("2") do |config|
     ubuntu.vm.box="bento/ubuntu-20.04"
     ubuntu.vm.network "private_network", ip:"192.168.33.10"
   end
+end
+VAGRANTFILE_API_VERSION = "2"
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+    config.ssh.insert_key = false
+    config.vm.provider :virtualbox do |vb|
+        vb.customize ["modifyvm", :id, "--memory", "256"]
+    end
+    # Application server 1.
+    config.vm.define "app1" do |app|
+        app.vm.hostname = "orc-app1.dev"
+        app.vm.box = "geerlingguy/centos7"
+        app.vm.network :private_network, ip: "192.168.60.4"
+    end
+    # Application server 2.
+    config.vm.define "app2" do |app|
+        app.vm.hostname = "orc-app2.dev"
+        app.vm.box = "geerlingguy/centos7"
+        app.vm.network :private_network, ip: "192.168.60.5"
+    end
+    # Database server.
+    config.vm.define "db" do |db|
+        db.vm.hostname = "orc-db.dev"
+        db.vm.box = "geerlingguy/centos7"
+        db.vm.network :private_network, ip: "192.168.60.6"
+    end
 end
