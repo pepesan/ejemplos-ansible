@@ -1,17 +1,19 @@
 ---
-- hosts: webservers
+- name: Instalación de Nginx
+  hosts: webservers
+  #remote_user: root
   tasks:
-    - name: Instalando nginx
-      apt:
+    - name: Instalando el paquete nginx
+      package:
         name: nginx
         state: latest
-    - name: Servicio arrancado
-      service:
+    - name: Servicio Nginx arrancado
+      service: #"name=nginx state=started enabled=true"
         name: nginx
         state: started
         enabled: true
     - name: Instalando elinks
-      apt:
+      package:
         name: elinks
         state: latest
     - name: Habilitar UFW
@@ -37,7 +39,7 @@
         port: "443"
         proto: tcp
     - name: Copia el fichero index.html
-      ansible.builtin.copy:
+      copy:
         src: index.html
         dest: /var/www/html/index.html
         owner: www-data
