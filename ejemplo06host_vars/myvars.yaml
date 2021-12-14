@@ -1,0 +1,6 @@
+---
+- hosts: databases
+  tasks:
+    - name: Debug vars
+      debug : msg="{{database_name}}"
+...

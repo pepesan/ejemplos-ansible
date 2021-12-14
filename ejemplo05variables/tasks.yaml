@@ -1,5 +1,6 @@
 ---
-- hosts: databases
+- name: Install Databases
+  hosts: databases
   vars:
     - repo_software_packages:
         - software-properties-common
@@ -22,7 +23,7 @@
       apt: update_cache=yes
       ignore_errors: yes
     - name: Install Mariadb Requirements for {{ linux_distribution }} {{ distribution_release }}
-      apt:
+      package:
         name: "{{ repo_software_packages }}"
         state: present
     - name: Add MariaDB Repository Key for {{ linux_distribution }} {{ distribution_release }}
