@@ -1,0 +1,13 @@
+---
+- hosts: databases
+  tasks:
+    - name: Debug vars
+      debug : msg="{{ansible_facts.kernel_version}}"
+    - name: Debug vars
+      debug : msg="{{ansible_distribution}}"
+    - name: Debug vars
+      debug : msg="{{ansible_all_ipv4_addresses}}"
+    - name: Debug vars
+      debug : msg="{{ansible_default_ipv4}}"
+
+...
