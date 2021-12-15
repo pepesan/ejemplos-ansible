@@ -2,18 +2,18 @@
 - hosts: local-docker
   tasks:
     - name: Remove Docker packages
-      apt:
+      package:
         name: "{{item}}"
         state: absent
       loop: ['docker', 'docker-engine', 'docker.io', 'containerd', 'runc', 'docker-compose']
     - name: Install aptitude using apt
-      apt:
+      package:
         name: aptitude
         state: latest
         update_cache: yes
         force_apt_get: yes
     - name: Install required system packages
-      apt:
+      package:
         name: "{{ item }}"
         state: latest
         update_cache: yes
@@ -34,12 +34,12 @@
         update_cache: yes
       loop: [ 'docker-ce', 'docker-ce-cli', 'containerd.io']
     - name: Ensure docker service is started and enabled
-      ansible.builtin.service:
+      service:
         name: docker
         enabled: yes
         state: started
     - name: Ensure containerd service is started and enabled
-      ansible.builtin.service:
+      service:
         name: containerd
         enabled: yes
         state: started
