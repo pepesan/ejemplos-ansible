@@ -1,0 +1,12 @@
+---
+repo_software_packages:
+  - software-properties-common
+  - dirmngr
+  - apt-transport-https
+mariadb_packages:
+  - mariadb-server
+  - galera-4
+  - mariadb-backup
+  - mariadb-common
+key_url: https://yum.mariadb.org/RPM-GPG-KEY-MariaDB
+repo_url: http://yum.mariadb.org/10.5/centos8-amd64

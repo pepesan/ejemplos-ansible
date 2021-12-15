@@ -1,0 +1,14 @@
+---
+repo_software_packages:
+  - software-properties-common
+  - dirmngr
+  - apt-transport-https
+key_url: "https://mariadb.org/mariadb_release_signing_key.asc"
+repo_deb: "deb [arch=amd64] https://ftp.igh.cnrs.fr/pub/mariadb/repo/10.6/ubuntu"
+linux_distribution: Ubuntu
+distribution_release: focal
+mariadb_packages:
+  - mariadb-server
+  - mariadb-common
+  - python3-mysqldb
+  - python3-openssl

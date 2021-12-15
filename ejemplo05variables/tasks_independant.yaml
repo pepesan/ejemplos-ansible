@@ -1,0 +1,166 @@
+---
+- name: Install Databases
+  hosts: databases
+  vars_files:
+    - vars.yaml
+  tasks:
+    - name: Debug Distribution
+      debug: msg="{{ ansible_distribution }}"
+    - name: Debug Distro Family
+      debug: msg="{{ ansible_os_family }}"
+    - name: gather os specific variables
+      include_vars: "{{ item }}"
+      with_first_found:
+        - "vars-{{ ansible_os_family }}-{{ ansible_distribution }}-{{ ansible_distribution_major_version}}.yaml"
+        - "vars-{{ ansible_os_family }}-{{ ansible_distribution }}.yaml"
+        - "vars-{{ ansible_os_family }}.yaml"
+      tags: vars
+
+    - name: Update Debian repositories
+      package: update_cache=yes
+      ignore_errors: yes
+    - name: Install Mariadb Requirements for {{ ansible_distribution }} ({{ ansible_os_family }})
+      package:
+        name: "{{ repo_software_packages }}"
+        state: present
+      when: ansible_os_family == 'Debian'
+    - name: Add YUM Repository for Mariadb
+      yum_repository:
+        name: MariaDB
+        file: external_repos
+        description: MariaDB YUM repo
+        baseurl: "{{repo_url}}"
+        gpgcakey: "{{key_url}}"
+        gpgcheck: true
+      when: ansible_os_family == 'RedHat'
+    - name: Add MariaDB Repository Key for {{ linux_distribution }} {{ distribution_release }}
+      apt_key:
+        url: "{{ key_url }}"
+        state: present
+      when: ansible_os_family == 'Debian'
+    - name: Add MariaDB Repository for {{ linux_distribution }} {{ distribution_release }}
+      apt_repository:
+        repo: "{{ repo_deb }} {{ distribution_release }}  main"
+        state: present
+        filename: mariadb
+      when: ansible_os_family == 'Debian'
+
+    - name: Update repositories
+      apt: update_cache=yes
+      ignore_errors: yes
+      when: ansible_os_family == 'Debian'
+    - name: Install Mariadb server for {{ linux_distribution }} {{ distribution_release }}
+      package:
+        name: "{{ mariadb_packages }}"
+        state: present
+    - name: Servicio arrancado
+      service:
+        name: mariadb
+        state: started
+        enabled: true
+    - name: Habilitar UFW
+      ufw:
+        state: enabled
+        policy: deny
+      when: ansible_os_family == 'Debian'
+    - name: Habilitar el log
+      ufw:
+        logging: 'on'
+      when: ansible_os_family == 'Debian'
+    - name: abrir el firewall para 22
+      ufw:
+        rule: allow
+        port: "22"
+        proto: tcp
+      when: ansible_os_family == 'Debian'
+    - name: abrir el firewall para 3306
+      ufw:
+        rule: allow
+        port: "3306"
+        proto: tcp
+      when: ansible_os_family == 'Debian'
+    - name: Install Firewalld
+      package:
+        name: firewalld
+        state: present
+      when: ansible_os_family == 'RedHat'
+    - name: Install Firewalld
+      service:
+        name: firewalld
+        state: started
+        enabled: true
+      when: ansible_os_family == 'RedHat'
+    - name: open SSH Port
+      firewalld:
+        port: 22/tcp
+        permanent: yes
+        state: enabled
+      when: ansible_os_family == 'RedHat'
+    - name: open Mariadb Port
+      firewalld:
+        port: 3306/tcp
+        permanent: yes
+        state: enabled
+      when: ansible_os_family == 'RedHat'
+    - name: Install Required pip modules
+      pip:
+        name:
+          - PyMySQL
+        state: present
+        executable: pip3
+      when: ansible_os_family == 'RedHat'
+    - name: Set MariaDB root password for 127.0.0.1, localhost
+      mysql_user:
+        name: root
+        password: "{{ mysql_root_password }}"
+        host: "{{ item }}"
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
+        #login_unix_socket: "{{ mariadb_socket }}"
+        state: present
+      with_items:
+        - 127.0.0.1
+        - localhost
+      when: debian
+      #when: check_passwd_root.rc == 0
+      #notify: Flush Priviliges
+      when: ansible_os_family == 'Debian'
+    - name: Ensure root user can only login from localhost
+      mysql_user:
+        login_password: "{{ mysql_root_password }}"
+        check_implicit_admin: yes
+        name: root
+        host: "{{ item }}"
+        password: "{{ mysql_root_password }}"
+        state: present
+      with_items:
+        - localhost
+        - 127.0.0.1
+        - ::1
+      when: ansible_os_family == 'RedHat'
+    - name: Remove all anonymous user
+      mysql_user:
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
+        name: 'test'
+        host_all: yes
+        state: absent
+      #notify: Flush Priviliges
+    - name: Flush Priviliges
+      command: mysql -u root -p{{ mysql_root_password }} -e "FLUSH PRIVILEGES"
+    - name: Create Database
+      mysql_db:
+        name: "{{ database_name }}"
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
+        state: present
+
+    - name: Create mysql User defined database
+      mysql_user:
+        name: "{{ database_user }}"
+        password: "{{ database_password }}"
+        priv: '{{ database_name }}.*:{{ mysql.privileges }}'
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
+        state: present
+...
