@@ -11,12 +11,12 @@
     - name: gather os specific variables
       include_vars: "{{ item }}"
       with_first_found:
-        - "vars-{{ ansible_os_family }}-{{ ansible_distribution }}-{{ ansible_distribution_major_version}}.yaml"
+        - "vars-{{ ansible_os_family }}-{{ ansible_distribution }}-{{ ansible_distribution_major_version }}.yaml"
         - "vars-{{ ansible_os_family }}-{{ ansible_distribution }}.yaml"
         - "vars-{{ ansible_os_family }}.yaml"
       tags: vars
 
-    - name: Update Debian repositories
+    - name: Update Repositories
       package: update_cache=yes
       ignore_errors: yes
     - name: Install Mariadb Requirements for {{ ansible_distribution }} ({{ ansible_os_family }})
@@ -121,7 +121,6 @@
       with_items:
         - 127.0.0.1
         - localhost
-      when: debian
       #when: check_passwd_root.rc == 0
       #notify: Flush Priviliges
       when: ansible_os_family == 'Debian'
