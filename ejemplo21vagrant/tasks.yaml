@@ -1,5 +1,5 @@
 ---
-- hosts: all
+- hosts: db
   become: yes
   tasks:
     - name: ensure ntpd is at the latest version
