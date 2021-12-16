@@ -60,7 +60,6 @@
       community.general.nginx_status_info:
         url: http://localhost/nginx_status
       register: result
-    #- name: show debug
-    #  ansible.builtin.debug:
-    #    var: output
+    - name: show debug
+      debug: "msg={{result}}"
 ...
