@@ -3,17 +3,17 @@
   tasks:
     - name: Create a directory if it does not exist
       file:
-        path: /home/pepesan/deploy
+        path: /home/alumno/deploy
         state: directory
-        owner: pepesan
-        group: pepesan
+        owner: alumno
+        group: alumno
         mode: '0755'
     - name: copy Docker Compose files
       copy:
         src: ../files/{{ item }}
-        dest: /home/pepesan/deploy/{{ item }}
-        owner: pepesan
-        group: pepesan
+        dest: /home/alumno/deploy/{{ item }}
+        owner: alumno
+        group: alumno
         mode: '0744'
       loop:
         - docker-compose.yaml

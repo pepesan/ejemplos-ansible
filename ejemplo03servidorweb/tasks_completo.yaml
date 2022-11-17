@@ -7,6 +7,7 @@
       package:
         name: nginx
         state: latest
+        update_cache: yes
     - name: Servicio Nginx arrancado
       service: #"name=nginx state=started enabled=true"
         name: nginx

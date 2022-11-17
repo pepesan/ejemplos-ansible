@@ -8,6 +8,9 @@
         - apt-transport-https
     - key_url: "https://mariadb.org/mariadb_release_signing_key.asc"
     - repo_deb: "deb [arch=amd64] https://dlm.mariadb.com/repo/mariadb-server/10.9/repo/ubuntu"
+    - repo_deb_debug: "deb [arch=amd64,arm64] https://dlm.mariadb.com/repo/mariadb-server/10.9/repo/ubuntu"
+    - repo_deb_max_scale: "deb [arch=amd64,arm64] https://dlm.mariadb.com/repo/maxscale/latest/apt"
+    - repo_deb_tools: "deb [arch=amd64] http://downloads.mariadb.com/Tools/ubuntu"
     - linux_distribution: Ubuntu
     - distribution_release: jammy
     - mariadb_packages:
@@ -37,6 +40,27 @@
         filename: mariadb
         #register: addmariadbrepo
         #notify: Update repo cache
+    - name: Add MariaDB Repository debug for {{ linux_distribution }} {{ distribution_release }}
+      apt_repository:
+        repo: "{{ repo_deb_debug }} {{ distribution_release }}  main/debug"
+        state: present
+        filename: mariadb
+        #register: addmariadbrepo
+        #notify: Update repo cache
+    - name: Add MariaDB Repository MaxScale for {{ linux_distribution }} {{ distribution_release }}
+      apt_repository:
+        repo: "{{ repo_deb_max_scale }} {{ distribution_release }}  main"
+        state: present
+        filename: mariadb
+        #register: addmariadbrepo
+        #notify: Update repo cache
+    #- name: Add MariaDB Repository Tools for {{ linux_distribution }} {{ distribution_release }}
+    #  apt_repository:
+    #    repo: "{{ repo_deb_tools }} {{ distribution_release }}  main"
+    #    state: present
+    #    filename: mariadb
+    #    #register: addmariadbrepo
+    #    #notify: Update repo cache   
     - name: Update repositories
       apt: update_cache=yes
       ignore_errors: yes

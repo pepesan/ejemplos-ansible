@@ -1,5 +1,5 @@
 ---
-- hosts: local-docker
+- hosts: docker
   tasks:
     - name: Create a volume
       community.docker.docker_volume:
@@ -11,7 +11,7 @@
         state: present
     - name: deploy nginx docker container with volume, ports and network
       community.docker.docker_container:
-        image: nginx:latest
+        image: nginx:1.23.2
         name: nginx
         state: started
         restart: yes
