@@ -1,0 +1,27 @@
+---
+- hosts: webservers
+  tasks:
+    - name: Copia el fichero index.html modificado con variables
+      template:
+        src: index.html.j2
+        dest: /var/www/html/index.html
+        owner: www-data
+        group: www-data
+        mode: '0644'
+    - name: Copia el fichero de configuración
+      template:
+        src: 50-cloud-init.yaml.j2
+        dest: /etc/netplan/50-cloud-init.yaml
+        owner: root
+        group: root
+        mode: '0644'
+    - name: start netplan
+      shell: netplan apply
+    - name: Copia el fichero de configuración
+      template:
+        src: ejemplo.md.jinja
+        dest: /root/ejemplo.md
+        owner: root
+        group: root
+        mode: '0644'
+...

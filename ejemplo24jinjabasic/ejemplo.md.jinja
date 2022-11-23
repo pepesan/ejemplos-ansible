@@ -1,0 +1,37 @@
+# Ejemplo de fichero de Jinja2
+
+Variable foo.bar no existente: {{foo.bar}}
+## Procedimiento para foo.bar
+- comprueba si existe un atributo llamado bar con un getattr
+- Si no comprubea que hay un item bar en foo
+- Si no, debería devolver una objeto undefined
+Variable foo['bar'] no existente: {{foo.bar}}
+## Procedimiento para foo['bar']
+- comprueba si existe un item llamado bar con un __getitem__
+- Si no comprubea que hay un atributo bar en foo con getattr
+- Si no, debería devolver una objeto undefined
+
+### Si el objeto tiene un item y un atributo con el mismo nombre, el filtro attr busca sólo los atributos
+
+# Filtros
+Se usan para modificar las variables. Usan el símbolo | y pueden encadenarse. Existe un listado con los [filtros builtin](https://jinja.palletsprojects.com/en/3.1.x/templates/#builtin-filters)
+
+## default
+
+Filtro que se usa para definir un valor si la variable no viene predefinida, como un valor por defecto:
+{{ my_variable|default('my_variable is not defined') }}
+
+# items
+Devuelve un iterador de los items de un map. Excepto si la variable está sin definir que devuelve un iterador vacío.
+
+# tojson
+
+serializa un objeto a una cadena JSON, sólo para su uso en HTML
+
+
+
+
+# Tests
+
+## undefined
+Permite saber si una variable está definida
