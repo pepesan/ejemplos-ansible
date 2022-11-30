@@ -47,11 +47,11 @@
         filename: mariadb
         #register: addmariadbrepo
         #notify: Update repo cache
-    - name: Add MariaDB Repository MaxScale for {{ linux_distribution }} {{ distribution_release }}
-      apt_repository:
-        repo: "{{ repo_deb_max_scale }} {{ distribution_release }}  main"
-        state: present
-        filename: mariadb
+    #- name: Add MariaDB Repository MaxScale for {{ linux_distribution }} {{ distribution_release }}
+    #  apt_repository:
+    #    repo: "{{ repo_deb_max_scale }} {{ distribution_release }}  main"
+    #    state: present
+    #    filename: mariadb
         #register: addmariadbrepo
         #notify: Update repo cache
     #- name: Add MariaDB Repository Tools for {{ linux_distribution }} {{ distribution_release }}
