@@ -1,7 +1,8 @@
 [ubuntu]
-u1.local
-u2.local
+u1
+u2
 [webservers]
-u1.local
-u2.local
-
+u1
+u2
+[red]
+u3

@@ -5,7 +5,7 @@
       package:
         name: "{{item}}"
         state: absent
-      loop: ['docker', 'docker-engine', 'docker.io', 'containerd', 'runc', 'docker-compose']
+      loop: ['docker', 'docker-engine', 'docker.io', 'containerd', 'runc', 'docker-compose-plugin', 'docker-compose']
     - name: Install aptitude using apt
       package:
         name: aptitude
@@ -14,11 +14,20 @@
         force_apt_get: yes
     - name: Install required system packages
       package:
-        name: "{{ item }}"
+        name: 
+          - 'apt-transport-https'
+          - 'ca-certificates'
+          - 'curl'
+          - 'software-properties-common'
+          - 'python3-pip'
+          - 'virtualenv'
+          - 'python3-setuptools'
+          - 'gnupg'
+          - 'lsb-release'
         state: latest
-        update_cache: yes
-      loop: [ 'apt-transport-https', 'ca-certificates', 'curl', 'software-properties-common',
-      'python3-pip', 'virtualenv', 'python3-setuptools', 'gnupg', 'lsb-release']
+        #update_cache: yes
+      #loop: [ 'apt-transport-https', 'ca-certificates', 'curl', 'software-properties-common',
+      #'python3-pip', 'virtualenv', 'python3-setuptools', 'gnupg', 'lsb-release']
     - name: Add Docker GPG apt Key
       apt_key:
         url: https://download.docker.com/linux/ubuntu/gpg
@@ -31,8 +40,8 @@
       apt:
         name: "{{ item }}"
         state: latest
-        update_cache: yes
-      loop: [ 'docker-ce', 'docker-ce-cli', 'containerd.io']
+        #update_cache: yes
+      loop: [ 'docker-ce', 'docker-ce-cli', 'containerd.io','docker-compose-plugin', 'docker-compose']
     - name: Ensure docker service is started and enabled
       service:
         name: docker

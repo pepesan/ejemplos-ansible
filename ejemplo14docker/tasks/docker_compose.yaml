@@ -1,5 +1,5 @@
 ---
-- hosts: local-docker
+- hosts: docker
   tasks:
     - name: Create a directory if it does not exist
       file:
@@ -19,17 +19,17 @@
         - docker-compose.yaml
     - name: deploy Docker Compose stack
       docker_compose:
-        project_src: /home/pepesan/deploy
+        project_src: /home/alumno/deploy
       register: output
     - name: show debug
       ansible.builtin.debug:
         var: output
-    - name: Stop all services
-      community.docker.docker_compose:
-        project_src: /home/pepesan/deploy
-        stopped: yes
-      register: output
-    - name: show debug
-      ansible.builtin.debug:
-        var: output
+    #- name: Stop all services
+    #  community.docker.docker_compose:
+    #    project_src: /home/pepesan/deploy
+    #    stopped: yes
+    #  register: output
+    #- name: show debug
+    #  ansible.builtin.debug:
+    #    var: output
 ...
