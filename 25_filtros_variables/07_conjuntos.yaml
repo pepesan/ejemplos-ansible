@@ -1,0 +1,24 @@
+---
+- hosts: localhost
+  connection: local
+  vars:
+    - list1: [1, 2, 5, 1, 3, 4, 10]
+    - list2: [1, 2, 3, 4, 5, 11, 99]
+  tasks:
+    # conjuntos
+    - name: Unique 01
+      debug:
+        msg: "{{ list1 | unique }}"
+    - name: Union 02
+      debug:
+        msg: "{{ list1 | union(list2) }}"
+    - name: Intersección 03
+      debug:
+        msg: "{{ list1 | intersect(list2) }}"
+    - name: Diferencias 04 Elementos que existen en 1 pero no es 2
+      debug:
+        msg: "{{ list1 | difference(list2) }}"
+    - name: Diferencias 05 Elementos que existen sólo en cada lista
+      debug:
+        msg: "{{ list1 | symmetric_difference(list2) }}"
+...

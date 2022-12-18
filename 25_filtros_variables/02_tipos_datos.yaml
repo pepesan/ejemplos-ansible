@@ -1,0 +1,54 @@
+---
+- hosts: localhost
+  connection: local
+  vars:
+    - some_variable: 0
+    - enabled: true
+    - cadena: "valor"
+    - cadena_bool: "true"
+    - nulled: null
+    - tags:
+        Application: payment
+        Environment: dev
+    - files:
+        users: /etc/passwd
+        groups: /etc/group
+    - lista_tags:
+      - key: Application
+        value: payment
+      - key: Environment
+        value: dev
+    - fruits:
+        - fruit: apple
+          color: red
+        - fruit: pear
+          color: yellow
+        - fruit: grapefruit
+          color: yellow
+  tasks:
+    # type_debug
+    - name: tipo de la variable
+      debug:
+        msg: "{{ some_variable | type_debug }}"
+    - name: tipo de la variable
+      debug:
+        msg: "{{ cadena | type_debug }}"
+    # tranformación de diccionatios en listas
+    - name: de diccionario a listado
+      debug:
+        msg: "{{ tags | dict2items }}"
+    - name: de diccionario a listado
+      debug:
+        msg: "{{ files | dict2items(key_name='file', value_name='path') }}"
+    # tranformación listas  a diccionarios
+    - name: de diccionario a listado
+      debug:
+        msg: "{{ lista_tags | items2dict }}"
+    - name: de diccionario a listado
+      debug:
+        msg: "{{ fruits | items2dict(key_name='fruit', value_name='color') }}"
+    # casting forzado
+    - debug:
+        msg: "Es un booleano"
+      when: cadena_bool | bool
+...

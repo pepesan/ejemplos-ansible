@@ -1,0 +1,126 @@
+---
+- hosts: localhost
+  connection: local
+  vars:
+    - keys_list:
+      - one
+      - two
+    - values_list:
+      - apple
+      - orange
+    - families:
+        - surname: Smith
+          children:
+            - name: Mike
+              age: 4
+            - name: Kate
+              age: 7
+        - surname: Sanders
+          children:
+            - name: Pete
+              age: 12
+            - name: Sara
+              age: 17
+    - users:
+        - name: alice
+          authorized:
+            - /tmp/alice/onekey.pub
+            - /tmp/alice/twokey.pub
+          mysql:
+            password: mysql-password
+            hosts:
+              - "%"
+              - "127.0.0.1"
+              - "::1"
+              - "localhost"
+            privs:
+              - "*.*:SELECT"
+              - "DB1.*:ALL"
+          groups:
+            - wheel
+        - name: bob
+          authorized:
+            - /tmp/bob/id_rsa.pub
+          mysql:
+            password: other-mysql-password
+            hosts:
+              - "db1"
+            privs:
+              - "*.*:SELECT"
+              - "DB2.*:ALL"
+    - listado_a:
+        a: 1
+        b: 2
+    - listado_b:
+        c: 3
+        d: 4
+    - default:
+        a:
+          - default
+    - patch:
+        a:
+          - patch
+    - default_2:
+        a:
+          - 1
+          - 1
+          - 2
+          - 3
+    - patch_2:
+        a:
+          - 3
+          - 4
+          - 5
+          - 5
+    - default_3:
+        a:
+          a':
+            x: default_value
+            y: default_value
+            list:
+              - default_value
+        b:
+          - 1
+          - 1
+          - 2
+          - 3
+    - patch_3:
+        a:
+          a':
+            y: patch_value
+            z: patch_value
+            list:
+              - patch_value
+        b:
+          - 3
+          - 4
+          - 4
+          - key: value
+  tasks:
+    # random mac
+    - name: Random MAC addresses 01
+      debug:
+        msg: "{{ '52:54:00' | community.general.random_mac }}"
+    # =>  "52:54:00:8c:81:dc" o similar es random XD
+    - name: Random MAC addresses 02 usando un seed
+      debug:
+        msg: "{{ '52:54:00' | community.general.random_mac(seed=inventory_hostname) }}"
+    # =>  "52:54:00:86:ab:97" o similar es random XD
+    # random numeros
+    - name: Random desde listado 01
+      debug:
+        msg: "{{ ['a','b','c'] | random }}"
+    - name: Random desde numero 02
+      debug:
+        msg: "{{ 101 | random }}"
+    - name: Random desde numero 03
+      debug:
+        msg: "{{ 101 | random(step=10) }}"
+    - name: Random desde numero 04
+      debug:
+        msg: "{{ 101 | random(start=1, step=10) }}"
+    - name: Barajando una lista 05
+      debug:
+        msg: "{{ ['a','b','c'] | shuffle(seed=inventory_hostname) }}"
+
+...

@@ -1,0 +1,16 @@
+---
+- hosts: localhost
+  connection: local
+  vars:
+    - ip01: "129.168.0.1"
+    - hosts:
+        - "google.com"
+        - "debian.org"
+    - path: "/etc/fstab"
+    - source_path: "/etc/apt/source.list"
+  tasks:
+    # Manipulación de cadenas
+    - name: mete comentario de texto para plantillas
+      debug:
+        msg: '{{ "Plain style (default)" | comment }}'
+...

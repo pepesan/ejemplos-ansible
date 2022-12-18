@@ -1,0 +1,84 @@
+---
+- hosts: localhost
+  connection: local
+  vars:
+    - some_variable: 0
+    - enabled: true
+    - cadena: "valor"
+    - cadena_bool: "true"
+    - nulled: null
+    - tags:
+        Application: payment
+        Environment: dev
+    - files:
+        users: /etc/passwd
+        groups: /etc/group
+    - lista_tags:
+      - key: Application
+        value: payment
+      - key: Environment
+        value: dev
+    - fruits:
+        - fruit: apple
+          color: red
+        - fruit: pear
+          color: yellow
+        - fruit: grapefruit
+          color: yellow
+  tasks:
+    # salidas json o yaml
+    - name: to_json
+      debug:
+        msg: "{{ lista_tags | to_json }}"
+      register: result
+    - name: to file
+      copy:
+        content: "{{result}}"
+        dest: /tmp/file.json
+    - name: to_json
+      debug:
+        msg: "{{ lista_tags | to_nice_json }}"
+      register: result
+    - name: to file nice
+      copy:
+        content: "{{result}}"
+        dest: /tmp/file_nice.json
+    - name: to_yaml
+      debug:
+        msg: "{{ lista_tags | to_yaml }}"
+      register: result
+    - name: to file
+      copy:
+       content: "{{result}}"
+       dest: /tmp/file.yaml
+    - name: to_yaml
+      debug:
+        msg: "{{ lista_tags | to_nice_yaml }}"
+      register: result
+    - name: to file nice
+      copy:
+        content: "{{result}}"
+        dest: /tmp/file_nice.yaml
+    - name: to_yaml
+      debug:
+        msg: "{{ lista_tags | to_nice_yaml(indent=2) }}"
+      register: result
+    - name: to file nice
+      copy:
+        content: "{{result}}"
+        dest: /tmp/file_nice_2.yaml
+    - name: Register JSON output as a variable
+      ansible.builtin.shell: cat /tmp/file.json
+      register: result
+    - name: Set a variable
+      ansible.builtin.set_fact:
+        myvar: "{{ result.stdout | from_json }}"
+    - name: Register a file content as a variable
+      ansible.builtin.shell: cat /tmp/file.yaml
+      register: result
+    - name: Print the transformed variable
+      ansible.builtin.debug:
+        msg: '{{ item }}'
+      loop: '{{ result.stdout | from_yaml_all | list }}'
+
+...

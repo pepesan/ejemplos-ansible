@@ -1,0 +1,222 @@
+---
+- hosts: localhost
+  connection: local
+  vars:
+    - keys_list:
+      - one
+      - two
+    - values_list:
+      - apple
+      - orange
+    - families:
+        - surname: Smith
+          children:
+            - name: Mike
+              age: 4
+            - name: Kate
+              age: 7
+        - surname: Sanders
+          children:
+            - name: Pete
+              age: 12
+            - name: Sara
+              age: 17
+    - users:
+        - name: alice
+          authorized:
+            - /tmp/alice/onekey.pub
+            - /tmp/alice/twokey.pub
+          mysql:
+            password: mysql-password
+            hosts:
+              - "%"
+              - "127.0.0.1"
+              - "::1"
+              - "localhost"
+            privs:
+              - "*.*:SELECT"
+              - "DB1.*:ALL"
+          groups:
+            - wheel
+        - name: bob
+          authorized:
+            - /tmp/bob/id_rsa.pub
+          mysql:
+            password: other-mysql-password
+            hosts:
+              - "db1"
+            privs:
+              - "*.*:SELECT"
+              - "DB2.*:ALL"
+    - listado_a:
+        a: 1
+        b: 2
+    - listado_b:
+        c: 3
+        d: 4
+    - default:
+        a:
+          - default
+    - patch:
+        a:
+          - patch
+    - default_2:
+        a:
+          - 1
+          - 1
+          - 2
+          - 3
+    - patch_2:
+        a:
+          - 3
+          - 4
+          - 5
+          - 5
+    - default_3:
+        a:
+          a':
+            x: default_value
+            y: default_value
+            list:
+              - default_value
+        b:
+          - 1
+          - 1
+          - 2
+          - 3
+    - patch_3:
+        a:
+          a':
+            y: patch_value
+            z: patch_value
+            list:
+              - patch_value
+        b:
+          - 3
+          - 4
+          - 4
+          - key: value
+  tasks:
+    # combinando dos listas con zip
+    - name: Give me list combo of two lists
+      debug:
+        msg: "{{ [1,2,3,4,5,6] | zip(['a','b','c','d','e','f']) | list }}"
+    # => [[1, "a"], [2, "b"], [3, "c"], [4, "d"], [5, "e"], [6, "f"]]
+    - name: Give me shortest combo of two lists
+      ansible.builtin.debug:
+        msg: "{{ [1,2,3] | zip(['a','b','c','d','e','f']) | list }}"
+    # => [[1, "a"], [2, "b"], [3, "c"]]
+    - name: Give me longest combo of three lists , fill with X
+      ansible.builtin.debug:
+        msg: "{{ [1,2,3] | zip_longest(['a','b','c','d','e','f'], [21, 22, 23], fillvalue='X') | list }}"
+    # => [[1, "a", 21], [2, "b", 22], [3, "c", 23], ["X", "d", "X"], ["X", "e", "X"], ["X", "f", "X"]]
+    - name: Salida integrada con zip
+      debug:
+        msg: "{{ dict(keys_list | zip(values_list)) }}"
+    # => {
+    #        "one": "apple",
+    #        "two": "orange"
+    #    }
+    # Subelements
+    - name: List children
+      debug:
+        msg: "Family={{ item.0.surname }} Child={{ item.1.name }} Age={{ item.1.age }}"
+      with_subelements:
+        - "{{ families }}"
+        - children
+    - name: list groups for users that have them, don't error if groups key is missing
+      debug: var=item
+      loop: "{{ q('ansible.builtin.subelements', users, 'groups', {'skip_missing': True}) }}"
+    # combine
+    - name: Combine 01
+      debug:
+        msg: "{{ {'a':1, 'b':2} | combine({'b':3}) }}"
+    - name: Combine 02
+      debug:
+        msg: "{{ {'a':1, 'b':2} | combine({'b':3, 'c':4}) }}"
+    # con diccionarios se puede combinar
+    - name: Combine 03
+      debug:
+        msg: "{{ listado_a | combine(listado_b, list_merge='append') }}"
+    # con listados se puede combinar
+    - name: Combine 04
+      debug:
+        msg: "{{ listado_a | combine(listado_b, list_merge='prepend') }}"
+    - name: Combine 05
+      debug:
+        msg: "{{ default | combine(patch) }} "
+    - name: Combine 06 append
+      debug:
+        msg: "{{ default | combine(patch, list_merge='append') }} "
+    - name: Combine 07 preppend
+      debug:
+        msg: "{{ default | combine(patch, list_merge='prepend') }} "
+    - name: Combine 08 append_rp
+      debug:
+        msg: "{{ default_2 | combine(patch_2, list_merge='append_rp') }} "
+    - name: Combine 09 prepend_rp
+      debug:
+        msg: "{{ default_2 | combine(patch_2, list_merge='prepend_rp') }} "
+    - name: Combine 10 complex
+      debug:
+        msg: "{{ default_3 | combine(patch_3, recursive=True, list_merge='append_rp') }} "
+    # seleccionando valores de arrays y hashtables
+    - name: seleccionando valores 01
+      debug:
+        msg: "{{ [0,2] | map('extract', ['x','y','z']) | list }} "
+    - name: seleccionando valores 02
+      debug:
+        msg: "{{ ['x','y'] | map('extract', {'x': 42, 'y': 31}) | list }} "
+    # combinatoria de listados (permutaciones)
+    - name: Give me largest permutations (order matters)
+      ansible.builtin.debug:
+        msg: "{{ [1,2,3,4,5] | ansible.builtin.permutations | list }}"
+
+    - name: Give me permutations of sets of three
+      ansible.builtin.debug:
+        msg: "{{ [1,2,3,4,5] | ansible.builtin.permutations(3) | list }}"
+    - name: Give me combinations for sets of two
+      ansible.builtin.debug:
+        msg: "{{ [1,2,3,4,5] | ansible.builtin.combinations(2) | list }}"
+    - name: Generate multiple hostnames
+      ansible.builtin.debug:
+        msg: "{{ ['foo', 'bar'] | product(['com']) | map('join', '.') | join(',') }}"
+    # Datos Json
+    # Referencia: https://www.middlewareinventory.com/blog/ansible-playbook-read-json-file/
+    - name: Display the JSON file content
+      shell: cat config.json
+      register: result
+
+    - name: save the Json data to a Variable as a Fact
+      set_fact:
+        jsondata: "{{ result.stdout | from_json }}"
+    - name: show the fact
+      debug:
+        msg: "{{ jsondata }}"
+    - name: setDomainName
+      set_fact:
+        domain_name: "{{ jsondata | json_query(jmesquery) }}"
+      vars:
+        jmesquery: 'domain.name'
+    - name: show domain_name
+      debug:
+        msg: "{{ domain_name }}"
+    - name: setadmin_Listenport
+      set_fact:
+        admin_ListenPort: "{{ jsondata | json_query(jmesquery) }}"
+      vars:
+        jmesquery: 'domain.admin.listenport'
+    - name: show domain_name
+      debug:
+        msg: "{{ admin_ListenPort }}"
+    - name: Server Names
+      set_fact:
+        servernames: "{{ jsondata | json_query(jmesquery) }}"
+      vars:
+        jmesquery: '*.servers[*].name'
+    - name: Print all server names
+      debug:
+        msg: "{{ item}}"
+      with_items:
+        - "{{ servernames }}"
+...

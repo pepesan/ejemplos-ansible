@@ -1,0 +1,38 @@
+---
+- hosts: localhost
+  connection: local
+  vars:
+    - some_variable: 0
+    - enabled: true
+    - cadena: "valor"
+    - nulled: null
+  tasks:
+    - name: valor por defecto existente
+      debug:
+        msg: "{{ some_variable | default(5) }}"
+    - name: valor por defecto no existente
+      debug:
+        msg: "{{ some_variable_no_e | default(5) }}"
+    - name: Touch files with an optional mode
+      ansible.builtin.file:
+        dest: "{{ item.path }}"
+        state: touch
+        mode: "{{ item.mode | default(omit) }}"
+      loop:
+        - path: /tmp/foo
+        - path: /tmp/bar
+        - path: /tmp/baz
+          mode: "0444"
+    #- name: cancela si no existe variable
+    #  debug:
+    #    msg: "{{ variable | mandatory }}"
+    - name: if value sino otro
+      debug:
+        msg: "{{ enabled | ternary('restart', 'continue') }}"
+    - name: if value sino otro
+      debug:
+        msg: "{{ (enabled == true) | ternary('restart', 'continue') }}"
+    - name: if value sino otro sino un tercero
+      debug:
+        msg: "{{ nulled | ternary('no shutdown', 'shutdown', omit) }}"
+...

@@ -1,0 +1,60 @@
+---
+- hosts: localhost
+  connection: local
+  vars:
+    - keys_list:
+      - one
+      - two
+    - values_list:
+      - apple
+      - orange
+    - families:
+        - surname: Smith
+          children:
+            - name: Mike
+              age: 4
+            - name: Kate
+              age: 7
+        - surname: Sanders
+          children:
+            - name: Pete
+              age: 12
+            - name: Sara
+              age: 17
+    - listado_a:
+        a: 1
+        b: 2
+    - listado_b:
+        c: 3
+        d: 4
+    - listado:
+        - 1
+        - 2
+        - 3
+        - 4
+  tasks:
+    # valor mínimo
+    - name: Min 01
+      debug:
+        msg: "{{ listado | min }}"
+    # =>  "1"
+    - name: Min attribute 02 # 2.11 en adelante
+      debug:
+        msg: "{{ [{'val': 1}, {'val': 2}] | min(attribute='val') }}"
+    # =>  "1"
+    - name: Max 03
+      debug:
+        msg: "{{ listado | max }}"
+    - name: Max attribute 04 # 2.11 en adelante
+      debug:
+        msg: "{{ [{'val': 1}, {'val': 2}] | max(attribute='val') }}"
+    - name: Flatten 05
+      debug:
+        msg: "{{ [3, [4, 2] ] | flatten }}"
+    - name: Flatten 06
+      debug:
+        msg: "{{ [3, [4, [2]] ] | flatten(levels=1) }}"
+    - name: Flatten 07 # 2.11 en adelante
+      debug:
+        msg: "{{ [3, None, [4, [2]] ] | flatten(levels=1, skip_nulls=False) }}"
+...
