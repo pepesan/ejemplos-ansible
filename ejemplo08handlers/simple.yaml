@@ -1,0 +1,36 @@
+---
+- name: Verify apache installation
+  hosts: webservers
+  tasks:
+    - name: Ensure apache is at the latest version
+      ansible.builtin.apt:
+        name: nginx
+        state: latest
+    - name: Copia el fichero index.html
+      copy:
+        src: index.html
+        dest: /var/www/html/index.html
+        owner: www-data
+        group: www-data
+        mode: '0644'
+      notify:
+      - Restart nginx
+    - name: Copia el fichero index.html
+      copy:
+        src: index.html
+        dest: /var/www/html/index.html
+        owner: www-data
+        group: www-data
+        mode: '0644'
+      notify:
+      - Restart nginx
+    - name: Ensure apache is running
+      ansible.builtin.service:
+        name: nginx
+        state: started
+
+  handlers:
+    - name: Restart nginx
+      ansible.builtin.service:
+        name: nginx
+        state: restarted

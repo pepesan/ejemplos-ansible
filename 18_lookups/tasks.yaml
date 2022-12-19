@@ -1,5 +1,5 @@
 ---
-- hosts: ubuntu
+- hosts: otra
   tasks:
     - name: muestra /etc/hostname
       debug:

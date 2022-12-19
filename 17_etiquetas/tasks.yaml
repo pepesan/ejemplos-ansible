@@ -15,7 +15,7 @@
         var: ansible_hostname
     - name: Set a hostname
       hostname:
-        name: u1
+        name: u3
       tags:
       - hostname
     - name: Copia el fichero de configuración

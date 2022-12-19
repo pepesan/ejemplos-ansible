@@ -1,6 +1,6 @@
 #!/bin/bash
 
-file="/home/pepesan/count.cnt"
+file="/home/alumno/count.cnt"
 
 if [ -e ${file} ]; then
     count=$(cat ${file})
