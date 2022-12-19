@@ -1,0 +1,25 @@
+---
+- hosts: localhost
+  connection: local
+  vars:
+    - ip01: "129.168.0.1"
+    - cadena: "texto"
+    - codificado: "dGV4dG8="
+    - hosts:
+        - "google.com"
+        - "debian.org"
+    - path: "/etc/fstab"
+    - csv_string : "1,2,3"
+    - source_path: "/etc/apt/source.list"
+  tasks:
+    # Manejo UUID
+    - name: To create a namespaced UUIDv5 using the default Ansible namespace ‘361E6D51-FAEC-444A-9079-341386DA8E2E’
+      debug:
+        msg: "{{ cadena | to_uuid }}"
+    - name: To create a namespaced UUIDv5
+      debug:
+        msg: "{{ cadena | to_uuid(namespace='11111111-2222-3333-4444-555555555555') }}"
+    - name: manejo de montajes
+      debug:
+        msg: "{{ ansible_mounts | map(attribute='mount') | join(',') }}"
+...

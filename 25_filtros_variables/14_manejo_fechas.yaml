@@ -1,0 +1,31 @@
+---
+- hosts: localhost
+  connection: local
+  vars:
+    - ip01: "129.168.0.1"
+    - cadena: "texto"
+    - codificado: "dGV4dG8="
+    - hosts:
+        - "google.com"
+        - "debian.org"
+    - path: "/etc/fstab"
+    - csv_string : "1,2,3"
+    - source_path: "/etc/apt/source.list"
+  tasks:
+    # Manejo fechas
+    - name: Get total amount of seconds between two dates
+      debug:
+        msg: "{{ (('2016-08-14 20:00:12' | to_datetime) - ('2015-12-25' | to_datetime('%Y-%m-%d'))).total_seconds()  }}"
+    - name: get amount of days between two dates
+      debug:
+        msg: "{{ (('2016-08-14 20:00:12' | to_datetime) - ('2015-12-25' | to_datetime('%Y-%m-%d'))).days  }}"
+    - name: hora con formato fechas
+      debug:
+        msg: "{{ '%Y-%m-%d %H:%M:%S' | strftime }}"
+    - name: hora con formato fechas desde la máquina
+      debug:
+        msg: "{{ '%Y-%m-%d %H:%M:%S' | strftime(ansible_date_time.epoch) }}"
+    - name: hora con formato fechas desde la máquina formato UTC
+      debug:
+        msg: "{{ '%H:%M:%S' | strftime(utc=True) }}"
+...

@@ -1,0 +1,94 @@
+---
+- hosts: localhost
+  connection: local
+  vars:
+    - ip01: "129.168.0.1"
+    - cadena: "texto"
+    - codificado: "dGV4dG8="
+    - hosts:
+        - "google.com"
+        - "debian.org"
+    - path: "/etc/fstab"
+    - csv_string : "1,2,3"
+    - source_path: "/etc/apt/source.list"
+    - test_service_name: "test_service"
+    - test_namespace: "test_namespace"
+  tasks:
+    # Manejo kubernetes
+    - name: Install kubernetes python package
+      ansible.builtin.pip:
+        name: kubernetes
+    - name: Install jsonpatch python package
+      ansible.builtin.pip:
+        name: jsonpatch
+    - name: Install PyYAML python package
+      ansible.builtin.pip:
+        name: PyYAML
+    - name: Create a k8s namespace
+      kubernetes.core.k8s:
+        name: testing
+        api_version: v1
+        kind: Namespace
+        state: present
+    - name: deploy services
+      k8s:
+        state: present
+        definition: "{{ lookup('template', item) | from_yaml }}"
+      with_fileglob:
+          - ./*_deployment.j2
+    - name: copying file with playbook
+      copy:
+        src: ./templates/pod.yaml
+        dest: /tmp/pod.yaml
+    - name: "Create a pod"
+      k8s:
+        state: present
+        namespace: testing
+        src: /tmp/pod.yaml
+    - name: copying file with playbook
+      copy:
+        src: ./templates/deployment.yaml
+        dest: /tmp/deployment.yaml
+    - name: "Create a deployment"
+      k8s:
+        state: present
+        namespace: testing
+        src: /tmp/deployment.yaml
+    - name: Remove an existing pod object
+      kubernetes.core.k8s:
+        state: absent
+        api_version: v1
+        kind: Deployment
+        namespace: testing
+        name: nginx-deployment
+    - name: Remove an existing pod object
+      kubernetes.core.k8s:
+        state: absent
+        api_version: v1
+        kind: Pod
+        namespace: testing
+        name: nginx
+    - name: Fetch all deployments
+      set_fact:
+        deployments: "{{ query('kubernetes.core.k8s', kind='Deployment', namespace='testing', resource_name='nginx-deployment') }}"
+      register: result
+    - name: salida despliegues
+      debug:
+        msg: "{{ result }}"
+    # Use the “k8s_config_resource_name” filter to obtain the name of a Kubernetes ConfigMap or Secret, including its hash:
+    # {{ configmap_resource_definition | kubernetes.core.k8s_config_resource_name }}
+#    my_secret:
+#      kind: Secret
+#      metadata:
+#        name: my_secret_name
+#
+#    deployment_resource:
+#      kind: Deployment
+#      spec:
+#        template:
+#          spec:
+#            containers:
+#              - envFrom:
+#                  - secretRef:
+#                      name: { { my_secret | kubernetes.core.k8s_config_resource_name } }
+...
