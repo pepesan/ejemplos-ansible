@@ -193,6 +193,8 @@
     - name: show the fact
       debug:
         msg: "{{ jsondata }}"
+    # para el json_query
+    # ansible-galaxy collection install community.general
     - name: setDomainName
       set_fact:
         domain_name: "{{ jsondata | json_query(jmesquery) }}"
@@ -219,4 +221,7 @@
         msg: "{{ item}}"
       with_items:
         - "{{ servernames }}"
+    - name: Install jmespath python package
+      ansible.builtin.pip:
+        name: jmespath
 ...
