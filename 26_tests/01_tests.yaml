@@ -1,0 +1,238 @@
+---
+- hosts: localhost
+  connection: local
+  vars:
+    - ip01: "129.168.0.1"
+    - cadena: "texto"
+    - codificado: "dGV4dG8="
+    - booleano: true
+    - nobooleano: "false"
+    - mypep440version: '2.14.0rc1'
+    - hosts:
+        - "google.com"
+        - "debian.org"
+    - path: "/etc/fstab"
+    - csv_string : "1,2,3"
+    - file_path: "/etc/apt/sources.list"
+    - dir_path: "/etc/apt"
+    - url: "https://example.com/users/foo/resources/bar"
+    - variable: !vault |
+        $ANSIBLE_VAULT;1.2;AES256;dev
+        61323931353866666336306139373937316366366138656131323863373866376666353364373761
+        3539633234313836346435323766306164626134376564330a373530313635343535343133316133
+        36643666306434616266376434363239346433643238336464643566386135356334303736353136
+        6565633133366366360a326566323363363936613664616364623437336130623133343530333739
+        3039
+    - a: [ 1,2,3,4,5 ]
+    - b: [ 2,3 ]
+    - mylist:
+      - 1
+      - "{{ 3 == 3 }}"
+      - True
+    - myotherlist:
+      - False
+      - True
+    - lacp_groups:
+        - master: lacp0
+          network: 10.65.100.0/24
+          gateway: 10.65.100.1
+          dns4:
+            - 10.65.100.10
+            - 10.65.100.11
+          interfaces:
+            - em1
+            - em2
+
+        - master: lacp1
+          network: 10.65.120.0/24
+          gateway: 10.65.120.1
+          dns4:
+            - 10.65.100.10
+            - 10.65.100.11
+          interfaces:
+            - em3
+            - em4
+    - a_string: "A string"
+    - a_dictionary: { "a": "dictionary" }
+    - a_list: [ "a", "list" ]
+    - a_float: 1.01
+    - a_float_as_string: "1.01"
+    - an_integer: 1
+    - an_integer_as_string: "1"
+  tasks:
+    # Manejo de pruebas
+    - name: Comprobación de valor cifrado
+      debug:
+        msg: '{{ (variable is vault_encrypted) | ternary("Vault encrypted", "Not vault encrypted") }}'
+    - name: Comprobación de valor cifrado
+      debug:
+        msg: '{{ url }}'
+    - name: Comprobación de patron 01
+      debug:
+        msg: "Tiene users"
+      when: url is search("users")
+    - name: Comprobación de patron 02
+      debug:
+        msg: "algo entre users y resources"
+      when: url is match("https://example.com/users/.*/resources")
+    - name: Comprobación de patron 03
+      debug:
+        msg: "tiene example.com y foo"
+      when: url is regex("example\.com/\w+/foo")
+    - name: Probando booleanos 01
+      debug:
+        msg: "true"
+      when: booleano is truthy
+    - name: Probando booleanos 02
+      debug:
+        msg: "false"
+      when: nobooleano is falsy(convert_bool=True)
+    - name: Versión
+      debug:
+        msg: "{{ansible_facts['distribution_version']}}"
+    - name: Comprobando versiones 01
+      debug:
+        msg: "Mayor o igual que 22.04"
+      when: ansible_facts['distribution_version'] is version('22.04', '>=')
+      # otras comparaciones: <, lt, <=, le, >, gt, >=, ge, ==, =, eq, !=, <>, ne
+    - name: "Set version variables"
+      set_fact:
+        current_version: "1.58.2"
+        latest_version: "1.60.2"
+    - name: Comprobando versiones 02
+      debug:
+        msg: "{{ latest_version }} is newer than or equal to {{ current_version }}"
+      when: latest_version is version(current_version, '>=')
+    # parámetro strict
+    - name: Comprobando versiones 03
+      debug:
+        msg: "Mayor o igual que 22.04 estricto"
+      when: ansible_facts['distribution_version'] is version('22.04', '>=', strict = True)
+    # parámetro version_type incompatible con strict
+    #    loose
+    #    This type corresponds to the Python distutils.version.LooseVersion class. All version formats are valid for this type. The rules for comparison are simple and predictable, but may not always give expected results.
+    #
+    #    strict
+    #    This type corresponds to the Python distutils.version.StrictVersion class. A version number consists of two or three dot-separated numeric components, with an optional “pre-release” tag on the end. The pre-release tag consists of a single letter ‘a’ or ‘b’ followed by a number. If the numeric components of two version numbers are equal, then one with a pre-release tag will always be deemed earlier (lesser) than one without.
+    #
+    #    semver/semantic
+    #    This type implements the Semantic Version scheme for version comparison.
+    #
+    #    pep440
+    #    This type implements the Python PEP-440 versioning rules for version comparison. Added in version 2.14.
+    - name: Comprobando versiones 04
+      debug:
+        msg: "menor que versión pep440"
+      when: mypep440version is version('2.14.0', 'lt', version_type='pep440')
+    # Conjuntos
+    - name: Comprobando conjuntos 01
+      debug:
+        msg: "A includes B"
+      when: a is superset(b)
+    - name: Comprobando conjuntos 02
+      debug:
+        msg: "B is included in A"
+      when: b is subset(a)
+    # comprobaciones listado con de cadenas con contains
+    - name: Comprobando objetos 01
+      debug:
+        msg: "{{(lacp_groups|selectattr('interfaces', 'contains', 'em1')|first).master}}"
+    # Valores a true en listado
+    - name: Comprobando trues 01
+      debug:
+        msg: "all are true!"
+      when: mylist is all
+    - name: Comprobando trues 01
+      debug:
+        msg: "at least one is true"
+      when: myotherlist is any
+    # Sistema de ficheros
+    - name: Comprobando SF 01
+      debug:
+        msg: "path is a directory"
+      when: dir_path is directory
+    - name: Comprobando SF 02
+      debug:
+        msg: "path is a file"
+      when: file_path is file
+    - name: Comprobando SF 02
+      debug:
+        msg: "path already exists"
+      when: path is exists
+    - name: Comprobando SF 02
+      debug:
+        msg: "path is mounted"
+      when: dir_path is mount
+    # probando tamaños
+    - name: "Human Readable"
+      assert:
+        that:
+          - '"1.00 Bytes" == 1|human_readable'
+          - '"1.00 bits" == 1|human_readable(isbits=True)'
+          - '"10.00 KB" == 10240|human_readable'
+          - '"97.66 MB" == 102400000|human_readable'
+          - '"0.10 GB" == 102400000|human_readable(unit="G")'
+          - '"0.10 Gb" == 102400000|human_readable(isbits=True, unit="G")'
+      # resultado: { "changed": false, "msg": "All assertions passed" }
+    - name: "Human to Bytes"
+      assert:
+        that:
+          - "{{'0'|human_to_bytes}}        == 0"
+          - "{{'0.1'|human_to_bytes}}      == 0"
+          - "{{'0.9'|human_to_bytes}}      == 1"
+          - "{{'1'|human_to_bytes}}        == 1"
+          - "{{'10.00 KB'|human_to_bytes}} == 10240"
+          - "{{   '11 MB'|human_to_bytes}} == 11534336"
+          - "{{  '1.1 GB'|human_to_bytes}} == 1181116006"
+          - "{{'10.00 Kb'|human_to_bytes(isbits=True)}} == 10240"
+      # resultado: { "changed": false, "msg": "All assertions passed" }
+    # comprobaciones de estado tarea
+    - shell: /usr/bin/foo
+      register: result
+      ignore_errors: True
+    - name: Comprobando estado tarea 01
+      debug:
+        msg: "Ha fallado la anterior"
+      when: result is failed
+      # changed, succeeded, success, skipped
+    - name: "Comprobaciones de variables"
+      assert:
+        that:
+          # Note that a string is classed as also being "iterable", "sequence" and "mapping"
+          - a_string is string
+          # Note that a dictionary is classed as not being a "string", but is "iterable", "sequence" and "mapping"
+          - a_dictionary is not string and a_dictionary is mapping
+          # Note that a list is classed as not being a "string" or "mapping" but is "iterable" and "sequence"
+          - a_list is not string and a_list is not mapping and a_list is iterable
+    - name: "Comprobaciones de variables"
+      assert:
+        that:
+          # Both a_float and an_integer are "number", but each has their own type as well
+          - a_float is number and a_float is float
+          - an_integer is number and an_integer is integer
+
+          # Both a_float_as_string and an_integer_as_string are not numbers
+          - a_float_as_string is not number and a_float_as_string is string
+          - an_integer_as_string is not number and a_float_as_string is string
+
+          # a_float or a_float_as_string when cast to a float and then to a string should match the same value cast only to a string
+          - a_float | float | string == a_float | string
+          - a_float_as_string | float | string == a_float_as_string | string
+    - name: "Native Boolean interpretation"
+      loop:
+        - yes
+        - true
+        - True
+        - TRUE
+        - no
+        - No
+        - NO
+        - false
+        - False
+        - FALSE
+      assert:
+        that:
+          # Note that while other values may be cast to boolean values, these are the only ones which are natively considered boolean
+          # Note also that `yes` is the only case sensitive variant of these values.
+          - item is boolean
+...
