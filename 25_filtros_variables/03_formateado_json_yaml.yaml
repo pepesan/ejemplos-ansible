@@ -35,6 +35,9 @@
       copy:
         content: "{{result}}"
         dest: /tmp/file.json
+    - name: Install PyYAML python package
+      ansible.builtin.pip:
+        name: PyYAML
     - name: to_json
       debug:
         msg: "{{ lista_tags | to_nice_json }}"
@@ -71,10 +74,10 @@
       ansible.builtin.shell: cat /tmp/file.json
       register: result
     - name: Set a variable
-      ansible.builtin.set_fact:
+      set_fact:
         myvar: "{{ result.stdout | from_json }}"
     - name: Register a file content as a variable
-      ansible.builtin.shell: cat /tmp/file.yaml
+      shell: cat /tmp/file.yaml
       register: result
     - name: Print the transformed variable
       ansible.builtin.debug:

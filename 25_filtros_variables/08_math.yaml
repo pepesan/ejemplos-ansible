@@ -15,7 +15,7 @@
     - name: root (raiz cuadrada) 03
       debug:
         msg: "{{ 16| root }}"
-    - name: root (raiz cuadrática) 03
+    - name: root (raiz cuadrática) 04
       debug:
         msg: "{{ 16| root (4) }}"
 ...

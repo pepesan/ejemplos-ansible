@@ -1,15 +1,19 @@
 ---
-- hosts: databases
+- hosts: localhost
+  connection: local
   tasks:
     - name: debug ansible_facts.os_family
       debug:
         msg: "OS Family: {{ ansible_facts.os_family }}"
-    - name: Shut down Ubuntu flavored systems
-      shell: /sbin/shutdown -t now
+    - name: ejecuta comando condicialmente
+      shell: echo cosa >> fichero.txt
       when: ansible_facts['os_family'] == "Debian"
       register: result
     - name: debug result
       debug:
         var: result
         verbosity: 2
+    #- name: debug ansible_facts.os_family
+    #  debug:
+    #    msg: "{{ ansible_facts }}"
 ...
