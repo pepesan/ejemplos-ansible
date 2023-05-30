@@ -1,0 +1,35 @@
+---
+- hosts: docker
+  tasks:
+    - name: Create a directory if it does not exist
+      file:
+        path: /home/alumno/deploy
+        state: directory
+        owner: alumno
+        group: alumno
+        mode: '0755'
+    - name: copy Docker Compose files
+      copy:
+        src: ../files/{{ item }}
+        dest: /home/alumno/deploy/{{ item }}
+        owner: alumno
+        group: alumno
+        mode: '0744'
+      loop:
+        - docker-compose.yaml
+    - name: deploy Docker Compose stack
+      docker_compose:
+        project_src: /home/alumno/deploy
+      register: output
+    - name: show debug
+      ansible.builtin.debug:
+        var: output
+    #- name: Stop all services
+    #  community.docker.docker_compose:
+    #    project_src: /home/pepesan/deploy
+    #    stopped: yes
+    #  register: output
+    #- name: show debug
+    #  ansible.builtin.debug:
+    #    var: output
+...

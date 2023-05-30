@@ -1,0 +1,28 @@
+---
+- hosts: webservers
+  tasks:
+    - debug:
+        msg: play1
+    - name: with_list
+      ansible.builtin.debug:
+        msg: "{{ item }}"
+      with_list:
+        - one
+        - two
+    - name: with_list object
+      ansible.builtin.debug:
+        msg: "{{ item.dato }}"
+      with_list:
+        - one:
+          dato: "valor"
+        - two:
+          dato: "valor"
+    - name: Using dict2items
+      ansible.builtin.debug:
+        msg: "{{ item.key }} - {{ item.value }}"
+      loop: "{{ tag_data | dict2items }}"
+      vars:
+        tag_data:
+          Environment: dev
+          Application: payment
+...

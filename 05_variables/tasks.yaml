@@ -1,0 +1,132 @@
+---
+- name: Install Databases
+  hosts: databases
+  vars:
+    - repo_software_packages:
+        - software-properties-common
+        - dirmngr
+        - apt-transport-https
+    - key_url: "https://mariadb.org/mariadb_release_signing_key.asc"
+    - repo_deb: "deb [arch=amd64] https://dlm.mariadb.com/repo/mariadb-server/10.9/repo/ubuntu"
+    - repo_deb_debug: "deb [arch=amd64,arm64] https://dlm.mariadb.com/repo/mariadb-server/10.9/repo/ubuntu"
+    - repo_deb_max_scale: "deb [arch=amd64,arm64] https://dlm.mariadb.com/repo/maxscale/latest/apt"
+    - repo_deb_tools: "deb [arch=amd64] http://downloads.mariadb.com/Tools/ubuntu"
+    - linux_distribution: Ubuntu
+    - distribution_release: jammy
+    - mariadb_packages:
+      - mariadb-server
+      - mariadb-common
+      - python3-mysqldb
+      - python3-openssl
+  vars_files: # importación de variables desde fichero
+    - vars.yaml
+
+  tasks:
+    - name: Update repositories
+      apt: update_cache=yes
+      ignore_errors: yes
+    - name: Install Mariadb Requirements for {{ linux_distribution }} {{ distribution_release }}
+      package:
+        name: "{{ repo_software_packages }}"
+        state: present
+    - name: Add MariaDB Repository Key for {{ linux_distribution }} {{ distribution_release }}
+      apt_key:
+        url: "{{ key_url }}"
+        state: present
+    - name: Add MariaDB Repository for {{ linux_distribution }} {{ distribution_release }}
+      apt_repository:
+        repo: "{{ repo_deb }} {{ distribution_release }}  main"
+        state: present
+        filename: mariadb
+        #register: addmariadbrepo
+        #notify: Update repo cache
+    - name: Add MariaDB Repository debug for {{ linux_distribution }} {{ distribution_release }}
+      apt_repository:
+        repo: "{{ repo_deb_debug }} {{ distribution_release }}  main/debug"
+        state: present
+        filename: mariadb
+        #register: addmariadbrepo
+        #notify: Update repo cache
+    #- name: Add MariaDB Repository MaxScale for {{ linux_distribution }} {{ distribution_release }}
+    #  apt_repository:
+    #    repo: "{{ repo_deb_max_scale }} {{ distribution_release }}  main"
+    #    state: present
+    #    filename: mariadb
+        #register: addmariadbrepo
+        #notify: Update repo cache
+    #- name: Add MariaDB Repository Tools for {{ linux_distribution }} {{ distribution_release }}
+    #  apt_repository:
+    #    repo: "{{ repo_deb_tools }} {{ distribution_release }}  main"
+    #    state: present
+    #    filename: mariadb
+    #    #register: addmariadbrepo
+    #    #notify: Update repo cache   
+    - name: Update repositories
+      apt: update_cache=yes
+      ignore_errors: yes
+    - name: Install Mariadb server for {{ linux_distribution }} {{ distribution_release }}
+      apt:
+        name: "{{ mariadb_packages }}"
+        state: present
+    - name: Servicio arrancado
+      service:
+        name: mariadb
+        state: started
+        enabled: true
+    - name: Habilitar UFW
+      ufw:
+        state: enabled
+        policy: deny
+    - name: Habilitar el log
+      ufw:
+        logging: 'on'
+    - name: abrir el firewall para 22
+      ufw:
+        rule: allow
+        port: "22"
+        proto: tcp
+    - name: abrir el firewall para 3306
+      ufw:
+        rule: allow
+        port: "3306"
+        proto: tcp
+    - name: Set MariaDB root password for 127.0.0.1, localhost
+      mysql_user:
+        name: root
+        password: "{{ mysql_root_password }}"
+        host: "{{ item }}"
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
+        #login_unix_socket: "{{ mariadb_socket }}"
+        state: present
+      with_items:
+        - 127.0.0.1
+        - localhost
+      #when: check_passwd_root.rc == 0
+      #notify: Flush Priviliges
+    - name: Remove all anonymous user
+      mysql_user:
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
+        name: 'test'
+        host_all: yes
+        state: absent
+      #notify: Flush Priviliges
+    - name: Flush Priviliges
+      command: mysql -u root -p{{ mysql_root_password }} -e "FLUSH PRIVILEGES"
+    - name: Create Database
+      mysql_db:
+        name: "{{ database_name }}"
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
+        state: present
+
+    - name: Create mysql User defined database
+      mysql_user:
+        name: "{{ database_user }}"
+        password: "{{ database_password }}"
+        priv: '{{ database_name }}.*:{{ mysql.privileges }}'
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
+        state: present
+...

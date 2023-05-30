@@ -1,0 +1,49 @@
+---
+- name: Instalación de Nginx
+  hosts: webservers
+  #remote_user: root
+  tasks:
+    - name: Instalando el paquete nginx
+      package:
+        name: nginx
+        state: latest
+        update_cache: yes
+    - name: Servicio Nginx arrancado
+      service: #"name=nginx state=started enabled=true"
+        name: nginx
+        state: started
+        enabled: true
+    - name: Instalando elinks
+      package:
+        name: elinks
+        state: latest
+    - name: Habilitar UFW
+      ufw:
+        state: enabled
+        policy: deny
+    - name: Habilitar el log
+      ufw:
+        logging: 'on'
+    - name: abrir el firewall para 22
+      ufw:
+        rule: allow
+        port: "22"
+        proto: tcp
+    - name: abrir el firewall para 80
+      ufw:
+        rule: allow
+        port: "80"
+        proto: tcp
+    - name: abrir el firewall para 443
+      ufw:
+        rule: allow
+        port: "443"
+        proto: tcp
+    - name: Copia el fichero index.html
+      copy:
+        src: index.html
+        dest: /var/www/html/index.html
+        owner: www-data
+        group: www-data
+        mode: '0644'
+...

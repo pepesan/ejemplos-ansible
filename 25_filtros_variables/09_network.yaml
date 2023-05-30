@@ -1,0 +1,51 @@
+---
+- hosts: localhost
+  connection: local
+  vars:
+    - ip01: "129.168.0.1"
+    - cidr: '192.0.2.1/24'
+    - list_ips:
+        - 192.24.2.1
+        - host.fqdn
+        - ::1
+        - ''
+        - 192.168.32.0/24
+        - fe80::100/10
+        - 42540766412265424405338506004571095040/64
+        - True
+  tasks:
+    # Redes
+    # requiere el uso de:
+    # ansible-galaxy collection install ansible.netcommon
+    # y de pip3 install netaddr ó
+    - name: Install netaddr python package
+      ansible.builtin.pip:
+        name: netaddr
+    - name: check ip 01 # [DEPRECATION WARNING]: Use 'ansible.utils.ipaddr' module instead
+      debug:
+        msg: "{{ ip01 | ansible.netcommon.ipaddr }}"
+    # ansible-galaxy collection install ansible.utils
+    - name: check ip 02 # https://docs.ansible.com/ansible/latest/collections/ansible/utils/index.html
+      debug:
+        msg: "{{ ip01 | ansible.utils.ipaddr }}"
+    - name: filter ipv4 03
+      debug:
+        msg: "{{ list_ips |ansible.utils.ipv4 }}"
+    - name: filter ipv6 04
+      debug:
+        msg: "{{ list_ips |ansible.utils.ipv6 }}"
+    - name: filter "address" 05
+      debug:
+        msg: "{{ cidr |ansible.netcommon.ipaddr('address') }}"
+    # network clis filters
+    # https://docs.ansible.com/ansible/latest/network/user_guide/cli_parsing.html
+    - name: Run command and parse
+      ansible.utils.cli_parse:
+        command: ip addr show
+        parser:
+          name: ansible.netcommon.native
+        set_fact: interfaces
+    - name: salida fact
+      debug:
+        msg: "{{ interfaces }}"
+...

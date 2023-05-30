@@ -1,0 +1,10 @@
+[ubuntu]
+u1
+u2
+u3
+u4
+[webservers]
+u1
+u2
+[databases]
+u3

@@ -1,0 +1,60 @@
+---
+- hosts: localhost
+  connection: local
+  vars:
+    - ip01: "129.168.0.1"
+    - hosts:
+        - "google.com"
+        - "debian.org"
+    - path: "/etc/fstab"
+    - source_path: "/etc/apt/source.list"
+  tasks:
+    # Manipulación de texto
+    - name: mete comentario de texto para plantillas
+      debug:
+        msg: '{{ "Plain style (default)" | comment }}'
+    - name: mete bloque de comentario de texto para plantillas C
+      debug:
+        msg: '{{ "Plain style (default)" | comment("cblock") }}'
+    - name: mete bloque de comentario custom para plantillas
+      debug:
+        msg: "{{ 'Custom style' | comment('plain', prefix='#######\n#', postfix='#\n#######\n   ###\n    #') }}"
+    - name: URL encode
+      debug:
+        msg: "{{ 'Trollhättan' | urlencode }}"
+    - name: Dividiendo URL's  hostname 01
+      debug:
+        msg: "{{ 'http://user:password@www.acme.com:9000/dir/index.html?query=term#fragment' | urlsplit('hostname') }}"
+    - name: Dividiendo URL's  path 02
+      debug:
+        msg: "{{ 'http://user:password@www.acme.com:9000/dir/index.html?query=term#fragment' | urlsplit('path') }}"
+    # expresiones regulares
+    - name: Expresiones regulares 01
+      debug:
+        msg: "{{ 'server1/database42' | regex_search('database[0-9]+') }}"
+    - name: Expresiones regulares 02
+      debug:
+        msg: "{{ 'server1/database42' | regex_search('server([0-9]+)/database([0-9]+)', '\\1', '\\2') }}"
+    - name: Expresiones regulares 03
+      debug:
+        msg: "{{ 'Some DNS servers are 8.8.8.8 and 8.8.4.4' | regex_findall('\\b(?:[0-9]{1,3}\\.){3}[0-9]{1,3}\\b') }}"
+    - name: Expresiones regulares 04
+      debug:
+        msg: "{{ 'ansible' | regex_replace('^a.*i(.*)$', 'a\\1') }}"
+    - name: Expresiones regulares 05 Añade https al principio
+      debug:
+        msg: "{{ hosts | map('regex_replace', '^(.*)$', 'https://\\1') | list }}"
+    # nombres de ficheros y rutas
+    - name: files 01
+      debug:
+        msg: "{{ path | basename }}"
+    - name: files 02
+      debug:
+        msg: "{{ path | dirname }}"
+    - name: To get the real path of a link 03
+      debug:
+        msg: "{{ path | realpath }}"
+    - name: To get the root and extension of a path or file name 04
+      debug:
+        msg: "{{ source_path | basename | splitext }}"
+...

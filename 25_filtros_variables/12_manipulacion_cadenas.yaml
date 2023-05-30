@@ -1,0 +1,37 @@
+---
+- hosts: localhost
+  connection: local
+  vars:
+    - ip01: "129.168.0.1"
+    - cadena: "texto"
+    - codificado: "dGV4dG8="
+    - hosts:
+        - "google.com"
+        - "debian.org"
+    - path: "/etc/fstab"
+    - csv_string : "1,2,3"
+    - source_path: "/etc/apt/source.list"
+  tasks:
+    # Manipulación de cadenas
+    - name: añade comillas a la cadena
+      debug:
+        msg: "{{ cadena | quote }}"
+    - name: Run a shell command
+      ansible.builtin.shell: echo {{ cadena | quote }}
+      register: result
+    - name: saca salida
+      debug:
+        msg: "{{ result.stdout }}"
+    - name: join listado a cadena
+      debug:
+        msg: "{{ hosts | join(' ') }}"
+    - name: split cadena a listado
+      debug:
+        msg: "{{ csv_string | split(',') }}"
+    - name: salida base64 # ansible 2.11
+      debug:
+        msg: "{{ cadena | string | b64encode }}"
+    - name: salida base64 # ansible 2.11
+      debug:
+        msg: "{{ codificado | b64decode }}"
+...

@@ -1,0 +1,34 @@
+---
+- hosts: red
+  tasks:
+    - name: What is my ansible_facts
+      debug:
+        var: ansible_facts
+    - name: What is my ansible_facts.default_ipv4
+      debug:
+        var: ansible_facts.default_ipv4
+    - name: What is my ansible_facts.default_ipv4.address
+      debug:
+        var: ansible_facts.default_ipv4.address
+    - name: What is my ansible_hostname
+      debug:
+        var: ansible_hostname
+    - name: Set a hostname
+      hostname:
+        name: u3
+      tags:
+      - hostname
+    - name: Copia el fichero de configuración
+      ansible.builtin.copy:
+        src: 50-cloud-init.yaml
+        dest: /etc/netplan/50-cloud-init.yaml
+        owner: root
+        group: root
+        mode: '0644'
+      notify: start netplan
+      tags:
+      - copia
+  handlers:
+    - name: start netplan
+      shell: netplan apply
+...

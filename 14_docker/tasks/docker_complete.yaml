@@ -1,0 +1,39 @@
+---
+- hosts: docker
+  tasks:
+    - name: Create a volume
+      community.docker.docker_volume:
+        name: nginx-html-volume
+        state: present
+    - name: Create a network
+      community.docker.docker_network:
+        name: nginx
+        state: present
+    - name: deploy nginx docker container with volume, ports and network
+      community.docker.docker_container:
+        image: nginx:1.23.2
+        name: nginx
+        state: started
+        restart: yes
+        ports:
+          - "80:80"
+        volumes:
+          - "nginx-html-volume:/var/www/html:rw"
+        networks:
+          - name: nginx
+    #- name: Destroy nginx docker container
+    #  community.docker.docker_container:
+    #    name: nginx
+    #    state: absent
+    #- name: Destroy a volume
+    #  community.docker.docker_volume:
+    #    name: nginx-html-volume
+    #    state: absent
+    #- name: Destroy a network
+    #  community.docker.docker_network:
+    #    name: nginx
+    #    state: absent
+...
+
+
+

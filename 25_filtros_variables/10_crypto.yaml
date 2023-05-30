@@ -1,0 +1,31 @@
+---
+- hosts: localhost
+  connection: local
+  vars:
+    - ip01: "129.168.0.1"
+  tasks:
+    # Hash
+    - name: hash sha1 01
+      debug:
+        msg: "{{ 'test1' | hash('sha1') }}"
+    - name: hash md5 02
+      debug:
+        msg: "{{ 'test1' | hash('md5') }}"
+    - name: hash checksum 03
+      debug:
+        msg: "{{ 'test1' | checksum }}"
+    - name: Install passlib python package # [DEPRECATION WARNING]: Encryption using the Python crypt module is deprecated.
+      ansible.builtin.pip:
+        name: passlib
+    - name: hash sha512 04 # [DEPRECATION WARNING]: Encryption using the Python crypt module is deprecated.
+      debug:
+        msg: "{{ 'test1' | password_hash('sha512') }}"
+    - name: hash sha256 with salt 05 # [DEPRECATION WARNING]: Encryption using the Python crypt module is deprecated.
+      debug:
+        msg: "{{ 'test1' | password_hash('sha256', 'mysecretsalt') }}"
+    - name: An idempotent method to generate unique hashes per system is to use a salt that is consistent between runs 06
+      debug:
+        msg: "{{ 'secretpassword' | password_hash('sha512', 65534 | random(seed=inventory_hostname) | string) }}"
+    # falta ejemplo de filtro vault unvault
+
+...

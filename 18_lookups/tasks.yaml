@@ -1,0 +1,28 @@
+---
+- hosts: otra
+  tasks:
+    - name: muestra /etc/hostname
+      debug:
+        msg: hostname {{ lookup('file', '/etc/hostname') }}
+      tags:
+        - lookup
+    - name: lookup from file
+      debug: msg="{{lookup('file', '/etc/fstab')}}"
+      register: result
+      tags:
+        - lookup
+    - name: show result
+      debug:
+        msg: "{{result}}"
+    - name: count to 3
+      debug: msg={{item}}
+      with_items: [1, 2, 3]
+    - name: lookup splits variables by default
+      debug: msg="{{item}}"
+      loop: "{{ lookup('varnames', '.+', wantlist=True)  }}"
+      register: result
+    - name: show result
+      debug:
+        msg: "{{result}}"
+...
+
