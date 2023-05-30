@@ -1,0 +1,19 @@
+all:
+  hosts:
+    u1:
+    u2:
+    rs1:
+    rs2:
+ubuntu:
+  hosts:
+    u1:
+    u2:
+
+webservers:
+  hosts:
+    u1:
+    u2:
+rocky:
+  hosts:
+    rs1:
+    rs2:

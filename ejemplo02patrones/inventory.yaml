@@ -1,0 +1,23 @@
+all:
+  hosts:
+    u1:
+      ansible_host: 10.218.144.233
+    u2:
+      ansible_host: 10.218.144.221
+    rs1:
+      ansible_host: 10.218.144.247
+    rs2:
+      ansible_host: 10.218.144.246
+ubuntu:
+  hosts:
+    u1:
+    u2:
+
+webservers:
+  hosts:
+    u1:
+    u2:
+rocky:
+  hosts:
+    rs1:
+    rs2:
