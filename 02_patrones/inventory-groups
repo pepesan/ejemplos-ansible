@@ -1,0 +1,11 @@
+[all:children]
+ubuntu
+webservers
+
+[ubuntu]
+u1 ansible_host=192.168.1.10
+u2 ansible_host=192.168.1.11
+[webservers]
+u1 ansible_host=192.168.1.10
+u2 ansible_host=192.168.1.11
+

@@ -1,0 +1,16 @@
+all:
+  children:
+    group1:
+      hosts:
+        u1:
+          ansible_host: 192.168.1.10
+        u22:
+          ansible_host: 192.168.1.11
+    group2:
+      hosts:
+        u3:
+          ansible_host: 192.168.1.12
+    group3:
+      children:
+        - group1
+        - group2
