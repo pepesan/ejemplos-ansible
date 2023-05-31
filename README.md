@@ -1,3 +1,8 @@
 #Ejemplos de Ansible
 
-Para Rocky 8 y Ubuntu 22.04
+Para Rocky 8 y Ubuntu 22.04 
+
+## Temas
+- ansible.cfg
+- inventory
+- playbooks
