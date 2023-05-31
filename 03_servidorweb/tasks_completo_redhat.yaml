@@ -36,45 +36,29 @@
     - name: permit traffic in default zone for https service
       ansible.posix.firewalld:
         service: ssh
+        zone: public
         permanent: true
+        immediate: true
         state: enabled
-    - name: permit traffic in default zone for https service
+    - name: permit traffic in default zone for http service
       ansible.posix.firewalld:
         service: http
+        zone: public
         permanent: true
+        immediate: true
         state: enabled
     - name: permit traffic in default zone for https service
       ansible.posix.firewalld:
         service: https
+        zone: public
+        immediate: true
         permanent: true
         state: enabled
-    #- name: Habilitar UFW
-    #  ufw:
-    #    state: enabled
-    #    policy: deny
-    #- name: Habilitar el log
-    #  ufw:
-    #    logging: 'on'
-    #- name: abrir el firewall para 22
-    #  ufw:
-    #    rule: allow
-    #    port: "22"
-    #    proto: tcp
-    #- name: abrir el firewall para 80
-    #  ufw:
-    #    rule: allow
-    #    port: "80"
-    #    proto: tcp
-    #- name: abrir el firewall para 443
-    #  ufw:
-    #    rule: allow
-    #    port: "443"
-    #    proto: tcp
-    #- name: Copia el fichero index.html
-    #  copy:
-    #    src: index.html
-    #    dest: /var/www/html/index.html
-    #    owner: www-data
-    #    group: www-data
-    #    mode: '0644'
+    - name: Copia el fichero index.html
+      copy:
+        src: index.html
+        dest: /usr/share/nginx/html/index.html
+        owner: root
+        group: root
+        mode: '0644'
 ...
