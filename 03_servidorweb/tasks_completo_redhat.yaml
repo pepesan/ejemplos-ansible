@@ -1,0 +1,80 @@
+---
+- name: Instalación de Nginx
+  hosts: webservers-rocky
+  #remote_user: root
+  tasks:
+    - name: Instalando el paquete nginx
+      package:
+        name: nginx
+        state: latest
+        update_cache: yes
+    - name: Servicio Nginx arrancado
+      service: #"name=nginx state=started enabled=true"
+        name: nginx
+        state: started
+        enabled: true
+    #- name: Instalando elinks
+    #  package:
+    #    name: elinks
+    #    state: latest
+    - name: Install python package
+      ansible.builtin.pip:
+        name: firewall
+    - name: Install python firewall package
+      ansible.builtin.package:
+        name: python3-firewall
+        state: latest
+    - name: Install firewalld package
+      ansible.builtin.package:
+        name: firewalld
+        state: latest
+    - name: Install firewalld package
+      service:
+        name: firewalld
+        state: started
+        enabled: true
+    - name: permit traffic in default zone for https service
+      ansible.posix.firewalld:
+        service: ssh
+        permanent: true
+        state: enabled
+    - name: permit traffic in default zone for https service
+      ansible.posix.firewalld:
+        service: http
+        permanent: true
+        state: enabled
+    - name: permit traffic in default zone for https service
+      ansible.posix.firewalld:
+        service: https
+        permanent: true
+        state: enabled
+    #- name: Habilitar UFW
+    #  ufw:
+    #    state: enabled
+    #    policy: deny
+    #- name: Habilitar el log
+    #  ufw:
+    #    logging: 'on'
+    #- name: abrir el firewall para 22
+    #  ufw:
+    #    rule: allow
+    #    port: "22"
+    #    proto: tcp
+    #- name: abrir el firewall para 80
+    #  ufw:
+    #    rule: allow
+    #    port: "80"
+    #    proto: tcp
+    #- name: abrir el firewall para 443
+    #  ufw:
+    #    rule: allow
+    #    port: "443"
+    #    proto: tcp
+    #- name: Copia el fichero index.html
+    #  copy:
+    #    src: index.html
+    #    dest: /var/www/html/index.html
+    #    owner: www-data
+    #    group: www-data
+    #    mode: '0644'
+...
