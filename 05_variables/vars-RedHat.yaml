@@ -8,5 +8,14 @@ mariadb_packages:
   - galera-4
   - mariadb-backup
   - mariadb-common
-key_url: https://yum.mariadb.org/RPM-GPG-KEY-MariaDB
+key_url: https://supplychain.mariadb.com/MariaDB-Server-GPG-KEY
 repo_url: http://yum.mariadb.org/10.5/centos8-amd64
+linux_distribution: RedHat
+distribution_release: 8
+mariadb_socket: /run/mysqld/mysqld.sock
+mysql_root_password: test
+database_name: test
+database_user: test
+database_password: test
+mysql:
+  privileges: "ALL"

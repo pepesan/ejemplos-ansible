@@ -6,9 +6,16 @@ repo_software_packages:
 key_url: "https://mariadb.org/mariadb_release_signing_key.asc"
 repo_deb: "deb [arch=amd64] https://ftp.igh.cnrs.fr/pub/mariadb/repo/10.6/ubuntu"
 linux_distribution: Ubuntu
-distribution_release: focal
+distribution_release: jammy
 mariadb_packages:
   - mariadb-server
   - mariadb-common
   - python3-mysqldb
   - python3-openssl
+mariadb_socket: /run/mysqld/mysqld.sock
+mysql_root_password: test
+database_name: test
+database_user: test
+database_password: test
+mysql:
+  privileges: "ALL"

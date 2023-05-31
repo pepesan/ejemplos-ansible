@@ -1,8 +1,6 @@
 ---
 - name: Install Databases
   hosts: databases
-  vars_files:
-    - vars.yaml
   tasks:
     - name: Debug Distribution
       debug: msg="{{ ansible_distribution }}"
@@ -14,16 +12,23 @@
         - "vars-{{ ansible_os_family }}-{{ ansible_distribution }}-{{ ansible_distribution_major_version }}.yaml"
         - "vars-{{ ansible_os_family }}-{{ ansible_distribution }}.yaml"
         - "vars-{{ ansible_os_family }}.yaml"
+        - vars.yaml
       tags: vars
 
     - name: Update Repositories
       package: update_cache=yes
       ignore_errors: yes
+      when: ansible_os_family == 'Debian'
     - name: Install Mariadb Requirements for {{ ansible_distribution }} ({{ ansible_os_family }})
       package:
         name: "{{ repo_software_packages }}"
         state: present
       when: ansible_os_family == 'Debian'
+    - name: Import a key from a url
+      ansible.builtin.rpm_key:
+        state: present
+        key: https://supplychain.mariadb.com/MariaDB-Server-GPG-KEY
+      when: ansible_os_family == 'RedHat'
     - name: Add YUM Repository for Mariadb
       yum_repository:
         name: MariaDB
@@ -33,19 +38,28 @@
         gpgcakey: "{{key_url}}"
         gpgcheck: true
       when: ansible_os_family == 'RedHat'
-    - name: Add MariaDB Repository Key for {{ linux_distribution }} {{ distribution_release }}
-      apt_key:
+    # Tarea quitada en favor de get_url
+    #- name: Add MariaDB Repository Key for {{ linux_distribution }} {{ distribution_release }}
+    #  apt_key:
+    #    url: "{{ key_url }}"
+    #    state: present
+    #  when: ansible_os_family == 'Debian'
+    - name: Add mariadb apt repository key.
+      ansible.builtin.get_url:
         url: "{{ key_url }}"
-        state: present
+        dest: /etc/apt/trusted.gpg.d/mariadb.asc
+        mode: '0644'
+        force: true
       when: ansible_os_family == 'Debian'
     - name: Add MariaDB Repository for {{ linux_distribution }} {{ distribution_release }}
       apt_repository:
         repo: "{{ repo_deb }} {{ distribution_release }}  main"
         state: present
         filename: mariadb
+      ignore_errors: yes
       when: ansible_os_family == 'Debian'
 
-    - name: Update repositories
+    - name: Update repositories for Debian Distros
       apt: update_cache=yes
       ignore_errors: yes
       when: ansible_os_family == 'Debian'
@@ -79,6 +93,20 @@
         port: "3306"
         proto: tcp
       when: ansible_os_family == 'Debian'
+    - name: Install pip package
+      ansible.builtin.package:
+        name: python3-pip
+        state: latest
+      when: ansible_os_family == 'RedHat'
+    - name: Install python firewall package
+      ansible.builtin.pip:
+        name: firewall
+      when: ansible_os_family == 'RedHat'
+    - name: Install python firewall package rpm
+      ansible.builtin.package:
+        name: python3-firewall
+        state: latest
+      when: ansible_os_family == 'RedHat'
     - name: Install Firewalld
       package:
         name: firewalld
