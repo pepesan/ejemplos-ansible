@@ -1,12 +1,13 @@
 ---
-- hosts: localhost # ejecución en local
+- #hosts: docker
+  hosts: localhost # ejecución en local
   connection: local
   tasks:
     - name: Remove Docker packages
       package:
         name: "{{item}}"
         state: absent
-      loop: ['docker', 'docker-engine', 'docker.io', 'containerd', 'runc', 'docker-compose-plugin', 'docker-compose']
+      loop: ['docker', 'docker-engine', 'docker-doc', 'docker.io', 'containerd', 'runc', 'docker-compose-plugin', 'docker-compose', 'podman-docker']
     - name: Install aptitude using apt
       package:
         name: aptitude
@@ -30,9 +31,15 @@
       #loop: [ 'apt-transport-https', 'ca-certificates', 'curl', 'software-properties-common',
       #'python3-pip', 'virtualenv', 'python3-setuptools', 'gnupg', 'lsb-release']
     - name: Add Docker GPG apt Key
-      apt_key:
+      ansible.builtin.get_url:
         url: https://download.docker.com/linux/ubuntu/gpg
-        state: present
+        dest: /etc/apt/trusted.gpg.d/docker.asc
+        mode: '0644'
+        force: true
+    #- name: Add Docker GPG apt Key
+    #  apt_key:
+    #    url: https://download.docker.com/linux/ubuntu/gpg
+    #    state: present
     - name: Add Docker Repository
       apt_repository:
         repo: deb https://download.docker.com/linux/ubuntu jammy stable
@@ -42,7 +49,7 @@
         name: "{{ item }}"
         state: latest
         #update_cache: yes
-      loop: [ 'docker-ce', 'docker-ce-cli', 'containerd.io','docker-compose-plugin', 'docker-compose']
+      loop: [ 'docker-ce', 'docker-ce-cli', 'containerd.io','docker-compose-plugin', 'docker-buildx-plugin', 'docker-compose']
     - name: Ensure docker service is started and enabled
       service:
         name: docker
@@ -53,10 +60,10 @@
         name: containerd
         enabled: yes
         state: started
-    - name: Update apt and install docker-compose
-      apt:
-        name: docker-compose
-        state: latest
+    #- name: Update apt and install docker-compose
+    #  apt:
+    #    name: docker-compose
+    #    state: latest
     - name: Install Docker Module for Python
       pip:
         name: docker
