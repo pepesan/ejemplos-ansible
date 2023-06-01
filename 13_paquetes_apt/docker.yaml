@@ -1,5 +1,6 @@
 ---
-- hosts: docker
+- hosts: localhost # ejecución en local
+  connection: local
   tasks:
     - name: Remove Docker packages
       package:
@@ -63,7 +64,7 @@
       ansible.builtin.group:
         name: docker
         state: present
-    - name: Ensure the user 'pepesan' with a bash shell, appending the group 'docker' and 'pepesan' to the user's groups
+    - name: Ensure the user 'alumno' with a bash shell, appending the group 'docker' and 'pepesan' to the user's groups
       ansible.builtin.user:
         name: alumno
         shell: /bin/bash
