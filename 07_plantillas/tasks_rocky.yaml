@@ -1,0 +1,17 @@
+---
+- hosts: rocky
+  vars_files: # importación de variables desde fichero
+    - vars.yaml
+  tasks:
+    - name: Copia el fichero de configuración
+      template:
+        src: ifcfg-eth0.j2
+        dest: /etc/sysconfig/network-scripts/ifcfg-eth0
+        owner: root
+        group: root
+        mode: '0644'
+    - name: Restart network service
+      service:
+        name: network
+        state: restarted
+...
