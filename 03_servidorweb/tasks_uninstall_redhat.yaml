@@ -1,0 +1,15 @@
+---
+- name: Instalación de Nginx
+  hosts: webservers-rocky
+  #remote_user: root
+  tasks:
+    - name: Servicio Nginx apagado 
+      service: #"name=nginx state=started enabled=true"
+        name: nginx
+        state: stopped
+        enabled: false
+    - name: Desinstalando el paquete nginx
+      package:
+        name: nginx
+        state: absent
+...
