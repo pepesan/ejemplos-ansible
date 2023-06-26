@@ -8,3 +8,5 @@ Para Rocky 8 y Ubuntu 22.04
 - playbooks
 - variables
 - facts
+- Carga de ficheros de variables dependiendo de distribución
+

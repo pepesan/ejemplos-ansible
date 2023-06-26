@@ -1,10 +1,9 @@
 [ubuntu]
 u1
 u2
-
+u3
 [webservers]
 u1
 u2
 [databases]
 u3
-rs1

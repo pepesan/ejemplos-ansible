@@ -1,0 +1,79 @@
+---
+- name: Uninstall Databases
+  hosts: databases
+  vars:
+    - repo_software_packages:
+        - software-properties-common
+        - dirmngr
+        - apt-transport-https
+    - key_url: "https://mariadb.org/mariadb_release_signing_key.asc"
+    - repo_deb: "deb [arch=amd64] https://dlm.mariadb.com/repo/mariadb-server/10.9/repo/ubuntu"
+    - repo_deb_debug: "deb [arch=amd64,arm64] https://dlm.mariadb.com/repo/mariadb-server/10.9/repo/ubuntu"
+    - repo_deb_max_scale: "deb [arch=amd64,arm64] https://dlm.mariadb.com/repo/maxscale/latest/apt"
+    - repo_deb_tools: "deb [arch=amd64] http://downloads.mariadb.com/Tools/ubuntu"
+    - linux_distribution: Ubuntu
+    - distribution_release: jammy
+    - mariadb_packages:
+      - mariadb-server
+      - mariadb-common
+      - python3-mysqldb
+      - python3-openssl
+  vars_files: # importación de variables desde fichero
+    - vars.yaml
+
+  tasks:
+    - name: Habilitar UFW
+      ufw:
+        state: enabled
+        policy: deny
+    - name: Habilitar el log
+      ufw:
+        logging: 'on'
+    - name: abrir el firewall para 22
+      ufw:
+        rule: allow
+        port: "22"
+        proto: tcp
+    - name: cerrar el firewall para 3306
+      ufw:
+        rule: deny
+        port: "3306"
+        proto: tcp
+    - name: Servicio parado y quitado de arranque
+      service:
+        name: mariadb
+        state: stopped
+        enabled: false
+
+    - name: Uninstall Mariadb server for {{ linux_distribution }} {{ distribution_release }}
+      apt:
+        name: "{{ mariadb_packages }}"
+        state: absent
+    - name: Uninstall Mariadb Requirements for {{ linux_distribution }} {{ distribution_release }}
+      package:
+        name: "{{ repo_software_packages }}"
+        state: absent
+    - name: Remove MariaDB Repository for {{ linux_distribution }} {{ distribution_release }}
+      apt_repository:
+        repo: "{{ repo_deb }} {{ distribution_release }}  main"
+        state: absent
+        filename: mariadb
+        #register: addmariadbrepo
+        #notify: Update repo cache
+    - name: Remove MariaDB Repository debug for {{ linux_distribution }} {{ distribution_release }}
+      apt_repository:
+        repo: "{{ repo_deb_debug }} {{ distribution_release }}  main/debug"
+        state: absent
+        filename: mariadb
+        #register: addmariadbrepo
+        #notify: Update repo cache
+    - name: Remove MariaDB Repository Key for {{ linux_distribution }} {{ distribution_release }}
+      apt_key:
+        url: "{{ key_url }}"
+        state: absent  
+  
+    - name: Update repositories
+      apt: update_cache=yes
+      ignore_errors: yes
+    
+...
