@@ -78,14 +78,18 @@
         state: present
         groups: ubuntu,docker
         append: yes
+    - name: Crear directorio /etc/sysctl.d
+      file:
+        path: /etc/sysctl.d
+        state: directory
+        mode: '0755'
     - name: Agregar configuración a /etc/sysctl.d/kubernetes.conf
-      lineinfile:
-         dest: /etc/sysctl.d/kubernetes.conf
-         line: "{{ item }}"
-         state: present
-      with_items:
-         - "net.bridge.bridge-nf-call-ip6tables = 1"
-         - "net.bridge.bridge-nf-call-iptables = 1"
+      copy:
+        src: kubernetes.conf
+        dest: /etc/sysctl.d/kubernetes.conf
+        owner: root
+        group: root
+        mode: '0644'
     - name: Cargar configuración sysctl
       command: sysctl --system
     - name: Copiar archivo rke2-canal.conf en Ubuntu
@@ -113,7 +117,7 @@
       template:
         src: ./agent_config.yaml.j2
         dest: /etc/rancher/rke2/config.yaml
-        owner: ubuntu
-        group: ubuntu
+        owner: root
+        group: root
         mode: '0644'
 ...
