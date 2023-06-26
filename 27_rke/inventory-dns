@@ -1,0 +1,16 @@
+[ubuntu]
+rke1
+rke2
+rke3
+[docker]
+rke1
+rke2
+rke3
+[local-docker]
+rke1
+rke2
+rke3
+[aws]
+rke1
+rke2
+rke3
