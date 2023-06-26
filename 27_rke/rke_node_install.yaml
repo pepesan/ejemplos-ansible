@@ -97,9 +97,10 @@
         src: ./rke2-canal.conf
         dest: /etc/NetworkManager/conf.d/
       when: "'Ubuntu' in ansible_distribution"
-    - name: Reload NetworkManager
-      command: systemctl reload NetworkManager
-      when: "'Ubuntu' in ansible_distribution"
+    # Comentado de momento, no se usa en AWS
+    #- name: Reload NetworkManager
+    #  command: systemctl reload NetworkManager
+    #  when: "'Ubuntu' in ansible_distribution"
     - name: Detener el servicio UFW
       service:
         name: ufw
