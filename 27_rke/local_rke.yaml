@@ -1,0 +1,12 @@
+---
+- #hosts: aws
+  hosts: localhost # ejecución en local
+  connection: local
+  tasks:
+    - name: Remove Docker packages
+      shell: curl -sfL https://get.rke2.io | sh -
+    - name: Check rke-server service
+      service:
+        name: rke-server
+        state: started
+        enabled: true
