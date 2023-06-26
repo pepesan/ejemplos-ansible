@@ -96,7 +96,7 @@
       copy:
         src: ./rke2-canal.conf
         dest: /etc/NetworkManager/conf.d/
-      when: "'Ubuntu' in ansible_distribution and 'rke2-canal.conf' not in ansible_facts.filesystem.dirnames"
+      when: "'Ubuntu' in ansible_distribution"
     - name: Reload NetworkManager
       command: systemctl reload NetworkManager
       when: "'Ubuntu' in ansible_distribution"
@@ -113,7 +113,7 @@
         path: /etc/rancher/rke2/
         state: directory
         mode: '0755'
-    - name: Copiar archivo rke2-canal.conf en Ubuntu
+    - name: Copiar archivo config.yaml en Ubuntu
       template:
         src: ./agent_config.yaml.j2
         dest: /etc/rancher/rke2/config.yaml
