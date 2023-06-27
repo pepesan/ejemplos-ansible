@@ -115,7 +115,7 @@
       shell: curl -sfL https://get.rke2.io | INSTALL_RKE2_CHANNEL=v1.24 INSTALL_RKE2_TYPE=server sh -
     - name: check RKE service
       service:
-        name: rke-server
+        name: rke2-server
         state: started
         enabled: true
     - name: create symlink to kubectl
