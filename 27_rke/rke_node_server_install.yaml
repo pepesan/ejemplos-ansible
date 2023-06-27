@@ -120,10 +120,8 @@
         enabled: true
     - name: create symlink to kubectl
       shell: ln -s $(find /var/lib/rancher/rke2/data/ -name kubectl) /usr/local/bin/kubectl
-    - name: export KUBECONFIG
-      command: export KUBECONFIG=/etc/rancher/rke2/rke2.yaml
-    - name: check nodes
-      command: kubectl get node
+    - name: export KUBECONFIG and get nodes
+      shell: "export KUBECONFIG=/etc/rancher/rke2/rke2.yaml;kubectl get node"
     - name: get Token
-      command: cat /var/lib/rancher/rke2/server/node-token
+      shell: cat /var/lib/rancher/rke2/server/node-token
 ...
