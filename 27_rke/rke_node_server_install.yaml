@@ -1,0 +1,129 @@
+---
+- #hosts: aws
+  hosts: localhost # ejecución en local
+  connection: local
+  tasks:
+    - name: Remove Docker packages
+      package:
+        name: "{{item}}"
+        state: absent
+      loop: ['docker', 'docker-engine', 'docker-doc', 'docker.io', 'containerd', 'runc', 'docker-compose-plugin', 'docker-compose', 'podman-docker']
+    - name: Install aptitude using apt
+      package:
+        name: aptitude
+        state: latest
+        update_cache: yes
+        force_apt_get: yes
+    - name: Install required system packages
+      package:
+        name: 
+          - 'apt-transport-https'
+          - 'ca-certificates'
+          - 'curl'
+          - 'software-properties-common'
+          - 'python3-pip'
+          - 'virtualenv'
+          - 'python3-setuptools'
+          - 'gnupg'
+          - 'lsb-release'
+        state: latest
+        #update_cache: yes
+      #loop: [ 'apt-transport-https', 'ca-certificates', 'curl', 'software-properties-common',
+      #'python3-pip', 'virtualenv', 'python3-setuptools', 'gnupg', 'lsb-release']
+    - name: Add Docker GPG apt Key
+      ansible.builtin.get_url:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        dest: /etc/apt/trusted.gpg.d/docker.asc
+        mode: '0644'
+        force: true
+    #- name: Add Docker GPG apt Key
+    #  apt_key:
+    #    url: https://download.docker.com/linux/ubuntu/gpg
+    #    state: present
+    - name: Add Docker Repository
+      apt_repository:
+        repo: deb https://download.docker.com/linux/ubuntu jammy stable
+        state: present
+    - name: Install Docker packages
+      apt:
+        name: "{{ item }}"
+        state: latest
+        #update_cache: yes
+      loop: [ 'docker-ce', 'docker-ce-cli', 'containerd.io','docker-compose-plugin', 'docker-buildx-plugin', 'docker-compose']
+    - name: Ensure docker service is started and enabled
+      service:
+        name: docker
+        enabled: yes
+        state: started
+    - name: Ensure containerd service is started and enabled
+      service:
+        name: containerd
+        enabled: yes
+        state: started
+    #- name: Update apt and install docker-compose
+    #  apt:
+    #    name: docker-compose
+    #    state: latest
+    - name: Install Docker Module for Python
+      pip:
+        name: docker
+    - name: Ensure docker group exists
+      ansible.builtin.group:
+        name: docker
+        state: present
+    - name: install nfs-utils
+      package:
+        name: nfs-common
+        state: present
+    - name: Ensure the user 'ubuntu' with a bash shell, appending the group 'docker' and 'ubuntu' to the user's groups
+      ansible.builtin.user:
+        name: ubuntu
+        shell: /bin/bash
+        state: present
+        groups: ubuntu,docker
+        append: yes
+    - name: Crear directorio /etc/sysctl.d
+      file:
+        path: /etc/sysctl.d
+        state: directory
+        mode: '0755'
+    - name: Agregar configuración a /etc/sysctl.d/kubernetes.conf
+      copy:
+        src: kubernetes.conf
+        dest: /etc/sysctl.d/kubernetes.conf
+        owner: root
+        group: root
+        mode: '0644'
+    - name: Cargar configuración sysctl
+      command: sysctl --system
+    - name: Copiar archivo rke2-canal.conf en Ubuntu
+      copy:
+        src: ./rke2-canal.conf
+        dest: /etc/NetworkManager/conf.d/
+      when: "'Ubuntu' in ansible_distribution"
+    # Comentado de momento, no se usa en AWS
+    #- name: Reload NetworkManager
+    #  command: systemctl reload NetworkManager
+    #  when: "'Ubuntu' in ansible_distribution"
+    - name: Detener el servicio UFW
+      service:
+        name: ufw
+        state: stopped
+        enabled: no
+      when: "'Ubuntu' in ansible_distribution"
+    - name: Install RKE Linux Agent
+      shell: curl -sfL https://get.rke2.io | INSTALL_RKE2_CHANNEL=v1.24 INSTALL_RKE2_TYPE=server sh -
+    - name: check RKE service
+      service:
+        name: rke-server
+        state: started
+        enabled: true
+    - name: create symlink to kubectl
+      shell: ln -s $(find /var/lib/rancher/rke2/data/ -name kubectl) /usr/local/bin/kubectl
+    - name: export KUBECONFIG
+      command: export KUBECONFIG=/etc/rancher/rke2/rke2.yaml
+    - name: check nodes
+      command: kubectl get node
+    - name: get Token
+      command: cat /var/lib/rancher/rke2/server/node-token
+...

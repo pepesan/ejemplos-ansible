@@ -71,6 +71,10 @@
       ansible.builtin.group:
         name: docker
         state: present
+    - name: install nfs-utils
+      package:
+        name: nfs-common
+        state: present
     - name: Ensure the user 'ubuntu' with a bash shell, appending the group 'docker' and 'ubuntu' to the user's groups
       ansible.builtin.user:
         name: ubuntu
@@ -109,16 +113,22 @@
       when: "'Ubuntu' in ansible_distribution"
     - name: Install RKE Linux Agent
       shell: curl -sfL https://get.rke2.io | INSTALL_RKE2_TYPE="agent" sh -
-    - name: check config agent folder
-      file:
-        path: /etc/rancher/rke2/
-        state: directory
-        mode: '0755'
-    - name: Copiar archivo config.yaml en Ubuntu
-      template:
-        src: ./agent_config.yaml.j2
-        dest: /etc/rancher/rke2/config.yaml
-        owner: root
-        group: root
-        mode: '0644'
+    # parado de momento
+    #- name: check RKE service
+    #  service:
+    #    name: rke2-agent
+    #    state: started
+    #   enabled: true
+    #- name: check config agent folder
+    #  file:
+    #    path: /etc/rancher/rke2/
+    #    state: directory
+    #    mode: '0755'
+    #- name: Copiar archivo config.yaml en Ubuntu
+    #  template:
+    #    src: ./agent_config.yaml.j2
+    #    dest: /etc/rancher/rke2/config.yaml
+    #    owner: root
+    #    group: root
+    #    mode: '0644'
 ...
