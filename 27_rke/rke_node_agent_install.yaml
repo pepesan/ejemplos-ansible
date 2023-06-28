@@ -111,8 +111,8 @@
         state: stopped
         enabled: no
       when: "'Ubuntu' in ansible_distribution"
-    - name: Install RKE Linux Agent
-      shell: curl -sfL https://get.rke2.io | INSTALL_RKE2_TYPE="agent" sh -
+    - name: Install RKE Linux - Type Agent
+      shell: curl -sfL https://get.rke2.io |INSTALL_RKE2_CHANNEL=v1.24 INSTALL_RKE2_TYPE="agent" sh -
     # parado de momento
     #- name: check RKE service
     #  service:
