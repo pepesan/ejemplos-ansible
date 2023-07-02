@@ -1,19 +1,13 @@
 ---
-- hosts: docker
-  #hosts: localhost # ejecución en local
-  #connection: local
+- #hosts: docker
+  hosts: localhost # ejecución en local
+  connection: local
   tasks:
     - name: Remove Docker packages
       package:
         name: "{{item}}"
         state: absent
       loop: ['docker', 'docker-engine', 'docker-doc', 'docker.io', 'containerd', 'runc', 'docker-compose-plugin', 'docker-compose', 'podman-docker']
-    - name: Install aptitude using apt
-      package:
-        name: aptitude
-        state: latest
-        update_cache: yes
-        force_apt_get: yes
     - name: Install required system packages
       package:
         name: 
@@ -27,7 +21,7 @@
           - 'gnupg'
           - 'lsb-release'
         state: latest
-        #update_cache: yes
+        update_cache: yes
       #loop: [ 'apt-transport-https', 'ca-certificates', 'curl', 'software-properties-common',
       #'python3-pip', 'virtualenv', 'python3-setuptools', 'gnupg', 'lsb-release']
     - name: Add Docker GPG apt Key
@@ -60,10 +54,6 @@
         name: containerd
         enabled: yes
         state: started
-    #- name: Update apt and install docker-compose
-    #  apt:
-    #    name: docker-compose
-    #    state: latest
     - name: Install Docker Module for Python
       pip:
         name: docker
@@ -71,12 +61,11 @@
       ansible.builtin.group:
         name: docker
         state: present
-    - name: Ensure the user 'alumno' with a bash shell, appending the group 'docker' and 'pepesan' to the user's groups
+    - name: Ensure the user 'ubuntu' with a bash shell, appending the group 'docker' and 'pepesan' to the user's groups
       ansible.builtin.user:
-        name: alumno
+        name: ubuntu
         shell: /bin/bash
         state: present
-        groups: alumno,docker
+        groups: ubuntu,docker
         append: yes
-
 ...

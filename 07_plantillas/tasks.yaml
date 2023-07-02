@@ -12,10 +12,10 @@
         name: nginx
         state: started
         enabled: true
-    - name: Instalando elinks
-      apt:
-        name: elinks
-        state: latest
+    #- name: Instalando elinks
+    #  apt:
+    #    name: elinks
+    #    state: latest
     - name: Habilitar UFW
       ufw:
         state: enabled
