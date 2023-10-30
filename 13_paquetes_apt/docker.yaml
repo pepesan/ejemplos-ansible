@@ -1,5 +1,6 @@
 ---
-- hosts: docker
+- name: Instalación desde cero de Docker
+  hosts: docker
   #hosts: localhost # ejecución en local
   #connection: local
   tasks:

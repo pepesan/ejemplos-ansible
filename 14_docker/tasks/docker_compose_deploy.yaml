@@ -24,12 +24,4 @@
     - name: show debug
       ansible.builtin.debug:
         var: output
-    #- name: Stop all services
-    #  community.docker.docker_compose:
-    #    project_src: /home/pepesan/deploy
-    #    stopped: yes
-    #  register: output
-    #- name: show debug
-    #  ansible.builtin.debug:
-    #    var: output
 ...

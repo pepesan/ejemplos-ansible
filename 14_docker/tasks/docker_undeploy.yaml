@@ -1,0 +1,20 @@
+---
+- hosts: docker
+  tasks:
+    - name: Install Docker Module for Python
+      pip:
+        name: docker
+    - name: destroy nginx docker container
+      community.docker.docker_container:
+        name: nginx
+        state: absent
+    - name: destroy a volume
+      community.docker.docker_volume:
+        name: nginx-html-volume
+        state: absent
+    - name: destroy image nginx
+      community.docker.docker_image:
+        name: nginx:latest
+        state: absent
+    
+...
