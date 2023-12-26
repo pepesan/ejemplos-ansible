@@ -1,0 +1,103 @@
+---
+- hosts: jenkins
+  become: yes
+  roles:
+    - role: Comcast.sdkman
+      sdkman_user: alumno
+      sdkman_group: alumno
+      sdkman_auto_answer: true
+      sdkman_update: true
+      #sdkman_uninstall_packages:
+      #  - { candidate: groovy, version: 1.8.9 }
+      sdkman_install_packages:
+        - { candidate: java, version: 21.0.1-amzn }
+        - { candidate: java, version: 17.0.9-amzn }
+        - { candidate: gradle, version: '8.5' }
+        - { candidate: gradle, version: 8.4 }
+        - { candidate: maven, version: 3.9.5 }
+        - { candidate: maven, version: 3.9.6 }
+        # Use this syntax if you want SDKMAN to be aware of packages installed *without* SDKMAN, e.g. Oracle JDKs
+        #- { candidate: java, version: 1.8.0-oracle, localpath: /Library/Java/JavaVirtualMachines/jdk1.8.0_181.jdk }
+      sdkman_defaults:
+        gradle: '8.5'
+        maven: 3.9.6
+        java: 21.0.1-amzn
+      sdkman_flush_caches_before:
+        - temp
+      sdkman_flush_caches_after:
+        - archives
+        - broadcast
+        - candidates
+        - temp
+      sdkman_offline_mode: false
+      sdkman_update_alternatives:
+        - candidate: java
+          name: java
+          link: /usr/bin/java
+        - candidate: java
+          name: javac
+          link: /usr/bin/javac
+  tasks:
+  #- name: Install Java
+  #  apt:
+  #    name: openjdk-17-jdk
+  #    state: present
+  #    update_cache: yes
+  #- name: Add Docker GPG apt Key
+  #  ansible.builtin.get_url:
+  #    url: https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
+  #    dest: /usr/share/keyrings/jenkins-keyring.asc
+  #    mode: '0644'
+  #    force: true
+  #- name: Add Jenkins Repository
+  #  apt_repository:
+  #    repo: deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/
+  #    state: present
+  - name: Install Jenkins
+    apt:
+      name: jenkins
+      state: absent
+      update_cache: yes
+  - name: Install Tomcat10
+    apt:
+      name: tomcat10
+      state: present
+      update_cache: yes
+  - name: Install Tomcat10 Admin App
+    apt:
+      name: tomcat10-admin
+      state: present
+      update_cache: yes
+  - name: copy tomcat users file
+    copy:
+      src: tomcat-users.xml
+      dest: /etc/tomcat10/tomcat-users.xml
+      owner: root
+      group: tomcat
+      mode: '0644'
+  #- name: Start Jenkins
+  #  service:
+  #    name: jenkins
+  #    state: started
+  #    enabled: yes
+  - name: Create the directory
+    file:
+      path: /home/alumno/webapps
+      state: directory
+  - name: Download the file from the URL
+    get_url:
+      url: https://get.jenkins.io/war-stable/2.426.2/jenkins.war
+      dest: /home/alumno/webapps/jenkins.war
+  - name: Copy war with owner and permissions
+    ansible.builtin.copy:
+      src: /home/alumno/webapps/jenkins.war
+      dest: /var/lib/tomcat10/webappsjenkins.war
+      remote_src: yes
+      owner: root
+      group: root
+      mode: '0644'
+  - name: Start tomcat
+    service:
+      name: tomcat10
+      state: restarted
+      enabled: yes
