@@ -1,0 +1,19 @@
+---
+- hosts: tomcat
+  #hosts: localhost # ejecución en local
+  #connection: local
+  tasks:
+    - name: Install required system packages
+      package:
+        name: 
+          - 'default-jdk'
+          - 'tomcat10'
+        state: latest
+        update_cache: yes
+    - name: Ensure tomcat10 service is started and enabled
+      service:
+        name: tomcat10
+        enabled: yes
+        state: started
+
+# ...

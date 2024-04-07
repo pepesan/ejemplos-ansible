@@ -1,0 +1,25 @@
+---
+- hosts: tomcat
+  #hosts: localhost # ejecución en local
+  #connection: local
+  tasks:
+    - name: ejecutar tomcat
+      command: /home/alumno/tomcat/bin/shutdown.sh &
+      register: salida
+    - name: Recursively remove directory
+      ansible.builtin.file:
+        path: /home/alumno/tomcat
+        state: absent
+    - name: Recursively remove directory
+      ansible.builtin.file:
+        path: /home/alumno/tomcat.tar.gz
+        state: absent
+    - name: Install required system packages
+      package:
+        name: 
+          - 'default-jdk'
+          #- 'tomcat9'
+        state: absent
+        update_cache: yes
+
+# ...

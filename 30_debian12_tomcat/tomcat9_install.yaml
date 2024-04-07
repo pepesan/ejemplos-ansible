@@ -1,0 +1,50 @@
+---
+- hosts: tomcat
+  #hosts: localhost # ejecución en local
+  #connection: local
+  tasks:
+    - name: Install required system packages
+      package:
+        name: 
+          - 'default-jdk'
+          #- 'tomcat9'
+        state: latest
+        update_cache: yes
+#     - name: Ensure tomcat9 service is started and enabled
+#       service:
+#         name: tomcat9
+#         enabled: yes
+#         state: started
+    - name: copy installer file
+      copy: 
+        src: ./tomcat.tar.gz
+        dest: /home/alumno/tomcat.tar.gz
+        owner: alumno
+        group: alumno
+        mode: '0644'
+    - name: Extract tomcat.tar.gz into /home/alumno/tomcat
+      ansible.builtin.unarchive:
+        src: /home/alumno/tomcat.tar.gz
+        dest: /home/alumno/tomcat
+        remote_src: yes
+    - name: check permissions
+      file: 
+        path: /home/alumno/tomcat/apache-tomcat-9.0.87
+        owner: alumno
+        group: alumno
+        recurse: yes
+        mode: '0755'
+    
+    - name: copy tomcat files to final destination
+      copy: 
+        src: /home/alumno/tomcat/apache-tomcat-9.0.87/
+        dest: /home/alumno/tomcat/
+        owner: alumno
+        group: alumno
+        mode: '0755'
+        remote_src: yes
+    - name: ejecutar tomcat
+      command: /home/alumno/tomcat/bin/startup.sh &
+      register: salida
+
+# ...
