@@ -1,0 +1,22 @@
+---
+- name: Instalación desde cero de Docker
+  hosts: ubuntu
+  #hosts: localhost # ejecución en local
+  #connection: local
+  tasks:
+    - name: Actualizar caché de paquetes APT
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Instalar actualizaciones de seguridad y de sistema
+      apt:
+        upgrade: dist
+      register: upgrade_result
+
+    - name: Reiniciar el servidor si se han instalado actualizaciones
+      reboot:
+        reboot_timeout: 600       # espera hasta 10 minutos para que arranque
+        pre_reboot_delay: 0       # sin espera antes del reinicio
+        post_reboot_delay: 60     # espera 30 s tras el reinicio
+      when: upgrade_result.changed

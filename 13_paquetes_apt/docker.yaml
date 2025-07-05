@@ -1,20 +1,16 @@
 ---
 - name: Instalación desde cero de Docker
-  hosts: docker
+  hosts: ubuntu
   #hosts: localhost # ejecución en local
   #connection: local
+  vars:
+    docker_ubuntu_codename: "{{ ansible_lsb.codename }}"
   tasks:
     - name: Remove Docker packages
       package:
         name: "{{item}}"
         state: absent
-      loop: ['docker', 'docker-engine', 'docker-doc', 'docker.io', 'containerd', 'runc', 'docker-compose-plugin', 'docker-compose', 'podman-docker']
-    - name: Install aptitude using apt
-      package:
-        name: aptitude
-        state: latest
-        update_cache: yes
-        force_apt_get: yes
+      loop: ['docker', 'docker-engine', 'docker-doc', 'docker.io', 'containerd', 'runc', 'docker-compose-plugin', 'docker-compose', 'docker-compose-v2', 'podman-docker']
     - name: Install required system packages
       package:
         name: 
@@ -27,30 +23,44 @@
           - 'python3-setuptools'
           - 'gnupg'
           - 'lsb-release'
-        state: latest
-        #update_cache: yes
+        state: present
+        update_cache: yes
       #loop: [ 'apt-transport-https', 'ca-certificates', 'curl', 'software-properties-common',
       #'python3-pip', 'virtualenv', 'python3-setuptools', 'gnupg', 'lsb-release']
+    - name: Asegurar módulos de kernel necesarios
+      modprobe:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - overlay
+        - br_netfilter
+
+    - name: Configurar sysctl para Docker
+      sysctl:
+        name: "{{ item.key }}"
+        value: "{{ item.value }}"
+        sysctl_set: yes
+        state: present
+        reload: yes
+      loop:
+        - { key: net.ipv4.ip_forward, value: 1 }
+        - { key: net.bridge.bridge-nf-call-iptables, value: 1 }
     - name: Add Docker GPG apt Key
       ansible.builtin.get_url:
         url: https://download.docker.com/linux/ubuntu/gpg
         dest: /etc/apt/trusted.gpg.d/docker.asc
         mode: '0644'
         force: true
-    #- name: Add Docker GPG apt Key
-    #  apt_key:
-    #    url: https://download.docker.com/linux/ubuntu/gpg
-    #    state: present
     - name: Add Docker Repository
       apt_repository:
-        repo: deb https://download.docker.com/linux/ubuntu jammy stable
+        repo: "deb [arch=amd64 signed-by=/etc/apt/trusted.gpg.d/docker.asc] https://download.docker.com/linux/ubuntu {{ docker_ubuntu_codename }} stable"
         state: present
     - name: Install Docker packages
       apt:
         name: "{{ item }}"
-        state: latest
-        #update_cache: yes
-      loop: [ 'docker-ce', 'docker-ce-cli', 'containerd.io','docker-compose-plugin', 'docker-buildx-plugin', 'docker-compose']
+        state: present
+        update_cache: yes
+      loop: [ 'docker-ce', 'docker-ce-cli', 'containerd.io','docker-compose-plugin', 'docker-buildx-plugin']
     - name: Ensure docker service is started and enabled
       service:
         name: docker
@@ -61,23 +71,31 @@
         name: containerd
         enabled: yes
         state: started
-    #- name: Update apt and install docker-compose
-    #  apt:
-    #    name: docker-compose
-    #    state: latest
     - name: Install Docker Module for Python
-      pip:
-        name: docker
+      package:
+        name: python3-docker
+        state: present
+        # update_cache: yes
+
     - name: Ensure docker group exists
       ansible.builtin.group:
         name: docker
         state: present
-    - name: Ensure the user 'alumno' with a bash shell, appending the group 'docker' and 'pepesan' to the user's groups
+    - name: Asegurar que existe el grupo 'alumno'
+      ansible.builtin.group:
+        name: alumno
+        state: present
+    - name: Ensure the user 'alumno' with a bash shell, appending the group 'docker' and 'alumno' to the user's groups
       ansible.builtin.user:
         name: alumno
         shell: /bin/bash
         state: present
         groups: alumno,docker
         append: yes
-
+        create_home: yes
+    - name: Comprobar versión de Docker
+      command: docker --version
+      register: docker_version
+    - debug:
+        var: docker_version.stdout
 ...
