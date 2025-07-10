@@ -1,0 +1,18 @@
+---
+- name: Instalación desde cero de Docker
+  hosts: ubuntu
+  tasks:
+    - name: Ensure the user 'alumno' with a bash shell, appending the group 'docker' and 'alumno' to the user's groups
+      ansible.builtin.user:
+        name: alumno
+        shell: /bin/bash
+        state: present
+        groups: alumno,docker
+        append: yes
+        create_home: yes
+        password: '$6$GtOo2iAaz.UZjFbm$H5CeKE3JAKUhh4WaW0ALGEKFRmqI5SgKBsFqrpBOHyEALdARH1a/ynmj9Tdz6KIBhh11GLH2Om4H1xH1bLQMm1'
+    - name: Añadir 'alumno' al grupo sudo
+      ansible.builtin.user:
+        name: alumno
+        groups: sudo
+        append: yes

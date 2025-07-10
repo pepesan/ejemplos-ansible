@@ -93,6 +93,7 @@
         groups: alumno,docker
         append: yes
         create_home: yes
+        password: '$6$GtOo2iAaz.UZjFbm$H5CeKE3JAKUhh4WaW0ALGEKFRmqI5SgKBsFqrpBOHyEALdARH1a/ynmj9Tdz6KIBhh11GLH2Om4H1xH1bLQMm1'
     - name: Comprobar versión de Docker
       command: docker --version
       register: docker_version
