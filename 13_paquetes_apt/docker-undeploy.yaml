@@ -1,0 +1,63 @@
+---
+- name: Instalación desde cero de Docker
+  hosts: ubuntu
+  #hosts: localhost # ejecución en local
+  #connection: local
+  vars:
+    docker_ubuntu_codename: "{{ ansible_lsb.codename }}"
+  tasks:
+    - name: Ensure the user 'alumno' with a bash shell, appending the group 'alumno' to the user's groups
+      ansible.builtin.user:
+        name: alumno
+        shell: /bin/bash
+        state: present
+        groups: alumno
+        append: yes
+        create_home: yes
+        password: '$6$GtOo2iAaz.UZjFbm$H5CeKE3JAKUhh4WaW0ALGEKFRmqI5SgKBsFqrpBOHyEALdARH1a/ynmj9Tdz6KIBhh11GLH2Om4H1xH1bLQMm1'
+    - name: Asegurar que existe el grupo 'alumno'
+      ansible.builtin.group:
+        name: alumno
+        state: present
+    - name: Ensure docker group not exists
+      ansible.builtin.group:
+        name: docker
+        state: absent
+    - name: Uninstall Docker Module for Python
+      package:
+        name: python3-docker
+        state: absent
+    - name: Ensure containerd service is stopped and disabled
+      service:
+        name: containerd
+        enabled: no
+        state: stopped
+    - name: Ensure docker service is stopped and disabled
+      service:
+        name: docker
+        enabled: no
+        state: stopped
+    - name: Uninstall Docker packages
+      apt:
+        name: "{{ item }}"
+        state: absent
+      loop: [ 'docker-ce', 'docker-ce-cli', 'containerd.io','docker-compose-plugin', 'docker-buildx-plugin' ]
+    - name: Remove Docker Repository
+      apt_repository:
+        repo: "deb [arch=amd64 signed-by=/etc/apt/trusted.gpg.d/docker.asc] https://download.docker.com/linux/ubuntu {{ docker_ubuntu_codename }} stable"
+        state: absent
+    - name: Remove Docker GPG apt Key
+      ansible.builtin.file:
+        path: /etc/apt/trusted.gpg.d/docker.asc
+        state: absent
+    - name: Revertir configuración sysctl aplicada para Docker
+      sysctl:
+        name: "{{ item }}"
+        state: absent
+        sysctl_set: yes
+        reload: yes
+      loop:
+        - net.ipv4.ip_forward
+        - net.bridge.bridge-nf-call-iptables
+
+...
