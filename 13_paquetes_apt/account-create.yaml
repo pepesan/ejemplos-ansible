@@ -1,0 +1,27 @@
+---
+- name: Instalación desde cero de Docker
+  hosts: localhost  # ejecución en local
+  connection: local
+  become: yes  # ← esto activa sudo
+  # deberás ejecutar el playbook con --ask-become-pass para que te pida la contraseña de sudo
+  vars:
+    nombre_usuario: "juan"
+    contrasena_clara: "mipassword"
+  tasks:
+    # para que funcione esto debes tener instalado el paquete python3-passlib con apt en el host de control
+    - name: Generar hash de la contraseña
+      ansible.builtin.set_fact:
+        contrasena_hash: "{{ contrasena_clara | password_hash('sha512') }}"
+
+    - name: Crear el usuario y añadirlo al grupo sudo
+      ansible.builtin.user:
+        name: "{{ nombre_usuario }}"
+        groups: sudo
+        append: yes
+        shell: /bin/bash
+        password: "{{ contrasena_hash }}"
+        state: present
+        create_home: yes
+
+
+...

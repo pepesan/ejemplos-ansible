@@ -1,0 +1,14 @@
+---
+- name: Eliminación del usuario juan
+  hosts: localhost
+  connection: local
+  become: yes  # necesario para eliminar usuarios
+  # deberás ejecutar el playbook con --ask-become-pass para que te pida la contraseña de sudo
+  vars:
+    nombre_usuario: "juan"
+  tasks:
+    - name: Eliminar el usuario "{{ nombre_usuario }}"
+      ansible.builtin.user:
+        name: "{{ nombre_usuario }}"
+        state: absent
+        remove: yes  # ← elimina también /home/juan y su contenido
