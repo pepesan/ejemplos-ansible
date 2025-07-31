@@ -1,0 +1,67 @@
+---
+- name: Instalación desde cero de sdkman
+  hosts: ubuntu
+  tasks:
+    - name: Ensure the user 'alumno' with a bash shell, appending the group 'sudo' and 'alumno' to the user's groups
+      ansible.builtin.user:
+        name: alumno
+        shell: /bin/bash
+        state: present
+        groups: alumno,sudo
+        append: yes
+        create_home: yes
+        password: '$6$GtOo2iAaz.UZjFbm$H5CeKE3JAKUhh4WaW0ALGEKFRmqI5SgKBsFqrpBOHyEALdARH1a/ynmj9Tdz6KIBhh11GLH2Om4H1xH1bLQMm1'
+        # password: alumno
+    - name: Instalar dependencias de SDKMAN! (curl, zip, unzip)
+      apt:
+        name:
+          - curl
+          - zip
+          - unzip
+        state: present
+    - name: Instalar SDKMAN! para el usuario alumno
+      become: yes
+      become_user: alumno
+      shell: |
+        curl -s "https://get.sdkman.io" | bash
+        echo 'source "$HOME/.sdkman/bin/sdkman-init.sh"' >> ~/.bashrc
+      args:
+        executable: /bin/bash
+      environment:
+        SDKMAN_DIR: "/home/alumno/.sdkman"
+    - name: Corregir permisos de ~/.sdkman
+      file:
+        path: /home/alumno/.sdkman
+        state: directory
+        recurse: yes
+        owner: alumno
+        group: alumno
+    - name: Instalar Java 21 con SDKMAN!\
+      become: yes
+      become_user: alumno
+      shell: |
+        source "$HOME/.sdkman/bin/sdkman-init.sh"
+        sdk install java 21.0.3-tem
+        sdk default java 21.0.3-tem
+      args:
+        executable: /bin/bash
+      environment:
+        SDKMAN_DIR: "/home/alumno/.sdkman"
+      register: java_install
+    - name: Instalar Gradle con SDKMAN!
+      shell: |
+        source "$HOME/.sdkman/bin/sdkman-init.sh"
+        sdk install gradle
+      args:
+        executable: /bin/bash
+      become: yes
+      become_user: alumno
+    - name: Instalar Maven con SDKMAN!
+      shell: |
+        source "$HOME/.sdkman/bin/sdkman-init.sh"
+        sdk install maven
+      args:
+        executable: /bin/bash
+      become: yes
+      become_user: alumno
+...
