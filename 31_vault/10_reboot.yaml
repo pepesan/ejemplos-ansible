@@ -1,0 +1,11 @@
+---
+- name: Reinicio de la máquina
+  hosts: ubuntu
+  become: true
+  tasks:
+    - name: Reiniciar el servidor y esperar a que vuelva
+      ansible.builtin.reboot:
+        reboot_timeout: 600    # tiempo máximo de espera (segundos)
+        msg: "Reinicio solicitado por Ansible"
+        connect_timeout: 5     # espera inicial para reconexión SSH
+        test_command: whoami   # comando usado para validar la reconexión

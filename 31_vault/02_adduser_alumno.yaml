@@ -1,0 +1,26 @@
+---
+- name: Instalación desde cero de Docker
+  hosts: ubuntu
+  vars_files:
+    - group_vars/all/vault.yml
+  tasks:
+    - name: Crear grupo 'alumno'
+      ansible.builtin.group:
+        name: alumno
+        state: present
+    - name: Asegurar usuario alumno
+      #no_log: true  # evita que la pass aparezca en logs
+      ansible.builtin.user:
+        name: alumno
+        shell: /bin/bash
+        state: present
+        groups: alumno,docker
+        append: yes
+        create_home: yes
+        password: "{{ alumno_password_plain | password_hash('sha512') }}"
+        update_password: always
+    - name: Añadir 'alumno' al grupo sudo
+      ansible.builtin.user:
+        name: alumno
+        groups: sudo
+        append: yes

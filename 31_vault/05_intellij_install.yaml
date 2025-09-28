@@ -1,0 +1,48 @@
+# Requiere: ansible-galaxy collection install community.general
+---
+- name: Instalación de IntelliJ IDEA Community (última estable)
+  hosts: ubuntu
+
+  vars:
+    snap_channel: "stable"            # stable | candidate | beta | edge
+
+  tasks:
+    - name: Actualizar caché de APT (si procede)
+      ansible.builtin.apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Instalar snapd (si no está)
+      ansible.builtin.apt:
+        name: snapd
+        state: present
+
+    - name: Asegurar que snapd esté habilitado e iniciado
+      ansible.builtin.service:
+        name: snapd
+        state: started
+        enabled: yes
+
+    - name: Instalar/actualizar IntelliJ IDEA Community desde Snap (última del canal)
+      community.general.snap:
+        name: intellij-idea-community
+        state: present                 # garantiza que está instalado
+        classic: true                 # IntelliJ requiere confinement clásico
+        channel: "{{ snap_channel }}"
+
+    - name: Crear alias 'idea' en /usr/local/bin para facilitar la ejecución
+      ansible.builtin.file:
+        src: /snap/bin/intellij-idea-community
+        dest: /usr/local/bin/idea
+        state: link
+        force: yes
+
+
+    - name: Mostrar versión instalada (debug)
+      ansible.builtin.command: /snap/bin/intellij-idea-community --version
+      register: idea_ver
+      changed_when: false
+
+    - name: Versión de IntelliJ detectada
+      ansible.builtin.debug:
+        msg: "{{ idea_ver.stdout | default('No se pudo detectar versión (OK si es primera instalación con GUI)') }}"

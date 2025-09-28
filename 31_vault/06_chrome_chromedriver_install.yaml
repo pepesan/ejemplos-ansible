@@ -1,0 +1,116 @@
+---
+- name: Instalar Google Chrome y Chromedriver en Ubuntu 24.04
+  hosts: ubuntu
+
+  vars:
+    google_key_pub_url: "https://dl.google.com/linux/linux_signing_key.pub"
+    google_keyring_path: "/usr/share/keyrings/google-linux-signing-keyring.gpg"
+    google_repo_file: "/etc/apt/sources.list.d/google-chrome.list"
+    chrome_pkg: "google-chrome-stable"
+
+  tasks:
+    - name: Paquetes base (https, gpg, unzip)
+      ansible.builtin.apt:
+        name:
+          - ca-certificates
+          - apt-transport-https
+          - gnupg
+          - wget
+          - unzip
+        state: present
+        update_cache: yes
+
+    - name: (Higiene) Eliminar repo antiguo mal definido (si existiera)
+      ansible.builtin.file:
+        path: "{{ google_repo_file }}"
+        state: absent
+
+    - name: Descargar clave pública de Google (formato ASCII)
+      ansible.builtin.get_url:
+        url: "{{ google_key_pub_url }}"
+        dest: "/usr/share/keyrings/google-linux-signing-key.asc"
+        mode: "0644"
+
+    - name: Convertir clave a keyring GPG (dearmor)
+      ansible.builtin.command:
+        cmd: "gpg --dearmor --yes --output {{ google_keyring_path }} /usr/share/keyrings/google-linux-signing-key.asc"
+      args:
+        creates: "{{ google_keyring_path }}"
+
+    - name: Añadir repositorio oficial de Google Chrome (firmado y https)
+      ansible.builtin.apt_repository:
+        repo: "deb [arch=amd64 signed-by={{ google_keyring_path }}] https://dl.google.com/linux/chrome/deb/ stable main"
+        state: present
+        filename: "google-chrome"
+
+    - name: Instalar/actualizar Google Chrome estable
+      ansible.builtin.apt:
+        name: "{{ chrome_pkg }}"
+        state: latest
+        update_cache: yes
+
+    - name: Obtener versión instalada de Google Chrome
+      ansible.builtin.command: google-chrome --version
+      register: chrome_version
+      changed_when: false
+
+    - name: Extraer versión mayor de Chrome
+      ansible.builtin.set_fact:
+        chrome_major_version: "{{ chrome_version.stdout.split()[2].split('.')[0] }}"
+
+    - name: Consultar versión de Chromedriver compatible (chrome-for-testing)
+      ansible.builtin.uri:
+        url: "https://googlechromelabs.github.io/chrome-for-testing/LATEST_RELEASE_{{ chrome_major_version }}"
+        return_content: true
+      register: chromedriver_version
+
+    - name: Descargar Chromedriver ZIP
+      ansible.builtin.get_url:
+        url: "https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/{{ chromedriver_version.content }}/linux64/chromedriver-linux64.zip"
+        dest: /tmp/chromedriver.zip
+        mode: "0644"
+
+    - name: Normalizar versión de chromedriver (sin saltos de línea)
+      ansible.builtin.set_fact:
+        chromedriver_ver: "{{ chromedriver_version.content | trim }}"
+
+    - name: Preparar directorio versión de Chromedriver
+      ansible.builtin.file:
+        path: "/opt/chromedriver-{{ chromedriver_ver }}"
+        state: directory
+        mode: "0755"
+
+    - name: Descomprimir Chromedriver en /opt/chromedriver-{{ chromedriver_ver }}
+      ansible.builtin.unarchive:
+        src: /tmp/chromedriver.zip
+        dest: "/opt/chromedriver-{{ chromedriver_ver }}"
+        remote_src: true
+      register: unzip_result
+
+    # Opción A: copiar el binario (recomendado si no quieres depender del árbol en /opt)
+    - name: Instalar binario chromedriver en /usr/local/bin
+      ansible.builtin.copy:
+        src: "/opt/chromedriver-{{ chromedriver_ver }}/chromedriver-linux64/chromedriver"
+        dest: /usr/local/bin/chromedriver
+        mode: "0755"
+        remote_src: true
+
+    # Opción B (alternativa): crear symlink en /usr/local/bin
+    # - name: Enlazar chromedriver en /usr/local/bin
+    #   ansible.builtin.file:
+    #     src: "/opt/chromedriver-{{ chromedriver_ver }}/chromedriver-linux64/chromedriver"
+    #     dest: /usr/local/bin/chromedriver
+    #     state: link
+    #     force: true
+
+    - name: Verificar versiones instaladas (debug)
+      ansible.builtin.shell: |
+        set -e
+        google-chrome --version || true
+        chromedriver --version || true
+      register: versions
+      changed_when: false
+
+    - name: Mostrar versiones
+      ansible.builtin.debug:
+        msg: "{{ versions.stdout_lines }}"

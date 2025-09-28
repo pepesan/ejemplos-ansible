@@ -1,0 +1,21 @@
+---
+- name: Actualizar paquetes APT y Snap en Ubuntu 24.04
+  hosts: ubuntu
+
+  tasks:
+    - name: Actualizar caché de APT
+      ansible.builtin.apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Actualizar todos los paquetes APT a la última versión
+      ansible.builtin.apt:
+        upgrade: dist
+        autoremove: yes
+        autoclean: yes
+
+    - name: Actualizar todos los snaps
+      ansible.builtin.command: snap refresh
+      register: snap_refresh
+      changed_when: "'All snaps up to date.' not in snap_refresh.stdout"
+

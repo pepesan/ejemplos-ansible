@@ -1,0 +1,10 @@
+---
+- name: Desplegar aplicación con variables cifradas
+  hosts: localhost # ejecución en local
+  connection: local
+  vars_files:
+    - secrets.yaml
+  tasks:
+    - name: Mostrar la contraseña de la base de datos
+      debug:
+        msg: "La contraseña de la base de datos es {{ db_password }}"
