@@ -1,0 +1,48 @@
+---
+- name: Clonar repo Spring Boot en /home/alumno
+  hosts: ubuntu
+
+  vars:
+    alumno_user: alumno
+    repo_url: "https://github.com/pepesan/docker-twitch.git"
+    repo_dest: "/home/alumno/docker-twitch"
+    repo2_url: "https://github.com/pepesan/php-dev-docker.git"
+    repo2_dest: "/home/alumno/php-dev-docker"
+
+  tasks:
+    - name: Asegurar que git está instalado
+      ansible.builtin.apt:
+        name: git
+        state: present
+        update_cache: yes
+
+    - name: Clonar el repositorio de ejemplos de docker/podman en el home de alumno
+      ansible.builtin.git:
+        repo: "{{ repo_url }}"
+        dest: "{{ repo_dest }}"
+        version: main   # o master si fuera el caso
+        update: yes
+      become_user: "{{ alumno_user }}"
+
+    - name: Asegurar que los archivos del repo de ejemplos de docker/podman pertenecen a alumno
+      ansible.builtin.file:
+        path: "{{ repo_dest }}"
+        state: directory
+        recurse: yes
+        owner: "{{ alumno_user }}"
+        group: "{{ alumno_user }}"
+    - name: Clonar el repositorio php-dev-docker en el home de alumno
+      ansible.builtin.git:
+        repo: "{{ repo2_url }}"
+        dest: "{{ repo2_dest }}"
+        version: master
+        update: yes
+      become_user: "{{ alumno_user }}"
+
+    - name: Asegurar que los archivos del repo php-dev-docker pertenecen a alumno
+      ansible.builtin.file:
+        path: "{{ repo2_dest }}"
+        state: directory
+        recurse: yes
+        owner: "{{ alumno_user }}"
+        group: "{{ alumno_user }}"
