@@ -1,5 +1,5 @@
 ---
-- name: Instalación desde cero de Docker
+- name: Creación del usuario 'alumno' con contraseña segura
   hosts: ubuntu
   vars_files:
     - group_vars/all/vault.yml
