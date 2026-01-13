@@ -7,8 +7,10 @@ ansible-playbook 01_docker_install.yaml --ask-vault-pass
 ansible-playbook 02_adduser_alumno.yaml --ask-vault-pass
 # instalación de sdkman (hecho)
 ansible-playbook 03_sdkman_install.yaml --ask-vault-pass
-# instalación de xrdp (hecho)
-ansible-playbook 04_xrdp_install.yaml --ask-vault-pass
+# instalación de xrdp gnome (hecho)
+ansible-playbook 04_01_xrdp_install_gnome.yaml --ask-vault-pass
+# instalación de xrdp xfce(hecho)
+ansible-playbook 04_02_xrdp_install_xfce.yaml --ask-vault-pass
 # instalación de intellij (hecho)
 ansible-playbook 05_intellij_install.yaml --ask-vault-pass
 # instalacion de chrome y chromedriver

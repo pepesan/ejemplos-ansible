@@ -1,0 +1,51 @@
+---
+- name: Instalación desde cero de xrdp
+  hosts: ubuntu
+  vars:
+    escritorio: xfce4
+    escritorio_extra: xfce4-goodies
+    ssh_port: 22
+    xrdp_port: 3389
+    startwm_src: files/startwm-xfce.sh
+    startwm_dest: /etc/xrdp/startwm.sh
+  tasks:
+    - name: Actualizar lista de paquetes
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+    - name: Instalar entorno de escritorio
+      apt:
+        name: "{{ escritorio }}"
+        state: present
+    - name: Instalar entorno de escritorio extra
+      apt:
+        name: "{{ escritorio_extra }}"
+        state: present
+    - name: Instalar XRDP
+      apt:
+        name: xrdp
+        state: present
+    - name: Copiar startwm.sh
+      copy:
+        src: "{{ startwm_src }}"
+        dest: "{{ startwm_dest }}"
+        owner: root
+        group: root
+        mode: '0755'
+      notify: Reiniciar xrdp
+    - name: Permitir puerto {{ ssh_port }} en UFW
+      ufw:
+        rule: allow
+        port: "{{ ssh_port }}"
+        proto: tcp
+    - name: Permitir puerto {{ xrdp_port }} en UFW
+      ufw:
+        rule: allow
+        port: "{{ xrdp_port }}"
+        proto: tcp
+  handlers:
+    - name: Reiniciar xrdp
+      service:
+        name: xrdp
+        state: restarted
+...
