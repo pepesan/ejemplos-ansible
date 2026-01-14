@@ -1,0 +1,36 @@
+- name: Drupal environment using php-dev-docker
+  hosts: ubuntu
+
+  vars:
+    repo_dir: /home/alumno/php-dev-docker
+    dev_user: alumno
+
+  tasks:
+    - name: Ensure pdd is executable
+      ansible.builtin.file:
+        path: "{{ repo_dir }}/pdd"
+        mode: "0755"
+
+    - name: pdd init drupal
+      become_user: "{{ dev_user }}"
+      ansible.builtin.command: "./pdd init drupal"
+      args:
+        chdir: "{{ repo_dir }}"
+      environment:
+        HOME: "/home/{{ dev_user }}"
+
+    - name: pdd start drupal
+      become_user: "{{ dev_user }}"
+      ansible.builtin.command: "./pdd start drupal"
+      args:
+        chdir: "{{ repo_dir }}"
+      environment:
+        HOME: "/home/{{ dev_user }}"
+
+    - name: pdd install drupal
+      become_user: "{{ dev_user }}"
+      ansible.builtin.command: "./pdd install drupal"
+      args:
+        chdir: "{{ repo_dir }}"
+      environment:
+        HOME: "/home/{{ dev_user }}"

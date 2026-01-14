@@ -1,0 +1,12 @@
+- name: Drupal environment using php-dev-docker
+  hosts: ubuntu
+
+  tasks:
+    - name: Eliminar la carpeta /home/alumno/.docker
+      ansible.builtin.file:
+        path: /home/alumno/.docker
+        state: absent
+    - name: Instalar Firefox mediante Snap
+      community.general.snap:
+        name: firefox
+        state: present

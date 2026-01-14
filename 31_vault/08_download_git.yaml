@@ -4,8 +4,8 @@
 
   vars:
     alumno_user: alumno
-    repo_url: "https://github.com/pepesan/spring-boot-ejemplos-basicos-ciberseguridad.git"
-    repo_dest: "/home/alumno/spring-boot-ejemplos-basicos-ciberseguridad"
+    repo_url: "https://github.com/pepesan/php-dev-docker.git"
+    repo_dest: "/home/alumno/php-dev-docker"
     repo2_url: "https://github.com/pepesan/ejercicios-selenium-simples.git"
     repo2_dest: "/home/alumno/ejercicios-selenium-simples"
 
@@ -24,7 +24,7 @@
       ansible.builtin.git:
         repo: "{{ repo_url }}"
         dest: "{{ repo_dest }}"
-        version: master   # o master si fuera el caso
+        version: main   # o master si fuera el caso
         update: yes
       become_user: "{{ alumno_user }}"
 

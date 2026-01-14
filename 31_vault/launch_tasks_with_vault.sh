@@ -19,8 +19,11 @@ ansible-playbook 06_chrome_chromedriver_install.yaml --ask-vault-pass
 ansible-playbook 07_system_update.yaml --ask-vault-pass
 # descarga de repositorios git (hecho)
 ansible-playbook 08_download_git.yaml --ask-vault-pass
-
+# Instalación de vscode y extensiones php (hecho)
+ansible-playbook 09_install_vscode_php.yaml --ask-vault-pass
+# instalación del servidor drupal (hecho)
+ansible-playbook 10_install_drupal.yaml --ask-vault-pass
 # reinicio de la máquina
-ansible-playbook 10_reboot.yaml --ask-vault-pass
+ansible-playbook 20_reboot.yaml --ask-vault-pass
 
 

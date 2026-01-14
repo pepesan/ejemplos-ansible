@@ -25,6 +25,10 @@
       apt:
         name: xrdp
         state: present
+    - name: Instalar Firefox mediante Snap
+      community.general.snap:
+        name: firefox
+        state: present
     - name: Copiar startwm.sh
       copy:
         src: "{{ startwm_src }}"

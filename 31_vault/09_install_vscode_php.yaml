@@ -1,0 +1,44 @@
+---
+- name: Install VS Code (GUI) + PHP extensions on RDP server (Debian/Ubuntu)
+  hosts: ubuntu
+
+  vars:
+    dev_user: alumno
+    # Extensiones habituales para PHP
+    vscode_extensions:
+      - bmewburn.vscode-intelephense-client
+      - xdebug.php-debug
+
+    # URL del .deb oficial (64-bit). Ajusta versión si quieres fijarla.
+    vscode_deb_url: "https://code.visualstudio.com/sha/download?build=stable&os=linux-deb-x64"
+    vscode_deb_path: "/tmp/vscode.deb"
+
+  tasks:
+    - name: Ensure base packages
+      ansible.builtin.apt:
+        name: [ca-certificates, curl, git]
+        state: present
+        update_cache: true
+
+    - name: Download VS Code .deb
+      ansible.builtin.get_url:
+        url: "{{ vscode_deb_url }}"
+        dest: "{{ vscode_deb_path }}"
+        mode: "0644"
+
+    - name: Install VS Code .deb
+      ansible.builtin.apt:
+        deb: "{{ vscode_deb_path }}"
+
+    - name: Install VS Code extensions for user (run as dev user with correct HOME)
+      become: true
+      become_user: "{{ dev_user }}"
+      ansible.builtin.command: "code --install-extension {{ item }} --force"
+      environment:
+        HOME: "/home/{{ dev_user }}"
+        USER: "{{ dev_user }}"
+        LOGNAME: "{{ dev_user }}"
+      register: ext_install
+      changed_when: "'already installed' not in (ext_install.stdout | lower)"
+      failed_when: ext_install.rc != 0 and ('already installed' not in (ext_install.stdout | lower))
+      loop: "{{ vscode_extensions }}"
