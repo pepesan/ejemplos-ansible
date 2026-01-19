@@ -23,6 +23,8 @@ ansible-playbook 08_download_git.yaml --ask-vault-pass
 ansible-playbook 09_install_vscode_php.yaml --ask-vault-pass
 # instalación del servidor drupal (hecho)
 ansible-playbook 10_install_drupal.yaml --ask-vault-pass
+# copia de los ejemplos de drupal (hecho)
+ansible-playbook 12_copy_drupal_examples.yaml --ask-vault-pass
 # reinicio de la máquina
 ansible-playbook 20_reboot.yaml --ask-vault-pass
 

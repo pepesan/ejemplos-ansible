@@ -1,0 +1,25 @@
+- name: Copiar ficheros al servidor y dejarlos a nombre de alumno
+  hosts: ubuntu
+
+  vars:
+    destino: /home/alumno/ejemplos_drupal
+    propietario: alumno
+    grupo: alumno
+
+  tasks:
+    - name: Asegurar que existe la carpeta destino
+      ansible.builtin.file:
+        path: "{{ destino }}"
+        state: directory
+        owner: "{{ propietario }}"
+        group: "{{ grupo }}"
+        mode: "0755"   # lectura/escritura/ejecución solo para el propietario
+
+    - name: Copiar carpeta local files/ al destino (recursivo)
+      ansible.builtin.copy:
+        src: "files/drupal/"
+        dest: "{{ destino }}/"
+        owner: "{{ propietario }}"
+        group: "{{ grupo }}"
+        mode: "0644"   # lectura/escritura solo para el propietario
+        directory_mode: "0755"
