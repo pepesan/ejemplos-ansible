@@ -1,0 +1,39 @@
+- name: Ejecutar un comando en un directorio concreto como otro usuario
+  hosts: ubuntu
+
+  vars:
+    destino: /home/alumno/php-dev-docker
+    propietario: alumno
+
+  tasks:
+    - name: Ejecutar comando
+      ansible.builtin.command: ./pdd clean all
+      args:
+        chdir: "{{ destino }}"
+      #become: true
+      #become_user: "{{ propietario }}"
+      register: resultado_comando
+
+    - name: Mostrar salida estándar
+      debug:
+        var: resultado_comando.stdout
+
+    - name: Mostrar errores (si los hay)
+      debug:
+        var: resultado_comando.stderr
+      when: resultado_comando.stderr != ""
+    - name: Ejecutar comando borrado contenedor
+      ansible.builtin.command: docker rm -f dev-nginx
+      args:
+        chdir: "{{ destino }}"
+      #become: true
+      #become_user: "{{ propietario }}"
+      register: resultado_comando
+    - name: Mostrar salida estándar
+      debug:
+        var: resultado_comando.stdout
+
+    - name: Mostrar errores (si los hay)
+      debug:
+        var: resultado_comando.stderr
+      when: resultado_comando.stderr != ""
