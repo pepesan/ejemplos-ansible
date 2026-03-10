@@ -1,0 +1,19 @@
+services:
+  notebook:
+    ports:
+      - 8888:8888
+    restart: always
+    image: quay.io/jupyter/scipy-notebook:2026-03-09
+    container_name: jupyter-notebook
+    volumes:
+      - ./notebooks:/home/jovyan/work
+    environment:
+      JUPYTER_TOKEN: ${JUPYTER_TOKEN}
+    command: >
+      start-notebook.py
+      --NotebookApp.token=${JUPYTER_TOKEN}
+      --NotebookApp.password=''
+      --ServerApp.allow_origin='*'
+      --ServerApp.ip=0.0.0.0
+      --ServerApp.port=8888
+      --no-browser

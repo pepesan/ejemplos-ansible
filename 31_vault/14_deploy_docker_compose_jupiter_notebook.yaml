@@ -1,0 +1,48 @@
+---
+# ansible-galaxy collection install community.docker
+- name: Install Jupyter Notebook using Docker Compose
+  hosts: ubuntu
+  become: true
+  vars_files:
+    - group_vars/all/vault.yml
+  vars:
+    jupyter_base_dir: /home/alumno/jupyter
+    jupyter_user: alumno
+    jupyter_group: alumno
+
+  tasks:
+    - name: Ensure base directory exists
+      ansible.builtin.file:
+        path: "{{ jupyter_base_dir }}"
+        state: directory
+        owner: "{{ jupyter_user }}"
+        group: "{{ jupyter_group }}"
+        mode: "0755"
+
+    - name: Ensure notebooks directory exists
+      ansible.builtin.file:
+        path: "{{ jupyter_base_dir }}/notebooks"
+        state: directory
+        owner: "{{ jupyter_user }}"
+        group: "{{ jupyter_group }}"
+        mode: "0777"
+    - name: Deploy .env from template
+      ansible.builtin.template:
+        src: templates/env.j2
+        dest: "{{ jupyter_base_dir }}/.env"
+        owner: "{{ jupyter_user }}"
+        group: "{{ jupyter_group }}"
+        mode: "0600"
+    - name: Copy compose.yaml
+      ansible.builtin.copy:
+        src: files/compose.yaml
+        dest: "{{ jupyter_base_dir }}/compose.yaml"
+        owner: "{{ jupyter_user }}"
+        group: "{{ jupyter_group }}"
+        mode: "0644"
+
+    - name: Start Jupyter Notebook with Docker Compose
+      community.docker.docker_compose_v2:
+        project_src: "{{ jupyter_base_dir }}"
+        state: present
+      become_user: "{{ jupyter_user }}"

@@ -1,13 +1,13 @@
 ---
-- name: Clonar repo Spring Boot en /home/alumno
+- name: Clonar repos en /home/alumno
   hosts: ubuntu
 
   vars:
     alumno_user: alumno
-    repo_url: "https://github.com/pepesan/php-dev-docker.git"
-    repo_dest: "/home/alumno/php-dev-docker"
-    repo2_url: "https://github.com/pepesan/ejercicios-selenium-simples.git"
-    repo2_dest: "/home/alumno/ejercicios-selenium-simples"
+    repo_url: "https://github.com/pepesan/docker-twitch.git"
+    repo_dest: "/home/alumno/docker-twitch"
+    repo2_url: "https://github.com/pepesan/ejemplos-kubernetes.git"
+    repo2_dest: "/home/alumno/ejemplos-kubernetes"
 
   tasks:
     - name: Asegurar que git está instalado
@@ -16,11 +16,11 @@
         state: present
         update_cache: yes
 
-    - name: Eliminar el directorio del repo spring-boot si ya existe
+    - name: Eliminar el directorio del repo docker si ya existe
       ansible.builtin.file:
         path: "{{ repo_dest }}"
         state: absent
-    - name: Clonar el repositorio spring-boot en el home de alumno
+    - name: Clonar el repositorio docker en el home de alumno
       ansible.builtin.git:
         repo: "{{ repo_url }}"
         dest: "{{ repo_dest }}"
@@ -28,18 +28,18 @@
         update: yes
       become_user: "{{ alumno_user }}"
 
-    - name: Asegurar que los archivos del repo spring-boot pertenecen a alumno
+    - name: Asegurar que los archivos del repo docker pertenecen a alumno
       ansible.builtin.file:
         path: "{{ repo_dest }}"
         state: directory
         recurse: yes
         owner: "{{ alumno_user }}"
         group: "{{ alumno_user }}"
-    - name: Eliminar el directorio del repo spring-boot si ya existe
+    - name: Eliminar el directorio del repo k8s si ya existe
       ansible.builtin.file:
         path: "{{ repo2_dest }}"
         state: absent
-    - name: Clonar el repositorio ejercicios-selenium-simples en el home de alumno
+    - name: Clonar el repositorio k8s en el home de alumno
       ansible.builtin.git:
         repo: "{{ repo2_url }}"
         dest: "{{ repo2_dest }}"
@@ -47,7 +47,7 @@
         update: yes
       become_user: "{{ alumno_user }}"
 
-    - name: Asegurar que los archivos del repo ejercicios-selenium-simples pertenecen a alumno
+    - name: Asegurar que los archivos del repo k8s pertenecen a alumno
       ansible.builtin.file:
         path: "{{ repo2_dest }}"
         state: directory
