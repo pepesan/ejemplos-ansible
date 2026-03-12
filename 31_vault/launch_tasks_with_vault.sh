@@ -1,6 +1,6 @@
 #!/bin/bash
 # Comprobacion de conexión  (hecho)
-#ansible-playbook 00_ping.yaml --ask-vault-pass
+ansible-playbook 00_ping.yaml --ask-vault-pass
 # instalación de docker
 #ansible-playbook 01_docker_install.yaml --ask-vault-pass
 # creación del usuario alumno (hecho)
@@ -10,7 +10,7 @@
 # instalación de xrdp gnome (hecho)
 #ansible-playbook 04_01_xrdp_install_gnome.yaml --ask-vault-pass
 # instalación de xrdp xfce(hecho)
-# ansible-playbook 04_02_xrdp_install_xfce.yaml --ask-vault-pass
+#ansible-playbook 04_02_xrdp_install_xfce.yaml --ask-vault-pass
 # instalación de intellij (hecho)
 #ansible-playbook 05_intellij_install.yaml --ask-vault-pass
 # instalacion de chrome y chromedriver
@@ -24,7 +24,7 @@
 # Instalación de vscode y extensiones docker y k8s (hecho)
 #ansible-playbook 09_install_vscode_docker_k8s.yaml --ask-vault-pass
 # Instalación de vscode y extensiones python (hecho)
-ansible-playbook 09_install_vscode_python.yaml --ask-vault-pass
+#ansible-playbook 09_install_vscode_python.yaml --ask-vault-pass
 # instalación del servidor drupal (hecho)
 #ansible-playbook 10_install_drupal.yaml --ask-vault-pass
 # copia de los ejemplos de drupal (hecho)
@@ -32,7 +32,10 @@ ansible-playbook 09_install_vscode_python.yaml --ask-vault-pass
 # Limpia entornos drupal (hecho)
 #ansible-playbook 13_clean_drupal_environment.yaml --ask-vault-pass
 # Despliega docker compose para jipyter notebook (hecho)
-# ansible-playbook 14_deploy_docker_compose_jupiter_notebook.yaml --ask-vault-pass
+#ansible-playbook 14_deploy_docker_compose_jupiter_notebook.yaml --ask-vault-pass
+# Despliega mongodb tools (hecho)
+#ansible-playbook 15_deploy_mongodb_tools.yaml --ask-vault-pass
+
 # reinicio de la máquina
 #ansible-playbook 20_reboot.yaml --ask-vault-pass
 

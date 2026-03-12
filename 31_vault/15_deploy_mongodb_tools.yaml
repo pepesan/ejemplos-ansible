@@ -1,0 +1,80 @@
+---
+# ansible-galaxy collection install community.docker
+- name: Install Jupyter Notebook using Docker Compose
+  hosts: ubuntu
+  become: true
+  gather_facts: true
+  vars:
+    mongodb_major: "8.0"
+    mongodb_apt_repo: "deb [ arch=amd64 signed-by=/usr/share/keyrings/mongodb-server-{{ mongodb_major }}.gpg ] https://repo.mongodb.org/apt/ubuntu noble/mongodb-org/{{ mongodb_major }} multiverse"
+
+    # Database Tools: 100.15.0 tiene paquete oficial para Ubuntu 24.04 x64 y ARM64
+    mongodb_database_tools_version: "100.15.0"
+    mongodb_database_tools_url_map:
+      x86_64: "https://fastdl.mongodb.org/tools/db/mongodb-database-tools-ubuntu2204-x86_64-100.15.0.deb"
+
+    # Compass: usa la URL exacta que te da el botón “Copy link” del Download Center.
+    # La página pública muestra Compass 1.49.4 estable para Ubuntu 20.04+ x64,
+    # pero no expone bien la URL directa en la documentación parseada.
+    compass_url: "https://downloads.mongodb.com/compass/mongodb-compass_1.49.4_amd64.deb"
+    compass_tmp_deb: "/tmp/mongodb-compass.deb"
+
+
+  tasks:
+    - name: Verificar que el sistema es Ubuntu 24.04
+      ansible.builtin.assert:
+        that:
+          - ansible_facts["distribution"] == "Ubuntu"
+          - ansible_facts["distribution_version"] is version("24.04", "==")
+        fail_msg: "Este playbook está pensado para Ubuntu 24.04 exacto."
+    - name: Instalar prerequisitos del sistema
+      ansible.builtin.apt:
+        name:
+          - ca-certificates
+          - curl
+          - gnupg
+        state: present
+        update_cache: true
+    - name: Descargar clave pública de MongoDB
+      ansible.builtin.get_url:
+        url: "https://www.mongodb.org/static/pgp/server-{{ mongodb_major }}.asc"
+        dest: "/tmp/mongodb-server-{{ mongodb_major }}.asc"
+        mode: "0644"
+    - name: Convertir la clave a keyring
+      ansible.builtin.command:
+        cmd: >
+          gpg --dearmor
+          -o /usr/share/keyrings/mongodb-server-{{ mongodb_major }}.gpg
+          /tmp/mongodb-server-{{ mongodb_major }}.asc
+      args:
+        creates: "/usr/share/keyrings/mongodb-server-{{ mongodb_major }}.gpg"
+    - name: Añadir repositorio oficial de MongoDB
+      ansible.builtin.apt_repository:
+        repo: "{{ mongodb_apt_repo }}"
+        filename: "mongodb-org-{{ mongodb_major }}"
+        state: present
+    - name: Actualizar caché de apt
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: Instalar mongosh
+      ansible.builtin.apt:
+        name: mongodb-mongosh
+        state: present
+    - name: Descargar MongoDB Database Tools
+      ansible.builtin.get_url:
+        url: "{{ mongodb_database_tools_url_map[ansible_facts['architecture']] }}"
+        dest: "/tmp/mongodb-database-tools.deb"
+        mode: "0644"
+    - name: Instalar MongoDB Database Tools
+      ansible.builtin.apt:
+        deb: "/tmp/mongodb-database-tools.deb"
+    - name: Descargar MongoDB Compass
+      ansible.builtin.get_url:
+        url: "{{ compass_url }}"
+        dest: "{{ compass_tmp_deb }}"
+        mode: "0644"
+
+    - name: Instalar MongoDB Compass
+      ansible.builtin.apt:
+        deb: "{{ compass_tmp_deb }}"

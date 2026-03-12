@@ -3,8 +3,9 @@
   hosts: ubuntu
   #hosts: localhost # ejecución en local
   #connection: local
+  gather_facts: true
   vars:
-    docker_ubuntu_codename: "{{ ansible_lsb.codename }}"
+    docker_ubuntu_codename: "{{ ansible_facts['lsb']['codename'] }}"
   vars_files:
     - group_vars/all/vault.yml
   tasks:
