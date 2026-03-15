@@ -1,0 +1,142 @@
+---
+- name: Instalar Terraform, LocalStack, AWS CLI y configurar credenciales AWS
+  hosts: ubuntu
+  gather_facts: yes
+  become: true
+
+  vars:
+    aws_user: "alumno"
+    aws_user_home: "/home/alumno"
+
+    localstack_version: "4.14.0"
+    localstack_cli_url: "https://github.com/localstack/localstack-cli/releases/download/v4.14.0/localstack-cli-4.14.0-linux-amd64-onefile.tar.gz"
+    localstack_archive: "/tmp/localstack-cli-4.14.0-linux-amd64-onefile.tar.gz"
+
+    awscli_url: "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip"
+    awscli_zip: "/tmp/awscliv2.zip"
+    awscli_dir: "/tmp/awscli"
+
+    aws_access_key_id: "test"
+    aws_secret_access_key: "test"
+    aws_region: "us-east-1"
+
+  tasks:
+    - name: Instalar dependencias para repositorios HTTPS
+      ansible.builtin.apt:
+        name:
+          - gnupg
+          - software-properties-common
+        state: present
+        update_cache: yes
+
+    - name: Añadir clave GPG de HashiCorp
+      ansible.builtin.get_url:
+        url: https://apt.releases.hashicorp.com/gpg
+        dest: /tmp/hashicorp.gpg
+        mode: "0644"
+
+    - name: Importar clave GPG
+      ansible.builtin.command: gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg /tmp/hashicorp.gpg
+      args:
+        creates: /usr/share/keyrings/hashicorp-archive-keyring.gpg
+
+    - name: Añadir repositorio de HashiCorp
+      ansible.builtin.apt_repository:
+        repo: "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com {{ ansible_facts['distribution_release'] }} main"
+        state: present
+
+    - name: Instalar Terraform
+      ansible.builtin.apt:
+        name: terraform
+        state: present
+        update_cache: yes
+
+    - name: Verificar instalación de Terraform
+      ansible.builtin.command: terraform version
+      register: terraform_version
+      changed_when: false
+
+    - name: Mostrar versión instalada de Terraform
+      ansible.builtin.debug:
+        var: terraform_version.stdout
+    - name: Instalar dependencias necesarias
+      ansible.builtin.apt:
+        name:
+          - curl
+          - unzip
+          - tar
+        state: present
+        update_cache: yes
+
+    - name: Descargar LocalStack CLI
+      ansible.builtin.get_url:
+        url: "{{ localstack_cli_url }}"
+        dest: "{{ localstack_archive }}"
+        mode: "0644"
+
+    - name: Extraer LocalStack CLI
+      ansible.builtin.unarchive:
+        src: "{{ localstack_archive }}"
+        dest: /usr/local/bin
+        remote_src: yes
+        creates: /usr/local/bin/localstack
+
+    - name: Verificar instalación de LocalStack
+      ansible.builtin.command: localstack --version
+      register: localstack_version
+      changed_when: false
+
+    - name: Descargar AWS CLI v2
+      ansible.builtin.get_url:
+        url: "{{ awscli_url }}"
+        dest: "{{ awscli_zip }}"
+        mode: "0644"
+
+    - name: Crear directorio temporal para AWS CLI
+      ansible.builtin.file:
+        path: "{{ awscli_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Extraer AWS CLI
+      ansible.builtin.unarchive:
+        src: "{{ awscli_zip }}"
+        dest: "{{ awscli_dir }}"
+        remote_src: yes
+
+    - name: Instalar AWS CLI
+      ansible.builtin.command: "{{ awscli_dir }}/aws/install --update"
+
+    - name: Crear directorio ~/.aws
+      ansible.builtin.file:
+        path: "{{ aws_user_home }}/.aws"
+        state: directory
+        owner: "{{ aws_user }}"
+        group: "{{ aws_user }}"
+        mode: "0700"
+
+    - name: Crear archivo ~/.aws/credentials
+      ansible.builtin.copy:
+        dest: "{{ aws_user_home }}/.aws/credentials"
+        owner: "{{ aws_user }}"
+        group: "{{ aws_user }}"
+        mode: "0600"
+        content: |
+          [default]
+          aws_access_key_id = {{ aws_access_key_id }}
+          aws_secret_access_key = {{ aws_secret_access_key }}
+
+    - name: Crear archivo ~/.aws/config
+      ansible.builtin.copy:
+        dest: "{{ aws_user_home }}/.aws/config"
+        owner: "{{ aws_user }}"
+        group: "{{ aws_user }}"
+        mode: "0644"
+        content: |
+          [default]
+          region = {{ aws_region }}
+          output = json
+
+    - name: Mostrar versión instalada de LocalStack
+      ansible.builtin.debug:
+        var: localstack_version.stdout

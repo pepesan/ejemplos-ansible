@@ -4,8 +4,8 @@
 
   vars:
     alumno_user: alumno
-    repo_url: "https://github.com/pepesan/docker-twitch.git"
-    repo_dest: "/home/alumno/docker-twitch"
+    repo_url: "https://github.com/pepesan/terraform-examples-v2"
+    repo_dest: "/home/alumno/terraform-examples-v2"
     repo2_url: "https://github.com/pepesan/ejemplos-kubernetes.git"
     repo2_dest: "/home/alumno/ejemplos-kubernetes"
 
@@ -24,7 +24,7 @@
       ansible.builtin.git:
         repo: "{{ repo_url }}"
         dest: "{{ repo_dest }}"
-        version: main   # o master si fuera el caso
+        version: master   # o master si fuera el caso
         update: yes
       become_user: "{{ alumno_user }}"
 

@@ -13,8 +13,8 @@ read -s -p "Introduce la contraseña SSH: " PASSWORD
 for ip in "${IPS[@]}"; do
     echo "Copiando clave a $ip..."
     sshpass -p "$PASSWORD" \
-	ssh-copy-id \
-	-i "$KEY" \
+        ssh-copy-id \
+        -i "$KEY" \
         -o StrictHostKeyChecking=no \
         -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
         "$USER@$ip"
