@@ -1,0 +1,32 @@
+---
+- name: Comprobar conectividad e instalar cliente MySQL
+  hosts: ubuntu
+  become: true
+  gather_facts: yes
+  vars:
+    mysql_workbench_deb_url: "https://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-workbench-community/mysql-workbench-community_8.0.46-1ubuntu24.04_amd64.deb"
+    mysql_workbench_deb_path: "/tmp/mysql-workbench-community_8.0.46-1ubuntu24.04_amd64.deb"
+
+  tasks:
+
+
+    - name: Actualizar caché de apt
+      ansible.builtin.apt:
+        update_cache: yes
+
+    - name: Instalar cliente MySQL
+      ansible.builtin.apt:
+        name: mysql-client
+        state: present
+
+    - name: Descargar MySQL Workbench .deb oficial
+      ansible.builtin.get_url:
+        url: "{{ mysql_workbench_deb_url }}"
+        dest: "{{ mysql_workbench_deb_path }}"
+        mode: "0644"
+
+    - name: Instalar MySQL Workbench desde el .deb
+      ansible.builtin.apt:
+        deb: "{{ mysql_workbench_deb_path }}"
+        state: present
+
