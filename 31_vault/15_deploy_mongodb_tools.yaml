@@ -1,6 +1,6 @@
 ---
 # ansible-galaxy collection install community.docker
-- name: Install Jupyter Notebook using Docker Compose
+- name: Install MongoDB tools and Compass
   hosts: ubuntu
   become: true
   gather_facts: true

@@ -1,6 +1,6 @@
 #!/bin/bash
 # Comprobacion de conexión  (hecho)
-# ansible-playbook 00_ping.yaml --ask-vault-pass
+ansible-playbook 00_ping.yaml --ask-vault-pass
 # instalación de docker
 # ansible-playbook 01_docker_install.yaml --ask-vault-pass
 # creación del usuario alumno (hecho)
@@ -33,7 +33,7 @@
 # ansible-playbook 12_copy_drupal_examples.yaml --ask-vault-pass
 # Limpia entornos drupal (hecho)
 # ansible-playbook 13_clean_drupal_environment.yaml --ask-vault-pass
-# Despliega docker compose para jipyter notebook (hecho)
+# Despliega docker compose para jupyter notebook (hecho)
 # ansible-playbook 14_deploy_docker_compose_jupiter_notebook.yaml --ask-vault-pass
 # Despliega mongodb tools (hecho)
 # ansible-playbook 15_deploy_mongodb_tools.yaml --ask-vault-pass

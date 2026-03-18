@@ -6,8 +6,8 @@
     alumno_user: alumno
     repo_url: "https://github.com/pepesan/terraform-examples-v2"
     repo_dest: "/home/alumno/terraform-examples-v2"
-    repo2_url: "https://github.com/pepesan/ejemplos-kubernetes.git"
-    repo2_dest: "/home/alumno/ejemplos-kubernetes"
+    repo2_url: "https://github.com/pepesan/docker-twitch.git"
+    repo2_dest: "/home/alumno/docker-twitch"
 
   tasks:
     - name: Asegurar que git está instalado
@@ -24,7 +24,7 @@
       ansible.builtin.git:
         repo: "{{ repo_url }}"
         dest: "{{ repo_dest }}"
-        version: master   # o master si fuera el caso
+        version: master   # o main si fuera el caso
         update: yes
       become_user: "{{ alumno_user }}"
 
@@ -43,7 +43,7 @@
       ansible.builtin.git:
         repo: "{{ repo2_url }}"
         dest: "{{ repo2_dest }}"
-        version: master
+        version: main  # o master si fuera el caso
         update: yes
       become_user: "{{ alumno_user }}"
 
