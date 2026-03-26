@@ -1,0 +1,17 @@
+---
+- name: Comprobar conectividad con los hosts del grupo ubuntu
+  hosts: ubuntu
+  gather_facts: no
+
+  tasks:
+    - name: Eliminar el contenedor mongo forzosamente mediante comando
+      ansible.builtin.shell: "docker rm -f mongo"
+      # Usamos ignore_errors para que el playbook siga si el contenedor no existe
+      ignore_errors: yes
+    - name: Confirmar eliminación
+      ansible.builtin.shell: "docker ps -a --filter name=mongo"
+      register: docker_output
+
+    - name: Mostrar estado actual de mongo
+      ansible.builtin.debug:
+        msg: "{{ docker_output.stdout }}"

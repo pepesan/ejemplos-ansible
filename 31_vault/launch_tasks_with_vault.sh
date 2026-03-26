@@ -41,7 +41,8 @@ ansible-playbook 00_ping.yaml --ask-vault-pass
 # ansible-playbook 16_deploy_terraform_localstack.yaml --ask-vault-pass
 # Despliega Mysql client  (hecho)
 # ansible-playbook 17_deploy_mysql_client.yaml --ask-vault-pass
-
+# Delete docker container  (hecho)
+# ansible-playbook 18_delete_docker_container.yaml --ask-vault-pass
 
 # reinicio de la máquina
 #ansible-playbook 20_reboot.yaml --ask-vault-pass
