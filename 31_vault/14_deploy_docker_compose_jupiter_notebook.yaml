@@ -46,3 +46,8 @@
         project_src: "{{ jupyter_base_dir }}"
         state: present
       become_user: "{{ jupyter_user }}"
+    - name: Permitir puerto 8888 en UFW
+      ufw:
+        rule: allow
+        port: 8888
+        proto: tcp
