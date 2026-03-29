@@ -1,0 +1,9 @@
+[mysql-source]
+10.207.154.10 ansible_python_interpreter=/usr/bin/python3
+[mysql-replica]
+10.207.154.11 ansible_python_interpreter=/usr/bin/python3
+[ubuntu]
+10.207.154.10 ansible_python_interpreter=/usr/bin/python3
+10.207.154.11 ansible_python_interpreter=/usr/bin/python3
+
+

@@ -1,0 +1,29 @@
+---
+- name: Configurar el MySQL source para replicación
+  hosts: mysql-source
+  gather_facts: yes
+  become: yes
+  # ansible-galaxy collection install community.mysql
+  vars:
+    mysql_root_password: "root"
+    mysql_repl_user: "repl"
+    mysql_repl_password: "replpass"
+
+  tasks:
+    - name: Instalar dependencia Python para módulos MySQL
+      ansible.builtin.apt:
+        name: python3-pymysql
+        state: present
+        update_cache: yes
+    - name: Asegurar que existe el usuario de réplica
+      community.mysql.mysql_user:
+        name: "{{ mysql_repl_user }}"
+        host: "%"
+        plugin: caching_sha2_password
+        plugin_auth_string: "{{ mysql_repl_password }}"
+        salt: "1234567890abcdefghij"
+        priv: "*.*:REPLICATION SLAVE"
+        state: present
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
+      no_log: true

@@ -1,0 +1,66 @@
+---
+- name: Configurar el nodo replica MySQL con GTID
+  hosts: mysql-replica
+  gather_facts: yes
+  become: yes
+
+  vars:
+    mysql_source_host: "10.207.154.10"
+    mysql_source_port: 3306
+    mysql_repl_user: "repl"
+    mysql_repl_password: "replpass"
+    mysql_user: "root"
+    mysql_password: "root"
+
+  tasks:
+    - name: Parar y limpiar configuración previa de réplica
+      ansible.builtin.shell: |
+        mysql -u {{ mysql_user }} -p{{ mysql_password }} <<'SQL'
+        STOP REPLICA;
+        RESET REPLICA ALL;
+        SQL
+      args:
+        executable: /bin/bash
+      register: mysql_replica_reset
+      changed_when: true
+      no_log: true
+    - name: Configurar conexión al source usando GTID
+      ansible.builtin.shell: |
+        mysql -u {{ mysql_user }} -p{{ mysql_password }}  <<SQL
+        CHANGE REPLICATION SOURCE TO
+          SOURCE_HOST='{{ mysql_source_host }}',
+          SOURCE_PORT={{ mysql_source_port }},
+          SOURCE_USER='{{ mysql_repl_user }}',
+          SOURCE_PASSWORD='{{ mysql_repl_password }}',
+          SOURCE_AUTO_POSITION=1,
+          GET_SOURCE_PUBLIC_KEY=1;
+        SQL
+      args:
+        executable: /bin/bash
+      no_log: true
+      register: mysql_replica_change
+      changed_when: true
+
+    - name: Arrancar replicación
+      ansible.builtin.shell: |
+        mysql -u {{ mysql_user }} -p{{ mysql_password }}  <<'SQL'
+        START REPLICA;
+        SQL
+      args:
+        executable: /bin/bash
+      register: mysql_replica_start
+      changed_when: true
+      no_log: true
+    - name: Obtener SHOW REPLICA STATUS completo
+      ansible.builtin.shell: |
+        mysql --batch --raw -u {{ mysql_user }} -p{{ mysql_password }}    -E -e "SHOW REPLICA STATUS" | grep -E \
+        'Replica_IO_Running:|Replica_SQL_Running:|Seconds_Behind_Source:|Auto_Position:'
+      args:
+        executable: /bin/bash
+      register: mysql_replica_status_full
+      changed_when: false
+      no_log: true
+
+    - name: Mostrar salida completa de SHOW REPLICA STATUS
+      ansible.builtin.debug:
+        var: mysql_replica_status_full.stdout_lines

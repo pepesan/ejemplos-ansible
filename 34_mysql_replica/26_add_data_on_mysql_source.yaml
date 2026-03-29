@@ -1,0 +1,50 @@
+---
+- name: Crear datos de prueba en MySQL source
+  hosts: mysql-source
+  gather_facts: no
+  become: yes
+
+  vars:
+    mysql_test_db: "replica_test"
+    mysql_test_table: "clientes"
+    mysql_user: "root"
+    mysql_password: "root"
+
+  tasks:
+    - name: Crear base de datos, tabla e insertar datos de prueba en source
+      ansible.builtin.shell: |
+        mysql -u {{ mysql_user }} -p{{ mysql_password }} <<'SQL'
+        DROP DATABASE IF EXISTS {{ mysql_test_db }};
+        CREATE DATABASE IF NOT EXISTS {{ mysql_test_db }};
+
+        USE {{ mysql_test_db }};
+
+        CREATE TABLE IF NOT EXISTS {{ mysql_test_table }} (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          nombre VARCHAR(100) NOT NULL,
+          email VARCHAR(150) NOT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        INSERT INTO {{ mysql_test_table }} (nombre, email)
+        VALUES
+          ('Juan Pérez', 'juan@example.com'),
+          ('Ana García', 'ana@example.com');
+        SQL
+      args:
+        executable: /bin/bash
+      register: mysql_seed_result
+      changed_when: true
+
+    - name: Consultar los datos insertados en source
+      ansible.builtin.command:
+        cmd: >
+          mysql -u {{ mysql_user }} -p{{ mysql_password }}
+          -D {{ mysql_test_db }}
+          -e "SELECT * FROM {{ mysql_test_table }};"
+      register: mysql_source_data
+      changed_when: false
+
+    - name: Mostrar datos actuales en source
+      ansible.builtin.debug:
+        var: mysql_source_data.stdout_lines

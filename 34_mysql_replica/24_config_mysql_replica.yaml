@@ -1,0 +1,27 @@
+---
+- name: Configurar el MySQL source para replicación
+  hosts: mysql-replica
+  gather_facts: yes
+  become: yes
+
+  tasks:
+
+    - name: Crear fichero de configuración del source
+      ansible.builtin.copy:
+        dest: /etc/mysql/conf.d/source.cnf
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [mysqld]
+          server-id=2
+          relay_log=relay-bin
+          gtid_mode=ON
+          enforce_gtid_consistency=ON
+      notify: Reiniciar mysql
+
+  handlers:
+    - name: Reiniciar mysql
+      ansible.builtin.systemd:
+        name: mysql
+        state: restarted

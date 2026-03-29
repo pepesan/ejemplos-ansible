@@ -1,0 +1,25 @@
+---
+- name: Crear datos de prueba en MySQL source
+  hosts: mysql-source
+  gather_facts: no
+  become: yes
+
+  vars:
+    mysql_test_db: "replica_test"
+    mysql_test_table: "clientes"
+    mysql_user: "root"
+    mysql_password: "root"
+
+  tasks:
+    - name: Consultar datos en la réplica
+      ansible.builtin.command:
+        cmd: >
+          mysql -u {{ mysql_user }} -p{{ mysql_password }}
+          -D {{ mysql_test_db }}
+          -e "SELECT id, nombre, email, created_at FROM {{ mysql_test_table }};"
+      register: mysql_replica_data
+      changed_when: false
+
+    - name: Mostrar datos en la réplica
+      ansible.builtin.debug:
+        var: mysql_replica_data.stdout_lines

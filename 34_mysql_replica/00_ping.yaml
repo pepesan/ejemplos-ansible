@@ -1,0 +1,8 @@
+---
+- name: Comprobar conectividad con los hosts del grupo ubuntu
+  hosts: ubuntu
+  gather_facts: no
+
+  tasks:
+    - name: Hacer ping a los hosts
+      ansible.builtin.ping:

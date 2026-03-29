@@ -1,0 +1,86 @@
+---
+- name: Instalar MySQL 8.4 LTS desde el repositorio APT oficial
+  hosts: ubuntu
+  gather_facts: yes
+  become: yes
+
+  vars:
+    mysql_apt_config_version: "0.8.36-1"
+    mysql_apt_config_deb: "mysql-apt-config_{{ mysql_apt_config_version }}_all.deb"
+    mysql_apt_config_url: "https://repo.mysql.com/{{ mysql_apt_config_deb }}"
+    mysql_root_password: "root"
+
+  tasks:
+    - name: Actualizar caché APT
+      ansible.builtin.apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Instalar dependencias básicas
+      ansible.builtin.apt:
+        name:
+          - wget
+          - debconf-utils
+        state: present
+
+    - name: Descargar paquete mysql-apt-config
+      ansible.builtin.get_url:
+        url: "{{ mysql_apt_config_url }}"
+        dest: "/tmp/{{ mysql_apt_config_deb }}"
+        mode: "0644"
+
+    - name: Preconfigurar mysql-apt-config para seleccionar mysql-8.4-lts
+      ansible.builtin.debconf:
+        name: mysql-apt-config
+        question: "{{ item.question }}"
+        value: "{{ item.value }}"
+        vtype: "{{ item.vtype }}"
+      loop:
+        - { question: "mysql-apt-config/select-server",  value: "mysql-8.4-lts", vtype: "select" }
+        - { question: "mysql-apt-config/select-product", value: "Ok",            vtype: "select" }
+      no_log: true
+
+    - name: Instalar mysql-apt-config sin interacción
+      ansible.builtin.apt:
+        deb: "/tmp/{{ mysql_apt_config_deb }}"
+      environment:
+        DEBIAN_FRONTEND: noninteractive
+
+    - name: Actualizar caché APT tras añadir el repositorio MySQL
+      ansible.builtin.apt:
+        update_cache: yes
+
+    - name: Preconfigurar contraseña root de MySQL
+      ansible.builtin.debconf:
+        name: mysql-community-server
+        question: "mysql-community-server/{{ item }}"
+        value: "{{ mysql_root_password }}"
+        vtype: password
+      loop:
+        - root-pass
+        - re-root-pass
+      no_log: true
+
+    - name: Instalar MySQL Server y MySQL Client
+      ansible.builtin.apt:
+        name:
+          - mysql-server
+          - mysql-client
+        state: present
+      environment:
+        DEBIAN_FRONTEND: noninteractive
+
+    - name: Asegurar que el servicio mysql está arrancado y habilitado
+      ansible.builtin.systemd:
+        name: mysql
+        state: started
+        enabled: yes
+
+    - name: Comprobar estado del servicio mysql
+      ansible.builtin.command: systemctl is-active mysql
+      register: mysql_status
+      changed_when: false
+
+    - name: Mostrar estado del servicio mysql
+      ansible.builtin.debug:
+        msg: "El servicio mysql está en estado: {{ mysql_status.stdout }}"
