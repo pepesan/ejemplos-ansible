@@ -9,9 +9,9 @@
     mongodb_apt_repo: "deb [ arch=amd64 signed-by=/usr/share/keyrings/mongodb-server-{{ mongodb_major }}.gpg ] https://repo.mongodb.org/apt/ubuntu noble/mongodb-org/{{ mongodb_major }} multiverse"
 
     # Database Tools: 100.15.0 tiene paquete oficial para Ubuntu 24.04 x64 y ARM64
-    mongodb_database_tools_version: "100.15.0"
+    mongodb_database_tools_version: "100.16.0"
     mongodb_database_tools_url_map:
-      x86_64: "https://fastdl.mongodb.org/tools/db/mongodb-database-tools-ubuntu2204-x86_64-100.15.0.deb"
+      x86_64: "https://fastdl.mongodb.org/tools/db/mongodb-database-tools-ubuntu2204-x86_64-100.16.0.deb"
 
     # Compass: usa la URL exacta que te da el botón “Copy link” del Download Center.
     # La página pública muestra Compass 1.49.4 estable para Ubuntu 20.04+ x64,

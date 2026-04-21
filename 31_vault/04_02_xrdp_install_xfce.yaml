@@ -25,6 +25,10 @@
       apt:
         name: xrdp
         state: present
+    - name: Configurar terminal por defecto en XFCE
+      shell: |
+        xfconf-query -c exo -p /PreferredApplications/TerminalEmulator -n -t string -s xfce4-terminal
+      changed_when: false
     - name: Instalar Firefox mediante Snap
       community.general.snap:
         name: firefox

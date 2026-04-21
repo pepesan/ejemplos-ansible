@@ -45,6 +45,6 @@ ansible-playbook 00_ping.yaml --ask-vault-pass
 # ansible-playbook 18_delete_docker_container.yaml --ask-vault-pass
 
 # reinicio de la máquina
-#ansible-playbook 20_reboot.yaml --ask-vault-pass
+# ansible-playbook 20_reboot.yaml --ask-vault-pass
 
 
