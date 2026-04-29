@@ -1,6 +1,6 @@
 #!/bin/bash
 # Comprobacion de conexión  (hecho)
-ansible-playbook 00_ping.yaml --ask-vault-pass
+# ansible-playbook 00_ping.yaml --ask-vault-pass
 # instalación de docker
 # ansible-playbook 01_docker_install.yaml --ask-vault-pass
 # creación del usuario alumno (hecho)
@@ -43,6 +43,8 @@ ansible-playbook 00_ping.yaml --ask-vault-pass
 # ansible-playbook 17_deploy_mysql_client.yaml --ask-vault-pass
 # Delete docker container  (hecho)
 # ansible-playbook 18_delete_docker_container.yaml --ask-vault-pass
+# Delete jupiter docker container  (hecho)
+# ansible-playbook 19_delete_jupyter_docker_container.yaml --ask-vault-pass
 
 # reinicio de la máquina
 # ansible-playbook 20_reboot.yaml --ask-vault-pass

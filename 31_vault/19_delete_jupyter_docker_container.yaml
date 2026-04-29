@@ -1,0 +1,17 @@
+---
+- name: Comprobar conectividad con los hosts del grupo ubuntu
+  hosts: ubuntu
+  gather_facts: no
+
+  tasks:
+    - name: Eliminar el contenedor jupyter-notebook forzosamente mediante comando
+      ansible.builtin.shell: "docker rm -f jupyter-notebook"
+      # Usamos ignore_errors para que el playbook siga si el contenedor no existe
+      ignore_errors: yes
+    - name: Confirmar eliminación
+      ansible.builtin.shell: "docker ps -a --filter name=jupyter-notebook"
+      register: docker_output
+
+    - name: Mostrar estado actual de jupyter-notebook
+      ansible.builtin.debug:
+        msg: "{{ docker_output.stdout }}"
