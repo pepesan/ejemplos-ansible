@@ -45,8 +45,9 @@
 # ansible-playbook 18_delete_docker_container.yaml --ask-vault-pass
 # Delete jupiter docker container  (hecho)
 # ansible-playbook 19_delete_jupyter_docker_container.yaml --ask-vault-pass
-
+# Deploy Kasm (hecho)
+# ansible-playbook 20_deploy_kasm.yaml --ask-vault-pass
 # reinicio de la máquina
-# ansible-playbook 20_reboot.yaml --ask-vault-pass
+# ansible-playbook 30_reboot.yaml --ask-vault-pass
 
 

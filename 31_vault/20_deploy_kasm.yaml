@@ -1,0 +1,82 @@
+---
+- name: Comprobar conectividad con los hosts del grupo ubuntu
+  hosts: ubuntu
+  gather_facts: no
+  vars:
+    kasm_dir: /opt/kasm
+    kasm_files_dir: "{{ playbook_dir }}/files/kasm"
+  tasks:
+    - name: Crear directorio de Kasm
+      file:
+        path: "{{ kasm_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Copiar ficheros de Kasm
+      copy:
+        src: "{{ kasm_files_dir }}/"
+        dest: "{{ kasm_dir }}/"
+        mode: preserve
+    - name: Lanzar contenedor Kasm con docker compose
+      community.docker.docker_compose_v2:
+        project_src: "{{ kasm_dir }}"
+        files:
+          - compose.yaml
+        state: present
+    ## Para evitar el fallo de la swap en la instalación de Kasm, vamos a crear un swapfile de 4GB si no existe
+    - name: Comprobar si existe swapfile
+      stat:
+        path: /swapfile
+      register: swapfile
+
+    - name: Crear swapfile de 4GB
+      command: fallocate -l 4G /swapfile
+      when: not swapfile.stat.exists
+
+    - name: Establecer permisos del swapfile
+      file:
+        path: /swapfile
+        mode: '0600'
+      when: not swapfile.stat.exists
+
+    - name: Formatear swapfile
+      command: mkswap /swapfile
+      when: not swapfile.stat.exists
+
+    - name: Activar swapfile
+      command: swapon /swapfile
+      when: not swapfile.stat.exists
+
+    - name: Hacer swap permanente en fstab
+      lineinfile:
+        path: /etc/fstab
+        line: '/swapfile none swap sw 0 0'
+        state: present
+
+    - name: Ejecutar fix e instalación de Kasm
+      community.docker.docker_container_exec:
+        container: kasm
+        command: bash /scripts/fix_and_install_kasm.sh
+      register: install_output
+
+    - name: Mostrar resultado de instalación
+      debug:
+        var: install_output.stdout
+
+    - name: Descargar imagen personalizada dentro de Kasm
+      community.docker.docker_container_exec:
+        container: kasm
+        command: docker pull pepesan/mi-ubuntu-noble-kasm:1.0
+      register: pull_output
+    - name: Mostrar resultado de descarga
+      debug:
+        var: pull_output.stdout
+    - name: Configurar workspace personalizado
+      command: bash /opt/kasm/08_automatic_workspace_configure.sh
+      register: workspace_output
+
+    - name: Mostrar resultado de configuración del workspace
+      debug:
+        var: workspace_output.stdout
+
+# Entra a https://IP_SERVIDOR/ para acceder a Kasm, el usuario es "admin@kasm.local" y la contraseña "Admin1234!"

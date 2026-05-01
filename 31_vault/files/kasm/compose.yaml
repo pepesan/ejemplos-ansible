@@ -1,0 +1,27 @@
+services:
+  kasm:
+    image: lscr.io/linuxserver/kasm:latest
+    container_name: kasm
+    privileged: true
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Madrid
+      - KASM_PORT=443
+      - KASM_ADMIN_PASSWORD=Admin1234!
+      - KASM_USER_PASSWORD=User1234!
+    volumes:
+      - ./data/opt:/opt
+      - ./data/profiles:/profiles
+      - ./init:/scripts   # ← monta la carpeta de scripts
+      - /dev/input:/dev/input
+      - /run/udev/data:/run/udev/data
+    ports:
+      - "443:443"
+      - "3001:3000"
+    restart: unless-stopped
+
+
+volumes:
+  kasm_opt:
+  kasm_profiles:
