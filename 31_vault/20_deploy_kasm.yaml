@@ -78,5 +78,12 @@
     - name: Mostrar resultado de configuración del workspace
       debug:
         var: workspace_output.stdout
+    - name: Configurar tiempos de workspace para que no se paren
+      command: bash /opt/kasm/09_configure_session_limits.sh
+      register: session_output
+
+    - name: Mostrar resultado de configuración del session
+      debug:
+        var: session_output.stdout
 
 # Entra a https://IP_SERVIDOR/ para acceder a Kasm, el usuario es "admin@kasm.local" y la contraseña "Admin1234!"
