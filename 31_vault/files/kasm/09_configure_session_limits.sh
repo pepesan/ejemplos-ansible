@@ -10,7 +10,22 @@ KASM_URL="https://127.0.0.1:443"
 KEEPALIVE_EXPIRATION_SECONDS=0
 # Acción cuando expira el keepalive: pause | delete
 KEEPALIVE_EXPIRATION_ACTION="pause"
+
+# Configuración de seguridad (bastionado)
+ALLOW_CLIPBOARD_DOWNSTREAM="false"
+ALLOW_CLIPBOARD_UPSTREAM="false"
+ALLOW_FILE_DOWNLOAD="false"
+ALLOW_FILE_UPLOAD="false"
+ALLOW_PRINTING="false"
 # ============================================
+
+# Esperar a que Kasm esté listo
+echo ">> Esperando a que el servicio Kasm esté listo en ${KASM_URL}..."
+until curl -sk --fail "${KASM_URL}" -o /dev/null; do
+  echo "Esperando a Kasm..."
+  sleep 5
+done
+echo ">> Kasm está listo. Procediendo con la configuración..."
 
 # ============================================
 # GENERAR CREDENCIALES API TEMPORALES (solo esta parte usa la BD)
@@ -111,7 +126,7 @@ docker exec kasm docker exec kasm_db psql -U kasmapp -d kasm -c "
       UPDATE group_settings
       SET value = '${KEEPALIVE_EXPIRATION_ACTION}'
       WHERE group_id = '${ALL_USERS_GROUP_ID}' AND name = 'keepalive_expiration_action';
-      RAISE NOTICE 'UPDATE realizado';
+      RAISE NOTICE 'UPDATE keepalive_expiration_action realizado';
     ELSE
       INSERT INTO group_settings (group_id, name, value, value_type, description)
       VALUES (
@@ -121,8 +136,40 @@ docker exec kasm docker exec kasm_db psql -U kasmapp -d kasm -c "
         'string',
         'Action to take when keepalive expires: pause or delete'
       );
-      RAISE NOTICE 'INSERT realizado';
+      RAISE NOTICE 'INSERT keepalive_expiration_action realizado';
     END IF;
+  END;
+  \$\$;
+"
+
+echo ">> Upsert de directivas de seguridad (bastionado) en group_settings..."
+docker exec kasm docker exec kasm_db psql -U kasmapp -d kasm -c "
+  DO \$\$
+  DECLARE
+    v_group_id UUID := '${ALL_USERS_GROUP_ID}';
+    v_settings RECORD;
+  BEGIN
+    FOR v_settings IN 
+      SELECT * FROM (VALUES
+        ('allow_clipboard_downstream', '${ALLOW_CLIPBOARD_DOWNSTREAM}', 'boolean', 'Disallow copying text from inside Kasm to host'),
+        ('allow_clipboard_upstream', '${ALLOW_CLIPBOARD_UPSTREAM}', 'boolean', 'Disallow copying text from host to inside Kasm'),
+        ('allow_file_download', '${ALLOW_FILE_DOWNLOAD}', 'boolean', 'Disallow downloading files from Kasm to host'),
+        ('allow_file_upload', '${ALLOW_FILE_UPLOAD}', 'boolean', 'Disallow uploading files from host to Kasm'),
+        ('allow_printing', '${ALLOW_PRINTING}', 'boolean', 'Disallow printing inside Kasm sessions')
+      ) AS t(name, value, value_type, description)
+    LOOP
+      IF EXISTS (
+        SELECT 1 FROM group_settings
+        WHERE group_id = v_group_id AND name = v_settings.name
+      ) THEN
+        UPDATE group_settings
+        SET value = v_settings.value
+        WHERE group_id = v_group_id AND name = v_settings.name;
+      ELSE
+        INSERT INTO group_settings (group_id, name, value, value_type, description)
+        VALUES (v_group_id, v_settings.name, v_settings.value, v_settings.value_type, v_settings.description);
+      END IF;
+    END LOOP;
   END;
   \$\$;
 "
@@ -151,6 +198,14 @@ docker exec kasm docker exec kasm_db psql -U kasmapp -d kasm -c "
   WHERE group_id = '${ALL_USERS_GROUP_ID}' AND name = 'keepalive_expiration_action';
 "
 
+echo ">> Verificando configuraciones de seguridad (bastionado) en group_settings..."
+docker exec kasm docker exec kasm_db psql -U kasmapp -d kasm -c "
+  SELECT name, value, value_type
+  FROM group_settings
+  WHERE group_id = '${ALL_USERS_GROUP_ID}' 
+    AND name IN ('allow_clipboard_downstream', 'allow_clipboard_upstream', 'allow_file_download', 'allow_file_upload', 'allow_printing');
+"
+
 # ============================================
 # LIMPIAR API KEY TEMPORAL
 # ============================================
@@ -164,4 +219,9 @@ echo "=========================================="
 echo "COMPLETADO"
 echo "  keepalive_expiration        = ${KEEPALIVE_EXPIRATION_SECONDS}s (0=sin límite)"
 echo "  keepalive_expiration_action = ${KEEPALIVE_EXPIRATION_ACTION}"
+echo "  allow_clipboard_downstream  = ${ALLOW_CLIPBOARD_DOWNSTREAM}"
+echo "  allow_clipboard_upstream    = ${ALLOW_CLIPBOARD_UPSTREAM}"
+echo "  allow_file_download         = ${ALLOW_FILE_DOWNLOAD}"
+echo "  allow_file_upload           = ${ALLOW_FILE_UPLOAD}"
+echo "  allow_printing              = ${ALLOW_PRINTING}"
 echo "=========================================="

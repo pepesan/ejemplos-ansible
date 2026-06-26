@@ -13,6 +13,12 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
+# Comprobar si ya está instalado
+if [ -f "/opt/kasm/bin/kasm_server" ] || [ -f "/opt/kasm/current/bin/kasm_server" ]; then
+    echo -e "${GREEN}Kasm ya está instalado. Omitiendo la instalación.${NC}"
+    exit 0
+fi
+
 echo -e "${YELLOW}>> Corrigiendo bug en install.sh...${NC}"
 sed -i "s/'install-depends',/'install-depends'/" /kasm_release/install.sh
 echo -e "${GREEN}OK Bug corregido${NC}"

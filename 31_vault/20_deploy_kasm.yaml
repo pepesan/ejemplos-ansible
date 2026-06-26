@@ -17,12 +17,6 @@
         src: "{{ kasm_files_dir }}/"
         dest: "{{ kasm_dir }}/"
         mode: preserve
-    - name: Lanzar contenedor Kasm con docker compose
-      community.docker.docker_compose_v2:
-        project_src: "{{ kasm_dir }}"
-        files:
-          - compose.yaml
-        state: present
     ## Para evitar el fallo de la swap en la instalación de Kasm, vamos a crear un swapfile de 4GB si no existe
     - name: Comprobar si existe swapfile
       stat:
@@ -51,6 +45,13 @@
       lineinfile:
         path: /etc/fstab
         line: '/swapfile none swap sw 0 0'
+        state: present
+
+    - name: Lanzar contenedor Kasm con docker compose
+      community.docker.docker_compose_v2:
+        project_src: "{{ kasm_dir }}"
+        files:
+          - compose.yaml
         state: present
 
     - name: Ejecutar fix e instalación de Kasm

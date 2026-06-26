@@ -13,6 +13,23 @@ CORES=4
 MEMORY=8589934592 # 8GB en bytes (8 * 1024 * 1024 * 1024)
 # ============================================
 
+# Esperar a que Kasm esté listo
+echo ">> Esperando a que el servicio Kasm esté listo en ${KASM_URL}..."
+until curl -sk --fail "${KASM_URL}" -o /dev/null; do
+  echo "Esperando a Kasm..."
+  sleep 5
+done
+echo ">> Kasm está listo. Procediendo..."
+
+echo ">> Comprobando si el workspace ya existe..."
+EXISTS=$(docker exec kasm docker exec kasm_db psql -U kasmapp -d kasm -t -c \
+  "SELECT 1 FROM images WHERE name = '${IMAGE_NAME}';" | tr -d ' \n')
+
+if [ "$EXISTS" = "1" ]; then
+  echo "OK El workspace con la imagen ${IMAGE_NAME} ya está configurado. Omitiendo creación."
+  exit 0
+fi
+
 # Generar API key y secret
 API_KEY=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | head -c 12)
 API_KEY_SECRET=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | head -c 32)
@@ -70,3 +87,7 @@ if echo $RESPONSE | grep -q "image_id"; then
 else
   echo "ERROR al crear workspace"
 fi
+
+echo ">> Limpiando API key temporal..."
+docker exec kasm docker exec kasm_db psql -U kasmapp -d kasm -c \
+  "DELETE FROM api_configs WHERE name='auto-generated';"
