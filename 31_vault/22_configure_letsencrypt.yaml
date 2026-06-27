@@ -4,7 +4,6 @@
   gather_facts: no
   vars:
     kasm_dir: /opt/kasm
-    kasm_cert_dir: "{{ kasm_dir }}/data/opt/kasm/current/certs"
     kasm_domain: "{{ node_name }}.kasm.cursosdedesarrollo.com"
     letsencrypt_email: "pepesan@gmail.com"
   tasks:
@@ -25,17 +24,28 @@
       args:
         creates: /etc/letsencrypt/live/{{ kasm_domain }}/fullchain.pem
 
+    - name: Encontrar directorio de certificados de Kasm
+      find:
+        paths: "{{ kasm_dir }}/data/opt/kasm"
+        patterns: "kasm_nginx.crt"
+        recurse: yes
+      register: kasm_cert_found
+
+    - name: Establecer ruta de certificados
+      set_fact:
+        kasm_cert_dir: "{{ kasm_cert_found.files[0].path | dirname }}"
+
     - name: Copiar certificado a Kasm
       copy:
         src: /etc/letsencrypt/live/{{ kasm_domain }}/fullchain.pem
-        dest: "{{ kasm_cert_dir }}/kasm.crt"
+        dest: "{{ kasm_cert_dir }}/kasm_nginx.crt"
         remote_src: yes
         mode: '0644'
 
     - name: Copiar clave privada a Kasm
       copy:
         src: /etc/letsencrypt/live/{{ kasm_domain }}/privkey.pem
-        dest: "{{ kasm_cert_dir }}/kasm.key"
+        dest: "{{ kasm_cert_dir }}/kasm_nginx.key"
         remote_src: yes
         mode: '0600'
 
@@ -49,7 +59,7 @@
 
     - name: Copiar script de renovación automática
       copy:
-        src: "{{ playbook_dir }}/files/kasm/letsencrypt_deploy_hook.sh"
+        src: "{{ playbook_dir }}/files/kasm/10_letsencrypt_deploy_hook.sh"
         dest: /etc/letsencrypt/renewal-hooks/deploy/restart-kasm.sh
         mode: '0755'
 
@@ -59,7 +69,7 @@
         https://{{ kasm_domain }}
         -o /dev/null -w "%{http_code}"
       register: kasm_check
-      retries: 6
+      retries: 10
       delay: 10
       until: kasm_check.stdout in ['200', '302']
 
