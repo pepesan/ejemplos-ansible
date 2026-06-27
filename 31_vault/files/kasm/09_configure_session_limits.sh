@@ -207,6 +207,17 @@ docker exec kasm docker exec kasm_db psql -U kasmapp -d kasm -c "
 "
 
 # ============================================
+# 3. DESACTIVAR PRUNING AGRESIVO DE IMÁGENES
+#    En modo Aggressive el agente borra imágenes que no tienen sesión activa,
+#    lo que impide que las imágenes personalizadas queden disponibles.
+# ============================================
+echo ""
+echo ">> Desactivando pruning agresivo de imágenes en todos los servidores..."
+docker exec kasm docker exec kasm_db psql -U kasmapp -d kasm -c \
+  "UPDATE servers SET prune_images_mode = 'No Prune';"
+echo "OK prune_images_mode = No Prune"
+
+# ============================================
 # LIMPIAR API KEY TEMPORAL
 # ============================================
 echo ""

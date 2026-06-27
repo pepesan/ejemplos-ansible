@@ -5,6 +5,13 @@
   vars:
     kasm_dir: /opt/kasm
     kasm_files_dir: "{{ playbook_dir }}/files/kasm"
+    # Imagen Kasm a desplegar. Opciones disponibles:
+    #   pepesan/mi-ubuntu-noble-kasm:1.0     -> Ubuntu 24.04 con IntelliJ, ZAP, Firefox (por defecto)
+    #   pepesan/mi-ubuntu-noble-kasm-go      -> Entorno de desarrollo Go
+    # Sobreescribir con: -e kasm_image=pepesan/mi-ubuntu-noble-kasm-go
+    kasm_image: "pepesan/mi-ubuntu-noble-kasm:1.0"
+    kasm_domain: "{{ node_name }}.kasm.cursosdedesarrollo.com"
+    letsencrypt_email: "pepesan@gmail.com"
   tasks:
     - name: Crear directorio de Kasm
       file:
@@ -54,6 +61,10 @@
           - compose.yaml
         state: present
 
+    - name: Tip — seguir log de instalación en tiempo real
+      debug:
+        msg: "Para ver el progreso ejecuta en otra terminal: ssh root@{{ inventory_hostname }} 'tail -f /opt/kasm/data/opt/kasm_deploy.log'"
+
     - name: Ejecutar fix e instalación de Kasm
       community.docker.docker_container_exec:
         container: kasm
@@ -64,24 +75,28 @@
       debug:
         var: install_output.stdout
 
-    - name: Descargar imagen personalizada dentro de Kasm
-      community.docker.docker_container_exec:
-        container: kasm
-        command: docker pull pepesan/mi-ubuntu-noble-kasm:1.0
-      register: pull_output
-    - name: Mostrar resultado de descarga
+    - name: Configurar tiempos de workspace y deshabilitar pruning agresivo
+      command: bash /opt/kasm/09_configure_session_limits.sh
+      register: session_output
+
+    - name: Mostrar resultado de configuración de sesión
       debug:
-        var: pull_output.stdout
+        var: session_output.stdout
+
+    - name: Descargar imagen personalizada en el DinD de Kasm
+      command: docker exec kasm docker pull {{ kasm_image }}
+      async: 1800
+      poll: 30
+
     - name: Configurar workspace personalizado
       command: bash /opt/kasm/08_automatic_workspace_configure.sh
+      environment:
+        KASM_IMAGE: "{{ kasm_image }}"
       register: workspace_output
 
     - name: Mostrar resultado de configuración del workspace
       debug:
         var: workspace_output.stdout
-    - name: Configurar tiempos de workspace para que no se paren
-      command: bash /opt/kasm/09_configure_session_limits.sh
-      register: session_output
 
     - name: Mostrar resultado de configuración del session
       debug:

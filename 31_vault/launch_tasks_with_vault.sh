@@ -2,7 +2,7 @@
 # Comprobacion de conexión  (hecho)
 # ansible-playbook 00_ping.yaml --ask-vault-pass
 # instalación de docker
-# ansible-playbook 01_docker_install.yaml --ask-vault-pass
+ansible-playbook 01_docker_install.yaml --ask-vault-pass
 # creación del usuario alumno (hecho)
 # ansible-playbook 02_adduser_alumno.yaml --ask-vault-pass
 # instalación de sdkman (hecho)

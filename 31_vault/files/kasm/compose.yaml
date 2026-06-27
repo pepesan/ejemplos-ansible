@@ -1,6 +1,6 @@
 services:
   kasm:
-    image: lscr.io/linuxserver/kasm:latest
+    image: lscr.io/linuxserver/kasm:1.19.0-ls136
     container_name: kasm
     privileged: true
     environment:

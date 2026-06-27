@@ -1,77 +1,140 @@
-# Despliegue de máquinas  remotas con Ansible y usando Vault
+# Despliegue de máquinas remotas con Ansible y usando Vault
 
 ## Introducción
+
 Este proyecto tiene como objetivo desplegar máquinas remotas utilizando Ansible y gestionar las credenciales de manera segura con Ansible Vault. Ansible Vault permite cifrar archivos sensibles, como contraseñas y claves SSH, para proteger la información confidencial durante el despliegue.
+
 ## Requisitos previos
+
 - Tener Ansible instalado en tu máquina local.
 - Tener acceso a las máquinas remotas que deseas gestionar.
 - Tener Ansible Vault instalado (viene incluido con Ansible).
 - Tener configurado SSH para acceder a las máquinas remotas.
 - Tener un archivo de inventario de Ansible que liste las máquinas remotas.
-- Tener un archivo de configuración de Ansible (ansible.cfg) adecuado.
+- Tener un archivo de configuración de Ansible (`ansible.cfg`) adecuado.
+
 ## Configuración de Ansible Vault
-En primer lugar, existe un archivo de contraseñas para Ansible Vault. Este archivo contendrá la contraseña que se utilizará para acceder con el usuario a la máquina en remoto.
-Este fichero está dentro de la carpeta `group_vars/all/vault.yml` que ya se encuentra cifrado.
-Pero si quieres crear uno nuevo, puedes hacerlo con el siguiente comando:
+
+Las credenciales están almacenadas en `group_vars/all/vault.yml`, que ya se encuentra cifrado con Ansible Vault.
+
+Para crear o editar el fichero de variables cifradas:
+
 ```bash
+# Editar en texto plano antes de cifrar
 nano group_vars/all/vault.yml
 ```
-Esto abrirá un editor de texto donde puedes ingresar las variables que deseas cifrar. Por ejemplo:
+
+Ejemplo de contenido:
+
 ```yaml
 alumno_password_plain: tu_contrasegna_aqui
 ```
-Guarda y cierra el editor.
 
-Luego, cifra el archivo con el siguiente comando:
+Para cifrarlo:
+
 ```bash
 ansible-vault encrypt group_vars/all/vault.yml
 ```
-Se te pedirá que ingreses una contraseña para proteger el archivo. Asegúrate de recordar esta contraseña, ya que la necesitarás para descifrar el archivo más adelante.
-## Uso de Ansible Vault en Playbooks
-Para utilizar las variables cifradas en tus playbooks de Ansible, simplemente incluye el archivo cifrado en tu playbook. Por ejemplo:
-```yaml
----
-- name: Desplegar aplicación con variables cifradas
-  hosts: localhost # ejecución en local
-  connection: local
-  vars_files:
-    - secrets.yaml
-  tasks:
-    - name: Mostrar la contraseña de la base de datos
-      debug:
-        msg: "La contraseña de la base de datos es {{ db_password }}"
-``` 
-Cuando ejecutes el playbook, utiliza la opción `--ask-vault-pass` para que Ansible te solicite la contraseña del Vault:
+
+Para ejecutar cualquier playbook usando las variables del vault:
+
 ```bash
-ansible-playbook playbook.yml --ask-vault-pass
+ansible-playbook <playbook>.yaml --ask-vault-pass
 ```
-Entonces te pedirá la contraseña que usaste para cifrar el archivo, y podrás acceder a las variables cifradas dentro del playbook.
-## Despliegue de máquinas remotas
-En este ejemplo estamos haciendo un despliegue en remoto de una máquina virtual en Contabo, pero se puede hacer con cualquier máquina remota.
 
-El script llamado `launch_tasks_with_vault.sh` hace lo siguiente, ejecuta paso a paso los siguientes playbooks:
-1. `01_docker_install.yaml`: Instala Docker en la máquina remota.
-2. `02_sdkman_install.yaml`: Instala SDKMAN en la máquina remota.
-3. `03_xrdp_install.yaml`: Instala XRDP en la máquina remota, para poder acceder a la máquina de forma gráfica.
-4. `04_intellij_install.yaml`: Instala IntelliJ IDEA en la máquina remota.
-5. `05_adduser_alumno.yaml`: Añade un usuario llamado "alumno" en la máquina remota. Usando la contraseña que está en el vault y lo mete en el grupo docker y en sudo.
-6. `06_chrome_chromedriver_install.yaml`: Instala Google Chrome y ChromeDriver en la máquina remota.
-7. `07_system_update.yaml`: Actualiza el sistema operativo de la máquina remota.
-8. `08_download_git.yaml`: Instala git y clona unos repositorios de Git en la máquina remota.
-9. `10_reboot.yaml`: Reinicia la máquina remota para aplicar todos los cambios.
+## Playbooks disponibles
 
-## Conclusión
-Ansible Vault es una herramienta poderosa para gestionar credenciales de manera segura durante el despliegue de máquinas remotas con Ansible. Siguiendo los pasos descritos en este README, puedes proteger tu información sensible y automatizar el proceso de despliegue de manera segura.
-Así tendremos instaladas todas las herramientas necesarias para trabajar en remoto con la máquina:
-- Docker
-- SDKMAN y el JDK 21
-- XRDP
-- IntelliJ IDEA
-- Google Chrome y ChromeDriver
-- Git y repositorios clonados
-- Usuario "alumno" con permisos de sudo y docker
-- Sistema operativo actualizado
-- Máquina reiniciada para aplicar cambios
+### Infraestructura base
 
+| Playbook | Descripción |
+|----------|-------------|
+| `00_ping.yaml` | Comprueba conectividad con los hosts |
+| `01_docker_install.yaml` | Instala Docker |
+| `02_adduser_alumno.yaml` | Crea el usuario `alumno` con permisos de `sudo` y `docker` |
+| `03_sdkman_install.yaml` | Instala SDKMAN y el JDK 21 |
+| `04_01_xrdp_install_gnome.yaml` | Instala XRDP con escritorio GNOME |
+| `04_02_xrdp_install_xfce.yaml` | Instala XRDP con escritorio XFCE |
+| `05_intellij_install.yaml` | Instala IntelliJ IDEA |
+| `06_chrome_chromedriver_install.yaml` | Instala Google Chrome y ChromeDriver |
+| `07_system_update.yaml` | Actualiza el sistema operativo |
+| `08_download_git.yaml` | Instala Git y clona repositorios de ejemplo |
+| `30_reboot.yaml` | Reinicia la máquina remota |
 
+### VSCode y extensiones
 
+| Playbook | Descripción |
+|----------|-------------|
+| `09_install_vscode_php.yaml` | Instala VSCode con extensiones PHP |
+| `09_install_vscode_python.yaml` | Instala VSCode con extensiones Python |
+| `09_install_vscode_docker_k8s.yaml` | Instala VSCode con extensiones Docker y Kubernetes |
+| `09_install_vscode_terraform_localstack.yaml` | Instala VSCode con extensiones Terraform y AWS |
+
+### Drupal
+
+| Playbook | Descripción |
+|----------|-------------|
+| `10_install_drupal.yaml` | Despliega el entorno Drupal con Docker |
+| `11_repair_docker.yaml` | Repara la instalación de Docker si hay problemas |
+| `12_copy_drupal_examples.yaml` | Copia los ficheros de ejemplos de Drupal al servidor |
+| `13_clean_drupal_environment.yaml` | Limpia y elimina el entorno Drupal |
+
+### Herramientas adicionales
+
+| Playbook | Descripción |
+|----------|-------------|
+| `14_deploy_docker_compose_jupiter_notebook.yaml` | Despliega Jupyter Notebook con Docker Compose |
+| `15_deploy_mongodb_tools.yaml` | Instala MongoDB y MongoDB Compass |
+| `16_deploy_terraform_localstack.yaml` | Instala Terraform, LocalStack y AWS CLI |
+| `17_deploy_mysql_client.yaml` | Instala el cliente MySQL |
+
+### Limpieza de contenedores
+
+| Playbook | Descripción |
+|----------|-------------|
+| `18_delete_docker_container.yaml` | Elimina un contenedor Docker genérico |
+| `19_delete_jupyter_docker_container.yaml` | Elimina el contenedor de Jupyter Notebook |
+
+## Despliegue de Kasm
+
+El playbook `20_deploy_kasm.yaml` instala y configura [Kasm Workspaces](https://www.kasmweb.com/) en la máquina remota. Kasm permite acceder a entornos de escritorio completos desde el navegador.
+
+### Imágenes disponibles
+
+| Imagen | Descripción |
+|--------|-------------|
+| `pepesan/mi-ubuntu-noble-kasm:1.0` *(por defecto)* | Ubuntu 24.04 con IntelliJ, ZAP y Firefox |
+| `pepesan/mi-ubuntu-noble-kasm-go` | Ubuntu 24.04 con entorno de desarrollo Go |
+
+### Uso
+
+```bash
+# Imagen por defecto
+ansible-playbook 20_deploy_kasm.yaml --ask-vault-pass
+
+# Imagen de desarrollo Go
+ansible-playbook 20_deploy_kasm.yaml --ask-vault-pass -e "kasm_image=pepesan/mi-ubuntu-noble-kasm-go"
+```
+
+La instalación de Kasm tarda varios minutos. Para seguir el progreso en tiempo real, abre otra terminal y ejecuta:
+
+```bash
+ssh root@IP_SERVIDOR 'tail -f /opt/kasm/data/opt/kasm_deploy.log'
+```
+
+Una vez desplegado, acceder a `https://IP_SERVIDOR/` con alguno de estos usuarios:
+
+| Rol | Usuario | Contraseña |
+|-----|---------|------------|
+| Administrador | `admin@kasm.local` | `Admin1234!` |
+| Usuario normal | `user@kasm.local` | `User1234!` |
+
+Dentro del escritorio de la imagen personalizada, el usuario del sistema es:
+
+| Campo | Valor |
+|-------|-------|
+| Usuario | `kasm_user` |
+| Contraseña | `sta3war2` |
+
+## Script de lanzamiento
+
+El script `launch_tasks_with_vault.sh` agrupa los comandos de los playbooks más habituales como referencia rápida. Está comentado para que puedas descomentar y ejecutar solo los pasos que necesites.

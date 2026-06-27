@@ -1,0 +1,68 @@
+---
+- name: Configurar HTTPS con certificado Let's Encrypt para Kasm
+  hosts: ubuntu
+  gather_facts: no
+  vars:
+    kasm_dir: /opt/kasm
+    kasm_cert_dir: "{{ kasm_dir }}/data/opt/kasm/current/certs"
+    kasm_domain: "{{ node_name }}.kasm.cursosdedesarrollo.com"
+    letsencrypt_email: "pepesan@gmail.com"
+  tasks:
+    - name: Instalar certbot
+      apt:
+        name: certbot
+        state: present
+        update_cache: yes
+
+    - name: Obtener certificado Let's Encrypt (standalone, puerto 80)
+      command: >
+        certbot certonly
+        --standalone
+        --non-interactive
+        --agree-tos
+        --email {{ letsencrypt_email }}
+        -d {{ kasm_domain }}
+      args:
+        creates: /etc/letsencrypt/live/{{ kasm_domain }}/fullchain.pem
+
+    - name: Copiar certificado a Kasm
+      copy:
+        src: /etc/letsencrypt/live/{{ kasm_domain }}/fullchain.pem
+        dest: "{{ kasm_cert_dir }}/kasm.crt"
+        remote_src: yes
+        mode: '0644'
+
+    - name: Copiar clave privada a Kasm
+      copy:
+        src: /etc/letsencrypt/live/{{ kasm_domain }}/privkey.pem
+        dest: "{{ kasm_cert_dir }}/kasm.key"
+        remote_src: yes
+        mode: '0600'
+
+    - name: Reiniciar Kasm para aplicar el nuevo certificado
+      community.docker.docker_compose_v2:
+        project_src: "{{ kasm_dir }}"
+        files:
+          - compose.yaml
+        state: present
+        recreate: always
+
+    - name: Copiar script de renovación automática
+      copy:
+        src: "{{ playbook_dir }}/files/kasm/letsencrypt_deploy_hook.sh"
+        dest: /etc/letsencrypt/renewal-hooks/deploy/restart-kasm.sh
+        mode: '0755'
+
+    - name: Verificar que Kasm responde con el nuevo certificado
+      command: >
+        curl -sk --max-time 10
+        https://{{ kasm_domain }}
+        -o /dev/null -w "%{http_code}"
+      register: kasm_check
+      retries: 6
+      delay: 10
+      until: kasm_check.stdout in ['200', '302']
+
+    - name: Resultado de verificación
+      debug:
+        msg: "Kasm accesible en https://{{ kasm_domain }} (HTTP {{ kasm_check.stdout }})"

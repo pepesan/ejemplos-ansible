@@ -1,0 +1,26 @@
+---
+- name: Eliminar Kasm completamente para empezar desde cero
+  hosts: ubuntu
+  gather_facts: no
+  vars:
+    kasm_dir: /opt/kasm
+
+  tasks:
+    - name: Parar y eliminar contenedor Kasm con docker compose
+      community.docker.docker_compose_v2:
+        project_src: "{{ kasm_dir }}"
+        files:
+          - compose.yaml
+        state: absent
+        remove_volumes: true
+      ignore_errors: true
+
+    - name: Eliminar datos de Kasm
+      file:
+        path: "{{ kasm_dir }}/data"
+        state: absent
+
+    - name: Eliminar directorio de Kasm
+      file:
+        path: "{{ kasm_dir }}"
+        state: absent

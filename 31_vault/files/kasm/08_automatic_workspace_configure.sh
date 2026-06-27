@@ -6,9 +6,18 @@ set -e
 # CONFIGURACIÓN
 # ============================================
 KASM_URL="https://127.0.0.1:443"
-IMAGE_NAME="pepesan/mi-ubuntu-noble-kasm:1.0"
-WORKSPACE_NAME="Ubuntu Noble Custom"
-WORKSPACE_DESC="Ubuntu 24.04 con IntelliJ, ZAP, Firefox"
+IMAGE_NAME="${KASM_IMAGE:-pepesan/mi-ubuntu-noble-kasm:1.0}"
+
+case "$IMAGE_NAME" in
+  *kasm-go*)
+    WORKSPACE_NAME="Ubuntu Noble Go"
+    WORKSPACE_DESC="Ubuntu 26.04 con entorno de desarrollo Go"
+    ;;
+  *)
+    WORKSPACE_NAME="Ubuntu Noble Custom"
+    WORKSPACE_DESC="Ubuntu 26.04 con IntelliJ, ZAP, Firefox"
+    ;;
+esac
 CORES=4
 MEMORY=8589934592 # 8GB en bytes (8 * 1024 * 1024 * 1024)
 # ============================================
@@ -76,7 +85,8 @@ RESPONSE=$(curl -sk -X POST "${KASM_URL}/api/public/create_image" \
       \"cores\": ${CORES},
       \"memory\": ${MEMORY},
       \"gpu_count\": 0,
-      \"enabled\": true
+      \"enabled\": true,
+      \"docker_registry\": \"https://index.docker.io/v1/\"
     }
   }")
 
