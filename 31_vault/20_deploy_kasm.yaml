@@ -8,6 +8,7 @@
     # Imagen Kasm a desplegar. Opciones disponibles:
     #   pepesan/mi-ubuntu-noble-kasm:1.0     -> Ubuntu 24.04 con IntelliJ, ZAP, Firefox (por defecto)
     #   pepesan/mi-ubuntu-noble-kasm-go      -> Entorno de desarrollo Go
+    # Repositorio de imágenes personalizadas: https://github.com/pepesan/kasm-workspaces-images.git
     # Sobreescribir con: -e kasm_image=pepesan/mi-ubuntu-noble-kasm-go
     kasm_image: "pepesan/mi-ubuntu-noble-kasm:1.0"
     kasm_version: "1.19.0"

@@ -100,6 +100,8 @@ El playbook `20_deploy_kasm.yaml` instala y configura [Kasm Workspaces](https://
 
 ### Imágenes disponibles
 
+Las imágenes personalizadas se construyen desde el repositorio: https://github.com/pepesan/kasm-workspaces-images.git
+
 | Imagen | Descripción |
 |--------|-------------|
 | `pepesan/mi-ubuntu-noble-kasm:1.0` *(por defecto)* | Ubuntu 24.04 con IntelliJ, ZAP y Firefox |
