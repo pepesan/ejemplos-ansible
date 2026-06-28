@@ -7,6 +7,8 @@ set -e
 # ============================================
 KASM_URL="https://127.0.0.1:443"
 IMAGE_NAME="${KASM_IMAGE:-pepesan/mi-ubuntu-noble-kasm:1.0}"
+[[ "$IMAGE_NAME" != *:* ]] && IMAGE_NAME="${IMAGE_NAME}:latest"
+IMAGE_NAME="${IMAGE_NAME/:latest/:1.0}"
 
 case "$IMAGE_NAME" in
   *kasm-go*)
@@ -87,12 +89,14 @@ payload = {
         "gpu_count": 0,
         "enabled": True,
         "docker_registry": "https://index.docker.io/v1/",
-        "run_config": {
+        "run_config": json.dumps({
             "environment": {
                 "KASM_SVC_SEND_CUT_TEXT": "-SendCutText 0",
                 "KASM_SVC_ACCEPT_CUT_TEXT": "-AcceptCutText 0",
                 "KASM_SVC_PRINTER": "0"
-            },
+            }
+        }),
+        "exec_config": json.dumps({
             "first_launch": {
                 "user": "root",
                 "cmd": (
@@ -101,7 +105,7 @@ payload = {
                     " && systemctl stop cups 2>/dev/null; systemctl disable cups 2>/dev/null"
                 )
             }
-        }
+        })
     }
 }
 print(json.dumps(payload))

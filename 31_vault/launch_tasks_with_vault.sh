@@ -2,7 +2,7 @@
 # Comprobacion de conexión  (hecho)
 # ansible-playbook 00_ping.yaml --ask-vault-pass
 # instalación de docker
-ansible-playbook 01_docker_install.yaml --ask-vault-pass
+# ansible-playbook 01_docker_install.yaml --ask-vault-pass
 # creación del usuario alumno (hecho)
 # ansible-playbook 02_adduser_alumno.yaml --ask-vault-pass
 # instalación de sdkman (hecho)
@@ -49,11 +49,11 @@ ansible-playbook 01_docker_install.yaml --ask-vault-pass
 # Imagen por defecto (Ubuntu Noble con IntelliJ, ZAP, Firefox):
 # ansible-playbook 20_deploy_kasm.yaml --ask-vault-pass
 # Imagen Go (entorno de desarrollo Go):
-# ansible-playbook 20_deploy_kasm.yaml --ask-vault-pass -e kasm_image=pepesan/mi-ubuntu-noble-kasm-go
+# ansible-playbook 20_deploy_kasm.yaml --ask-vault-pass -e kasm_image=pepesan/mi-ubuntu-noble-kasm-go:latest
 # Undeploy Kasm (elimina contenedores y datos):
 # ansible-playbook 21_undeploy_kasm.yaml --ask-vault-pass
 # Configurar Let's Encrypt (requiere DNS apuntando al servidor):
-# ansible-playbook 22_configure_letsencrypt.yaml --ask-vault-pass
+ansible-playbook 22_configure_letsencrypt.yaml --ask-vault-pass
 # reinicio de la máquina
 # ansible-playbook 30_reboot.yaml --ask-vault-pass
 

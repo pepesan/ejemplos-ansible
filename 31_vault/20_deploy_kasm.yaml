@@ -7,7 +7,7 @@
     kasm_files_dir: "{{ playbook_dir }}/files/kasm"
     # Imagen Kasm a desplegar. Opciones disponibles:
     #   pepesan/mi-ubuntu-noble-kasm:1.0     -> Ubuntu 24.04 con IntelliJ, ZAP, Firefox (por defecto)
-    #   pepesan/mi-ubuntu-noble-kasm-go      -> Entorno de desarrollo Go
+    #   pepesan/mi-ubuntu-noble-kasm-go:latest -> Entorno de desarrollo Go
     # Repositorio de imágenes personalizadas: https://github.com/pepesan/kasm-workspaces-images.git
     # Sobreescribir con: -e kasm_image=pepesan/mi-ubuntu-noble-kasm-go
     kasm_image: "pepesan/mi-ubuntu-noble-kasm:1.0"
@@ -91,6 +91,9 @@
       command: docker exec kasm docker pull {{ kasm_image }}
       async: 1800
       poll: 30
+
+    - name: Etiquetar imagen con tag :1.0 en el DinD de Kasm
+      command: docker exec kasm docker tag {{ kasm_image }} {{ kasm_image.split(':')[0] }}:1.0
 
     - name: Configurar workspace personalizado
       command: bash /opt/kasm/08_automatic_workspace_configure.sh
