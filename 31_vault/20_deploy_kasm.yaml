@@ -10,6 +10,7 @@
     #   pepesan/mi-ubuntu-noble-kasm-go      -> Entorno de desarrollo Go
     # Sobreescribir con: -e kasm_image=pepesan/mi-ubuntu-noble-kasm-go
     kasm_image: "pepesan/mi-ubuntu-noble-kasm:1.0"
+    kasm_version: "1.19.0"
     kasm_domain: "{{ node_name }}.kasm.cursosdedesarrollo.com"
   tasks:
     - name: Crear directorio de Kasm
@@ -103,5 +104,14 @@
     - name: Mostrar resultado de configuración del session
       debug:
         var: session_output.stdout
+
+    - name: Instalar bloqueo de impresión en nginx de kasm_proxy
+      copy:
+        src: "{{ kasm_files_dir }}/nginx/print_block.conf"
+        dest: "{{ kasm_dir }}/data/opt/kasm/{{ kasm_version }}/conf/nginx/containers.d/print_block.conf"
+        mode: '0644'
+
+    - name: Recargar nginx de kasm_proxy
+      command: docker exec kasm docker exec kasm_proxy nginx -s reload
 
 # Entra a https://IP_SERVIDOR/ para acceder a Kasm, el usuario es "admin@kasm.local" y la contraseña "Admin1234!"
