@@ -107,6 +107,14 @@ Las imágenes personalizadas se construyen desde el repositorio: https://github.
 | `pepesan/mi-ubuntu-noble-kasm:1.0` *(por defecto)* | Ubuntu 24.04 con IntelliJ, ZAP y Firefox |
 | `pepesan/mi-ubuntu-noble-kasm-go` | Ubuntu 24.04 con entorno de desarrollo Go |
 
+### Playbooks de Kasm
+
+| Playbook | Descripción |
+|----------|-------------|
+| `20_deploy_kasm.yaml` | Despliega Kasm completo (instalación, workspace, bastionado) |
+| `21_undeploy_kasm.yaml` | Elimina Kasm completamente para empezar desde cero |
+| `22_configure_letsencrypt.yaml` | Configura certificado Let's Encrypt para HTTPS (requiere DNS configurado) |
+
 ### Uso
 
 ```bash
@@ -115,6 +123,12 @@ ansible-playbook 20_deploy_kasm.yaml --ask-vault-pass
 
 # Imagen de desarrollo Go
 ansible-playbook 20_deploy_kasm.yaml --ask-vault-pass -e "kasm_image=pepesan/mi-ubuntu-noble-kasm-go"
+
+# Eliminar despliegue
+ansible-playbook 21_undeploy_kasm.yaml --ask-vault-pass
+
+# Configurar Let's Encrypt (DNS debe apuntar al servidor antes de ejecutar)
+ansible-playbook 22_configure_letsencrypt.yaml --ask-vault-pass
 ```
 
 La instalación de Kasm tarda varios minutos. Para seguir el progreso en tiempo real, abre otra terminal y ejecuta:
