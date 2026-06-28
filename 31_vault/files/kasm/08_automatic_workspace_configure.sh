@@ -72,23 +72,44 @@ echo "OK Permiso asignado"
 sleep 2
 
 echo ">> Creando workspace..."
+PAYLOAD=$(python3 - <<PYEOF
+import json
+payload = {
+    "api_key": "${API_KEY}",
+    "api_key_secret": "${API_KEY_SECRET}",
+    "target_image": {
+        "name": "${IMAGE_NAME}",
+        "friendly_name": "${WORKSPACE_NAME}",
+        "description": "${WORKSPACE_DESC}",
+        "image_type": "Container",
+        "cores": ${CORES},
+        "memory": ${MEMORY},
+        "gpu_count": 0,
+        "enabled": True,
+        "docker_registry": "https://index.docker.io/v1/",
+        "run_config": {
+            "environment": {
+                "KASM_SVC_SEND_CUT_TEXT": "-SendCutText 0",
+                "KASM_SVC_ACCEPT_CUT_TEXT": "-AcceptCutText 0",
+                "KASM_SVC_PRINTER": "0"
+            },
+            "first_launch": {
+                "user": "root",
+                "cmd": (
+                    "chmod -R 000 /home/kasm-user/Desktop/Downloads /home/kasm-user/Desktop/Uploads"
+                    " && chown -R root:root /home/kasm-user/Desktop/Downloads /home/kasm-user/Desktop/Uploads"
+                    " && systemctl stop cups 2>/dev/null; systemctl disable cups 2>/dev/null"
+                )
+            }
+        }
+    }
+}
+print(json.dumps(payload))
+PYEOF
+)
 RESPONSE=$(curl -sk -X POST "${KASM_URL}/api/public/create_image" \
   -H "Content-Type: application/json" \
-  -d "{
-    \"api_key\": \"${API_KEY}\",
-    \"api_key_secret\": \"${API_KEY_SECRET}\",
-    \"target_image\": {
-      \"name\": \"${IMAGE_NAME}\",
-      \"friendly_name\": \"${WORKSPACE_NAME}\",
-      \"description\": \"${WORKSPACE_DESC}\",
-      \"image_type\": \"Container\",
-      \"cores\": ${CORES},
-      \"memory\": ${MEMORY},
-      \"gpu_count\": 0,
-      \"enabled\": true,
-      \"docker_registry\": \"https://index.docker.io/v1/\"
-    }
-  }")
+  -d "${PAYLOAD}")
 
 echo "Respuesta: ${RESPONSE}"
 

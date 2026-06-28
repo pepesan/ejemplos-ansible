@@ -5,8 +5,8 @@ set -e
 # ============================================
 # CONFIGURACIÓN
 # ============================================
-ADMIN_PASSWORD="${KASM_ADMIN_PASSWORD:-Admin1234}"
-USER_PASSWORD="${KASM_USER_PASSWORD:-User1234}"
+ADMIN_PASSWORD="${KASM_ADMIN_PASSWORD:?Variable KASM_ADMIN_PASSWORD no definida}"
+USER_PASSWORD="${KASM_USER_PASSWORD:?Variable KASM_USER_PASSWORD no definida}"
 # ============================================
 
 GREEN='\033[0;32m'

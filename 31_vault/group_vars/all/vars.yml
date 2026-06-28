@@ -1,0 +1,4 @@
+kasm_admin_password: "{{ vault_kasm_admin_password }}"                                                                                                                                                                        
+kasm_user_password: "{{ vault_kasm_user_password }}"                                                                                                                                                                          
+letsencrypt_email: "{{ vault_letsencrypt_email }}"
+

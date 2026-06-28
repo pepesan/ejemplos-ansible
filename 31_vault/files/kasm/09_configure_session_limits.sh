@@ -14,6 +14,7 @@ KEEPALIVE_EXPIRATION_ACTION="pause"
 # Configuración de seguridad (bastionado)
 ALLOW_CLIPBOARD_DOWNSTREAM="false"
 ALLOW_CLIPBOARD_UPSTREAM="false"
+ALLOW_CLIPBOARD_SEAMLESS="false"
 ALLOW_FILE_DOWNLOAD="false"
 ALLOW_FILE_UPLOAD="false"
 ALLOW_PRINTING="false"
@@ -151,11 +152,12 @@ docker exec kasm docker exec kasm_db psql -U kasmapp -d kasm -c "
   BEGIN
     FOR v_settings IN 
       SELECT * FROM (VALUES
-        ('allow_clipboard_downstream', '${ALLOW_CLIPBOARD_DOWNSTREAM}', 'boolean', 'Disallow copying text from inside Kasm to host'),
-        ('allow_clipboard_upstream', '${ALLOW_CLIPBOARD_UPSTREAM}', 'boolean', 'Disallow copying text from host to inside Kasm'),
-        ('allow_file_download', '${ALLOW_FILE_DOWNLOAD}', 'boolean', 'Disallow downloading files from Kasm to host'),
-        ('allow_file_upload', '${ALLOW_FILE_UPLOAD}', 'boolean', 'Disallow uploading files from host to Kasm'),
-        ('allow_printing', '${ALLOW_PRINTING}', 'boolean', 'Disallow printing inside Kasm sessions')
+        ('allow_kasm_clipboard_down', '${ALLOW_CLIPBOARD_DOWNSTREAM}', 'boolean', 'Disallow copying text from inside Kasm to host'),
+        ('allow_kasm_clipboard_up', '${ALLOW_CLIPBOARD_UPSTREAM}', 'boolean', 'Disallow copying text from host to inside Kasm'),
+        ('allow_kasm_clipboard_seamless', '${ALLOW_CLIPBOARD_SEAMLESS}', 'boolean', 'Disallow seamless clipboard (Chromium)'),
+        ('allow_kasm_downloads', '${ALLOW_FILE_DOWNLOAD}', 'boolean', 'Disallow downloading files from Kasm to host'),
+        ('allow_kasm_uploads', '${ALLOW_FILE_UPLOAD}', 'boolean', 'Disallow uploading files from host to Kasm'),
+        ('allow_kasm_printing', '${ALLOW_PRINTING}', 'boolean', 'Disallow printing inside Kasm sessions')
       ) AS t(name, value, value_type, description)
     LOOP
       IF EXISTS (
@@ -202,8 +204,8 @@ echo ">> Verificando configuraciones de seguridad (bastionado) en group_settings
 docker exec kasm docker exec kasm_db psql -U kasmapp -d kasm -c "
   SELECT name, value, value_type
   FROM group_settings
-  WHERE group_id = '${ALL_USERS_GROUP_ID}' 
-    AND name IN ('allow_clipboard_downstream', 'allow_clipboard_upstream', 'allow_file_download', 'allow_file_upload', 'allow_printing');
+  WHERE group_id = '${ALL_USERS_GROUP_ID}'
+    AND name IN ('allow_kasm_clipboard_down', 'allow_kasm_clipboard_up', 'allow_kasm_clipboard_seamless', 'allow_kasm_downloads', 'allow_kasm_uploads', 'allow_kasm_printing');
 "
 
 # ============================================
@@ -230,9 +232,10 @@ echo "=========================================="
 echo "COMPLETADO"
 echo "  keepalive_expiration        = ${KEEPALIVE_EXPIRATION_SECONDS}s (0=sin límite)"
 echo "  keepalive_expiration_action = ${KEEPALIVE_EXPIRATION_ACTION}"
-echo "  allow_clipboard_downstream  = ${ALLOW_CLIPBOARD_DOWNSTREAM}"
-echo "  allow_clipboard_upstream    = ${ALLOW_CLIPBOARD_UPSTREAM}"
-echo "  allow_file_download         = ${ALLOW_FILE_DOWNLOAD}"
-echo "  allow_file_upload           = ${ALLOW_FILE_UPLOAD}"
-echo "  allow_printing              = ${ALLOW_PRINTING}"
+echo "  allow_kasm_clipboard_down     = ${ALLOW_CLIPBOARD_DOWNSTREAM}"
+echo "  allow_kasm_clipboard_up       = ${ALLOW_CLIPBOARD_UPSTREAM}"
+echo "  allow_kasm_clipboard_seamless = ${ALLOW_CLIPBOARD_SEAMLESS}"
+echo "  allow_kasm_downloads          = ${ALLOW_FILE_DOWNLOAD}"
+echo "  allow_kasm_uploads            = ${ALLOW_FILE_UPLOAD}"
+echo "  allow_printing                = ${ALLOW_PRINTING}"
 echo "=========================================="
