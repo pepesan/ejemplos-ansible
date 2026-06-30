@@ -48,7 +48,7 @@
 # Deploy Kasm
 # Imagen por defecto (Ubuntu Noble con IntelliJ, ZAP, Firefox):
 # ansible-playbook 20_deploy_kasm.yaml --ask-vault-pass
-# Imagen Go (entorno de desarrollo Go):
+# Imagen Go (entorno de desarrollo Go), hay que incluir siempre el tag sino falla:
 # ansible-playbook 20_deploy_kasm.yaml --ask-vault-pass -e kasm_image=pepesan/mi-ubuntu-noble-kasm-go:latest
 # Undeploy Kasm (elimina contenedores y datos):
 # ansible-playbook 21_undeploy_kasm.yaml --ask-vault-pass

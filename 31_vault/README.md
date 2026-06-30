@@ -151,6 +151,30 @@ Dentro del escritorio de la imagen personalizada, el usuario del sistema es:
 | Usuario | `kasm_user` |
 | Contraseña | `sta3war2` |
 
+### Bastionado aplicado a Kasm
+
+El despliegue aplica automáticamente una serie de restricciones de seguridad sobre el grupo All Users.
+
+**Control del portapapeles**
+
+El portapapeles está deshabilitado en todas sus variantes. No se puede copiar texto desde dentro de Kasm al host (`allow_kasm_clipboard_down=false`), ni del host hacia Kasm (`allow_kasm_clipboard_up=false`), ni usar el portapapeles fluido de Chromium (`allow_kasm_clipboard_seamless=false`). Además, en la configuración del workspace se pasan las variables de entorno `KASM_SVC_SEND_CUT_TEXT=-SendCutText 0` y `KASM_SVC_ACCEPT_CUT_TEXT=-AcceptCutText 0` directamente al proceso VNC del contenedor.
+
+**Bloqueo de transferencia de ficheros**
+
+La descarga de ficheros desde Kasm al host está bloqueada (`allow_kasm_downloads=false`), igual que la subida de ficheros del host a Kasm (`allow_kasm_uploads=false`). Esto se refuerza en el primer arranque del contenedor poniendo los directorios `Downloads` y `Uploads` del escritorio sin ningún permiso (`chmod 000`) y con propietario root.
+
+**Bloqueo de impresión**
+
+La impresión se bloquea en tres capas simultáneas. A nivel de directiva Kasm se establece `allow_kasm_printing=false` en los ajustes de grupo, y la variable `KASM_SVC_PRINTER=0` se pasa al proceso VNC. El servicio CUPS se detiene y deshabilita en el primer arranque del contenedor. Por último, se inyecta un fichero de configuración en el nginx de `kasm_proxy` que añade CSS para ocultar todo el contenido en impresión y bloquea por JavaScript tanto el atajo `Ctrl+P`/`Cmd+P` como el evento `beforeprint`.
+
+**Gestión de sesiones**
+
+El tiempo de expiración por inactividad está configurado a cero, lo que significa que las sesiones no expiran. Si en algún momento se activara esa expiración, la acción configurada sería pausar la sesión en lugar de eliminarla.
+
+**Disponibilidad de imágenes**
+
+El modo de limpieza de imágenes en todos los servidores se establece a `No Prune`, para evitar que el agente de Kasm elimine automáticamente las imágenes personalizadas cuando no hay ninguna sesión activa que las use.
+
 ## Script de lanzamiento
 
 El script `launch_tasks_with_vault.sh` agrupa los comandos de los playbooks más habituales como referencia rápida. Está comentado para que puedas descomentar y ejecutar solo los pasos que necesites.

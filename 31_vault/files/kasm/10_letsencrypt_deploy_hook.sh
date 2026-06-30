@@ -12,6 +12,6 @@ cp "${RENEWED_LINEAGE}/privkey.pem"   "${KASM_CERT_DIR}/kasm_nginx.key"
 chmod 644 "${KASM_CERT_DIR}/kasm_nginx.crt"
 chmod 600 "${KASM_CERT_DIR}/kasm_nginx.key"
 
-cd "${KASM_DIR}" && docker compose restart kasm
+docker exec kasm docker restart kasm_proxy
 
-echo "Certificado renovado y Kasm reiniciado para ${RENEWED_DOMAINS}"
+echo "Certificado renovado y kasm_proxy reiniciado para ${RENEWED_DOMAINS}"

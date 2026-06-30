@@ -49,13 +49,8 @@
         remote_src: yes
         mode: '0600'
 
-    - name: Reiniciar Kasm para aplicar el nuevo certificado
-      community.docker.docker_compose_v2:
-        project_src: "{{ kasm_dir }}"
-        files:
-          - compose.yaml
-        state: present
-        recreate: always
+    - name: Reiniciar kasm_proxy para aplicar el nuevo certificado
+      command: docker exec kasm docker restart kasm_proxy
 
     - name: Copiar script de renovación automática
       copy:
@@ -63,14 +58,21 @@
         dest: /etc/letsencrypt/renewal-hooks/deploy/restart-kasm.sh
         mode: '0755'
 
+    - name: Esperar a que kasm_proxy levante tras el reinicio
+      wait_for:
+        port: 443
+        host: localhost
+        delay: 5
+        timeout: 30
+
     - name: Verificar que Kasm responde con el nuevo certificado
       command: >
         curl -sk --max-time 10
-        https://{{ kasm_domain }}
+        https://localhost
         -o /dev/null -w "%{http_code}"
       register: kasm_check
-      retries: 10
-      delay: 10
+      retries: 6
+      delay: 5
       until: kasm_check.stdout in ['200', '302']
 
     - name: Resultado de verificación
