@@ -53,7 +53,7 @@
 # Undeploy Kasm (elimina contenedores y datos):
 # ansible-playbook 21_undeploy_kasm.yaml --ask-vault-pass
 # Configurar Let's Encrypt (requiere DNS apuntando al servidor):
-ansible-playbook 22_configure_letsencrypt.yaml --ask-vault-pass
+# ansible-playbook 22_configure_letsencrypt.yaml --ask-vault-pass
 # reinicio de la máquina
 # ansible-playbook 30_reboot.yaml --ask-vault-pass
 
