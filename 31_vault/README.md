@@ -102,10 +102,20 @@ El playbook `20_deploy_kasm.yaml` instala y configura [Kasm Workspaces](https://
 
 Las imágenes personalizadas se construyen desde el repositorio: https://github.com/pepesan/kasm-workspaces-images.git
 
+Ubuntu 26.04 (Resolute) es la base por defecto. Kasm todavía no publica una
+imagen base oficial para esa versión de Ubuntu, así que estas imágenes se
+construyen sobre un fork propio: https://github.com/pepesan/workspaces-core-images.
+Las variantes sobre Ubuntu 24.04 (Noble), con base oficial de Kasm, siguen
+disponibles como alternativa.
+
 | Imagen | Descripción |
 |--------|-------------|
-| `pepesan/mi-ubuntu-noble-kasm:1.0` *(por defecto)* | Ubuntu 24.04 con IntelliJ, ZAP y Firefox |
-| `pepesan/mi-ubuntu-noble-kasm-go` | Ubuntu 24.04 con entorno de desarrollo Go |
+| `pepesan/mi-ubuntu-resolute-kasm:1.0` *(por defecto)* | Ubuntu 26.04 con IntelliJ, ZAP y Firefox |
+| `pepesan/mi-ubuntu-resolute-kasm-go:1.0` | Ubuntu 26.04 con entorno de desarrollo Go |
+| `pepesan/mi-ubuntu-resolute-kasm-python:1.0` | Ubuntu 26.04 con entorno de desarrollo Python |
+| `pepesan/mi-ubuntu-noble-kasm:1.0` | Ubuntu 24.04 con IntelliJ, ZAP y Firefox |
+| `pepesan/mi-ubuntu-noble-kasm-go:1.0` | Ubuntu 24.04 con entorno de desarrollo Go |
+| `pepesan/mi-ubuntu-noble-kasm-python:1.0` | Ubuntu 24.04 con entorno de desarrollo Python |
 
 ### Playbooks de Kasm
 
@@ -118,11 +128,17 @@ Las imágenes personalizadas se construyen desde el repositorio: https://github.
 ### Uso
 
 ```bash
-# Imagen por defecto
+# Imagen por defecto (Ubuntu Resolute con IntelliJ, ZAP, Firefox)
 ansible-playbook 20_deploy_kasm.yaml --ask-vault-pass
 
-# Imagen de desarrollo Go
-ansible-playbook 20_deploy_kasm.yaml --ask-vault-pass -e "kasm_image=pepesan/mi-ubuntu-noble-kasm-go"
+# Imagen de desarrollo Go (Resolute)
+ansible-playbook 20_deploy_kasm.yaml --ask-vault-pass -e "kasm_image=pepesan/mi-ubuntu-resolute-kasm-go:1.0"
+
+# Imagen de desarrollo Python (Resolute)
+ansible-playbook 20_deploy_kasm.yaml --ask-vault-pass -e "kasm_image=pepesan/mi-ubuntu-resolute-kasm-python:1.0"
+
+# Cualquier variante también existe sobre Ubuntu Noble (24.04), sustituyendo "resolute" por "noble"
+ansible-playbook 20_deploy_kasm.yaml --ask-vault-pass -e "kasm_image=pepesan/mi-ubuntu-noble-kasm-go:1.0"
 
 # Eliminar despliegue
 ansible-playbook 21_undeploy_kasm.yaml --ask-vault-pass

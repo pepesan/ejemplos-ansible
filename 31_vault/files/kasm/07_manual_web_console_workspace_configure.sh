@@ -8,9 +8,16 @@ open https://127.0.0.1:443
 # Por ejemplo, puedes usar "Admin1234!" si la pusiste como ejemplo.
 # Accede a la sección "Workspaces" y haz clic en "Create Workspace".
 # Workspace Type: Container
-# Friendly Name: Ubuntu Noble Custom
-# Description: Ubuntu 24.04 con IntelliJ, ZAP, Firefox
-# Docker Image: pepesan/mi-ubuntu-noble-kasm:1.0
+# Friendly Name: Ubuntu Resolute Custom
+# Description: Ubuntu 26.04 con IntelliJ, ZAP, Firefox
+# Docker Image: pepesan/mi-ubuntu-resolute-kasm:1.0
+#
+# Otras imágenes disponibles (cambia Friendly Name / Description / Docker Image acorde):
+#   pepesan/mi-ubuntu-resolute-kasm-go:1.0     -> Ubuntu 26.04 con entorno de desarrollo Go
+#   pepesan/mi-ubuntu-resolute-kasm-python:1.0 -> Ubuntu 26.04 con entorno de desarrollo Python
+#   pepesan/mi-ubuntu-noble-kasm:1.0           -> Ubuntu 24.04 con IntelliJ, ZAP, Firefox
+#   pepesan/mi-ubuntu-noble-kasm-go:1.0        -> Ubuntu 24.04 con entorno de desarrollo Go
+#   pepesan/mi-ubuntu-noble-kasm-python:1.0    -> Ubuntu 24.04 con entorno de desarrollo Python
 # Cores: 4
 # Memory: 8000
 # GPU Count: 0

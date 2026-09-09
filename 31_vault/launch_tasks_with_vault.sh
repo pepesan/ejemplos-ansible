@@ -46,10 +46,14 @@
 # Delete jupiter docker container  (hecho)
 # ansible-playbook 19_delete_jupyter_docker_container.yaml --ask-vault-pass
 # Deploy Kasm
-# Imagen por defecto (Ubuntu Noble con IntelliJ, ZAP, Firefox):
+# Imagen por defecto (Ubuntu Resolute con IntelliJ, ZAP, Firefox):
 # ansible-playbook 20_deploy_kasm.yaml --ask-vault-pass
 # Imagen Go (entorno de desarrollo Go), hay que incluir siempre el tag sino falla:
-# ansible-playbook 20_deploy_kasm.yaml --ask-vault-pass -e kasm_image=pepesan/mi-ubuntu-noble-kasm-go:latest
+# ansible-playbook 20_deploy_kasm.yaml --ask-vault-pass -e kasm_image=pepesan/mi-ubuntu-resolute-kasm-go:1.0
+# Imagen Python (entorno de desarrollo Python):
+# ansible-playbook 20_deploy_kasm.yaml --ask-vault-pass -e kasm_image=pepesan/mi-ubuntu-resolute-kasm-python:1.0
+# Variantes sobre Ubuntu Noble (24.04), sustituye "resolute" por "noble" en cualquiera de las anteriores:
+# ansible-playbook 20_deploy_kasm.yaml --ask-vault-pass -e kasm_image=pepesan/mi-ubuntu-noble-kasm-go:1.0
 # Undeploy Kasm (elimina contenedores y datos):
 # ansible-playbook 21_undeploy_kasm.yaml --ask-vault-pass
 # Configurar Let's Encrypt (requiere DNS apuntando al servidor):

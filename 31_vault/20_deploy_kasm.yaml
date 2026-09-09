@@ -6,11 +6,15 @@
     kasm_dir: /opt/kasm
     kasm_files_dir: "{{ playbook_dir }}/files/kasm"
     # Imagen Kasm a desplegar. Opciones disponibles:
-    #   pepesan/mi-ubuntu-noble-kasm:1.0     -> Ubuntu 24.04 con IntelliJ, ZAP, Firefox (por defecto)
-    #   pepesan/mi-ubuntu-noble-kasm-go:latest -> Entorno de desarrollo Go
+    #   pepesan/mi-ubuntu-resolute-kasm:1.0        -> Ubuntu 26.04 con IntelliJ, ZAP, Firefox (por defecto)
+    #   pepesan/mi-ubuntu-resolute-kasm-go:1.0     -> Ubuntu 26.04 con entorno de desarrollo Go
+    #   pepesan/mi-ubuntu-resolute-kasm-python:1.0 -> Ubuntu 26.04 con entorno de desarrollo Python
+    #   pepesan/mi-ubuntu-noble-kasm:1.0           -> Ubuntu 24.04 con IntelliJ, ZAP, Firefox
+    #   pepesan/mi-ubuntu-noble-kasm-go:1.0        -> Ubuntu 24.04 con entorno de desarrollo Go
+    #   pepesan/mi-ubuntu-noble-kasm-python:1.0    -> Ubuntu 24.04 con entorno de desarrollo Python
     # Repositorio de imágenes personalizadas: https://github.com/pepesan/kasm-workspaces-images.git
-    # Sobreescribir con: -e kasm_image=pepesan/mi-ubuntu-noble-kasm-go
-    kasm_image: "pepesan/mi-ubuntu-noble-kasm:1.0"
+    # Sobreescribir con: -e kasm_image=pepesan/mi-ubuntu-resolute-kasm-go
+    kasm_image: "pepesan/mi-ubuntu-resolute-kasm:1.0"
     kasm_version: "1.19.0"
     kasm_domain: "{{ node_name }}.kasm.cursosdedesarrollo.com"
   tasks:

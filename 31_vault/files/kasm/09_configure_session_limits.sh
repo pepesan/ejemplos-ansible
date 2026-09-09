@@ -82,7 +82,7 @@ fi
 echo "  setting_id: ${KEEPALIVE_SETTING_ID}"
 
 echo ">> Actualizando keepalive_expiration = ${KEEPALIVE_EXPIRATION_SECONDS} vía API..."
-RESP=$(curl -sk -X POST "${KASM_URL}/api/public/update_settings" \
+RESP=$(curl -sk -X POST "${KASM_URL}/api/public/update_setting" \
   -H "Content-Type: application/json" \
   -d "{
     \"api_key\": \"${API_KEY}\",
@@ -115,6 +115,37 @@ if [ -z "${ALL_USERS_GROUP_ID}" ]; then
   exit 1
 fi
 echo "  group_id: ${ALL_USERS_GROUP_ID}"
+
+echo ">> Upsert de keepalive_expiration = ${KEEPALIVE_EXPIRATION_SECONDS} en group_settings..."
+# El grupo 'All Users' trae de fábrica su propio override de keepalive_expiration
+# (group_settings), que tiene prioridad sobre el valor global actualizado por la
+# API en el paso 1. Si no se actualiza aquí también, el timeout real seguirá
+# siendo el de fábrica (3600s) aunque la API confirme el cambio global.
+docker exec kasm docker exec kasm_db psql -U kasmapp -d kasm -c "
+  DO \$\$
+  BEGIN
+    IF EXISTS (
+      SELECT 1 FROM group_settings
+      WHERE group_id = '${ALL_USERS_GROUP_ID}' AND name = 'keepalive_expiration'
+    ) THEN
+      UPDATE group_settings
+      SET value = '${KEEPALIVE_EXPIRATION_SECONDS}'
+      WHERE group_id = '${ALL_USERS_GROUP_ID}' AND name = 'keepalive_expiration';
+      RAISE NOTICE 'UPDATE keepalive_expiration (group) realizado';
+    ELSE
+      INSERT INTO group_settings (group_id, name, value, value_type, description)
+      VALUES (
+        '${ALL_USERS_GROUP_ID}',
+        'keepalive_expiration',
+        '${KEEPALIVE_EXPIRATION_SECONDS}',
+        'integer',
+        'The number of seconds a Kasm will stay alive unless a keepalive request is sent from the client.'
+      );
+      RAISE NOTICE 'INSERT keepalive_expiration (group) realizado';
+    END IF;
+  END;
+  \$\$;
+"
 
 echo ">> Upsert de keepalive_expiration_action = ${KEEPALIVE_EXPIRATION_ACTION} en group_settings..."
 docker exec kasm docker exec kasm_db psql -U kasmapp -d kasm -c "
@@ -193,11 +224,11 @@ for s in data.get('settings', []):
         break
 " 2>/dev/null
 
-echo ">> Verificando keepalive_expiration_action en group_settings..."
+echo ">> Verificando keepalive_expiration y keepalive_expiration_action en group_settings..."
 docker exec kasm docker exec kasm_db psql -U kasmapp -d kasm -c "
   SELECT name, value, value_type
   FROM group_settings
-  WHERE group_id = '${ALL_USERS_GROUP_ID}' AND name = 'keepalive_expiration_action';
+  WHERE group_id = '${ALL_USERS_GROUP_ID}' AND name IN ('keepalive_expiration', 'keepalive_expiration_action');
 "
 
 echo ">> Verificando configuraciones de seguridad (bastionado) en group_settings..."

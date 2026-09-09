@@ -6,18 +6,33 @@ set -e
 # CONFIGURACIÓN
 # ============================================
 KASM_URL="https://127.0.0.1:443"
-IMAGE_NAME="${KASM_IMAGE:-pepesan/mi-ubuntu-noble-kasm:1.0}"
+IMAGE_NAME="${KASM_IMAGE:-pepesan/mi-ubuntu-resolute-kasm:1.0}"
 [[ "$IMAGE_NAME" != *:* ]] && IMAGE_NAME="${IMAGE_NAME}:latest"
 IMAGE_NAME="${IMAGE_NAME/:latest/:1.0}"
 
 case "$IMAGE_NAME" in
-  *kasm-go*)
-    WORKSPACE_NAME="Ubuntu Noble Go"
-    WORKSPACE_DESC="Ubuntu 26.04 con entorno de desarrollo Go"
+  *resolute*)
+    DISTRO_NAME="Ubuntu Resolute"
+    DISTRO_DESC="Ubuntu 26.04"
     ;;
   *)
-    WORKSPACE_NAME="Ubuntu Noble Custom"
-    WORKSPACE_DESC="Ubuntu 26.04 con IntelliJ, ZAP, Firefox"
+    DISTRO_NAME="Ubuntu Noble"
+    DISTRO_DESC="Ubuntu 24.04"
+    ;;
+esac
+
+case "$IMAGE_NAME" in
+  *kasm-go*)
+    WORKSPACE_NAME="${DISTRO_NAME} Go"
+    WORKSPACE_DESC="${DISTRO_DESC} con entorno de desarrollo Go (GoLand, MariaDB)"
+    ;;
+  *kasm-python*)
+    WORKSPACE_NAME="${DISTRO_NAME} Python"
+    WORKSPACE_DESC="${DISTRO_DESC} con entorno de desarrollo Python (PyCharm, MariaDB)"
+    ;;
+  *)
+    WORKSPACE_NAME="${DISTRO_NAME} Custom"
+    WORKSPACE_DESC="${DISTRO_DESC} con IntelliJ, ZAP, Firefox"
     ;;
 esac
 CORES=4
