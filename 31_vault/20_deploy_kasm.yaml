@@ -8,14 +8,17 @@
     # Imagen Kasm a desplegar. Opciones disponibles:
     #   pepesan/mi-ubuntu-resolute-kasm:1.0        -> Ubuntu 26.04 con IntelliJ, ZAP, Firefox (por defecto)
     #   pepesan/mi-ubuntu-resolute-kasm-go:1.0     -> Ubuntu 26.04 con entorno de desarrollo Go
-    #   pepesan/mi-ubuntu-resolute-kasm-python:1.0 -> Ubuntu 26.04 con entorno de desarrollo Python
+    #   pepesan/mi-ubuntu-resolute-kasm-python-dind:1.0 -> Ubuntu 26.04 con PyCharm, MariaDB, DinD
     #   pepesan/mi-ubuntu-noble-kasm:1.0           -> Ubuntu 24.04 con IntelliJ, ZAP, Firefox
     #   pepesan/mi-ubuntu-noble-kasm-go:1.0        -> Ubuntu 24.04 con entorno de desarrollo Go
     #   pepesan/mi-ubuntu-noble-kasm-python:1.0    -> Ubuntu 24.04 con entorno de desarrollo Python
     # Repositorio de imágenes personalizadas: https://github.com/pepesan/kasm-workspaces-images.git
     # Sobreescribir con: -e kasm_image=pepesan/mi-ubuntu-resolute-kasm-go
-    kasm_image: "pepesan/mi-ubuntu-resolute-kasm:1.0"
+    kasm_image: "pepesan/mi-ubuntu-resolute-kasm-python-dind:1.0"
     kasm_version: "1.19.0"
+    # Modo privilegiado del contenedor de sesión (necesario para las imágenes DinD).
+    # Desactivar con: -e kasm_privileged=false
+    kasm_privileged: true
     kasm_domain: "{{ node_name }}.kasm.cursosdedesarrollo.com"
   tasks:
     - name: Crear directorio de Kasm
@@ -68,7 +71,7 @@
 
     - name: Tip — seguir log de instalación en tiempo real
       debug:
-        msg: "Para ver el progreso ejecuta en otra terminal: ssh root@{{ inventory_hostname }} 'tail -f /opt/kasm/data/opt/kasm_deploy.log'"
+        msg: "Para ver el progreso ejecuta en otra terminal: ssh ubuntu@{{ inventory_hostname }} 'tail -f /opt/kasm/data/opt/kasm_deploy.log'"
 
     - name: Ejecutar fix e instalación de Kasm
       community.docker.docker_container_exec:
@@ -103,6 +106,7 @@
       command: bash /opt/kasm/08_automatic_workspace_configure.sh
       environment:
         KASM_IMAGE: "{{ kasm_image }}"
+        KASM_PRIVILEGED: "{{ kasm_privileged | lower }}"
       register: workspace_output
 
     - name: Mostrar resultado de configuración del workspace
@@ -122,4 +126,5 @@
     - name: Recargar nginx de kasm_proxy
       command: docker exec kasm docker exec kasm_proxy nginx -s reload
 
-# Entra a https://IP_SERVIDOR/ para acceder a Kasm, el usuario es "admin@kasm.local" y la contraseña "Admin1234!"
+# Entra a https://IP_SERVIDOR/ para acceder a Kasm,
+# el usuario es "admin@kasm.local" y la contraseña "Admin1234!"

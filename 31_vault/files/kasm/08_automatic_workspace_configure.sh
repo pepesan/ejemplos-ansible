@@ -35,6 +35,18 @@ case "$IMAGE_NAME" in
     WORKSPACE_DESC="${DISTRO_DESC} con IntelliJ, ZAP, Firefox"
     ;;
 esac
+
+# Modo privilegiado del contenedor de sesión.
+# Por defecto activado: lo necesitan las imágenes DinD para arrancar su dockerd interno.
+# Desactivar con: KASM_PRIVILEGED=false
+case "${KASM_PRIVILEGED:-true}" in
+  true|True|TRUE|yes|1)  PRIVILEGED="True" ;;
+  false|False|FALSE|no|0) PRIVILEGED="False" ;;
+  *)
+    echo "ERR valor inválido de KASM_PRIVILEGED: '${KASM_PRIVILEGED}' (usa true o false)" >&2
+    exit 1
+    ;;
+esac
 CORES=4
 MEMORY=8589934592 # 8GB en bytes (8 * 1024 * 1024 * 1024)
 # ============================================
@@ -88,7 +100,7 @@ echo "OK Permiso asignado"
 
 sleep 2
 
-echo ">> Creando workspace..."
+echo ">> Creando workspace (privileged=${PRIVILEGED})..."
 PAYLOAD=$(python3 - <<PYEOF
 import json
 payload = {
@@ -105,6 +117,7 @@ payload = {
         "enabled": True,
         "docker_registry": "https://index.docker.io/v1/",
         "run_config": json.dumps({
+            "privileged": ${PRIVILEGED},
             "environment": {
                 "KASM_SVC_SEND_CUT_TEXT": "-SendCutText 0",
                 "KASM_SVC_ACCEPT_CUT_TEXT": "-AcceptCutText 0",

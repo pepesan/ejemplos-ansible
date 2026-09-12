@@ -55,8 +55,14 @@
         mode: '0644'
         force: true
     - name: Add Docker Repository
-      apt_repository:
-        repo: "deb [arch=amd64 signed-by=/etc/apt/trusted.gpg.d/docker.asc] https://download.docker.com/linux/ubuntu {{ docker_ubuntu_codename }} stable"
+      ansible.builtin.deb822_repository:
+        name: docker
+        types: deb
+        uris: https://download.docker.com/linux/ubuntu
+        suites: "{{ docker_ubuntu_codename }}"
+        components: [stable]
+        architectures: [amd64]
+        signed_by: /etc/apt/trusted.gpg.d/docker.asc
         state: present
     - name: Install Docker packages
       apt:
