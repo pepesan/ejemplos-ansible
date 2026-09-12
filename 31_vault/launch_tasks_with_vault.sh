@@ -55,11 +55,11 @@
 # Python (PyCharm, MariaDB, VS Code Python, sin DinD)
 # ansible-playbook 20_deploy_kasm.yaml --ask-vault-pass -e kasm_image=pepesan/mi-ubuntu-resolute-kasm-python:1.0
 # Python (PyCharm, MariaDB, VS Code Python, con DinD)
-ansible-playbook 20_deploy_kasm.yaml --ask-vault-pass -e kasm_image=pepesan/mi-ubuntu-resolute-kasm-python-dind:1.0
+# ansible-playbook 20_deploy_kasm.yaml --ask-vault-pass -e kasm_image=pepesan/mi-ubuntu-resolute-kasm-python-dind:1.0
 # Undeploy Kasm (elimina contenedores y datos):
 #ansible-playbook 21_undeploy_kasm.yaml --ask-vault-pass
 # Configurar Let's Encrypt (requiere DNS apuntando al servidor):
-ansible-playbook 22_configure_letsencrypt.yaml --ask-vault-pass
+# ansible-playbook 22_configure_letsencrypt.yaml --ask-vault-pass
 # reinicio de la máquina
 # ansible-playbook 30_reboot.yaml --ask-vault-pass
 
