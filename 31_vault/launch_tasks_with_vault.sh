@@ -55,11 +55,19 @@
 # Python (PyCharm, MariaDB, VS Code Python, sin DinD)
 # ansible-playbook 20_deploy_kasm.yaml --ask-vault-pass -e kasm_image=pepesan/mi-ubuntu-resolute-kasm-python:1.0
 # Python (PyCharm, MariaDB, VS Code Python, con DinD)
-# ansible-playbook 20_deploy_kasm.yaml --ask-vault-pass -e kasm_image=pepesan/mi-ubuntu-resolute-kasm-python-dind:1.0
+# ansible-playbook 20_deploy_kasm.yaml --ask-vault-pass -e kasm_image=pepesan/mi-ubuntu-resolute-kasm-python-dind:1.1
+# Dominio: cada nodo cuelga de <node_name>.<kasm_base_domain> (node_name lo fija el inventory,
+# ej. "node_name=nodo01"). kasm_base_domain por defecto es "kasm.cursosdedesarrollo.com",
+# definido en group_vars/all/vars.yml — usado tanto por 20_deploy_kasm.yaml como por
+# 22_configure_letsencrypt.yaml. Dos formas de cambiarlo a otro dominio:
+#   1) Editar kasm_base_domain en group_vars/all/vars.yml (afecta a todos los despliegues)
+#   2) Sobreescribirlo solo para esta llamada con -e:
+# ansible-playbook 20_deploy_kasm.yaml --ask-vault-pass -e kasm_base_domain=miotrodominio.com
 # Undeploy Kasm (elimina contenedores y datos):
 #ansible-playbook 21_undeploy_kasm.yaml --ask-vault-pass
-# Configurar Let's Encrypt (requiere DNS apuntando al servidor):
+# Configurar Let's Encrypt (requiere DNS apuntando al servidor; usa el mismo kasm_base_domain):
 # ansible-playbook 22_configure_letsencrypt.yaml --ask-vault-pass
+# ansible-playbook 22_configure_letsencrypt.yaml --ask-vault-pass -e kasm_base_domain=miotrodominio.com
 # reinicio de la máquina
 # ansible-playbook 30_reboot.yaml --ask-vault-pass
 

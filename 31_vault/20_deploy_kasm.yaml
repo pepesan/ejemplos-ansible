@@ -6,20 +6,22 @@
     kasm_dir: /opt/kasm
     kasm_files_dir: "{{ playbook_dir }}/files/kasm"
     # Imagen Kasm a desplegar. Opciones disponibles:
-    #   pepesan/mi-ubuntu-resolute-kasm:1.0        -> Ubuntu 26.04 con IntelliJ, ZAP, Firefox (por defecto)
+    #   pepesan/mi-ubuntu-resolute-kasm:1.0        -> Ubuntu 26.04 con IntelliJ, ZAP, Firefox
     #   pepesan/mi-ubuntu-resolute-kasm-go:1.0     -> Ubuntu 26.04 con entorno de desarrollo Go
-    #   pepesan/mi-ubuntu-resolute-kasm-python-dind:1.0 -> Ubuntu 26.04 con PyCharm, MariaDB, DinD
+    #   pepesan/mi-ubuntu-resolute-kasm-python-dind:1.1 -> Ubuntu 26.04 con PyCharm, MariaDB, DinD (por defecto)
     #   pepesan/mi-ubuntu-noble-kasm:1.0           -> Ubuntu 24.04 con IntelliJ, ZAP, Firefox
     #   pepesan/mi-ubuntu-noble-kasm-go:1.0        -> Ubuntu 24.04 con entorno de desarrollo Go
     #   pepesan/mi-ubuntu-noble-kasm-python:1.0    -> Ubuntu 24.04 con entorno de desarrollo Python
     # Repositorio de imágenes personalizadas: https://github.com/pepesan/kasm-workspaces-images.git
     # Sobreescribir con: -e kasm_image=pepesan/mi-ubuntu-resolute-kasm-go
-    kasm_image: "pepesan/mi-ubuntu-resolute-kasm-python-dind:1.0"
+    kasm_image: "pepesan/mi-ubuntu-resolute-kasm-python-dind:1.1"
     kasm_version: "1.19.0"
     # Modo privilegiado del contenedor de sesión (necesario para las imágenes DinD).
     # Desactivar con: -e kasm_privileged=false
     kasm_privileged: true
-    kasm_domain: "{{ node_name }}.kasm.cursosdedesarrollo.com"
+    # kasm_base_domain se define en group_vars/all/vars.yml (por defecto
+    # "kasm.cursosdedesarrollo.com"). Sobreescribir con: -e kasm_base_domain=miotrodominio.com
+    kasm_domain: "{{ node_name }}.{{ kasm_base_domain }}"
   tasks:
     - name: Crear directorio de Kasm
       file:

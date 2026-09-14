@@ -4,7 +4,10 @@
   gather_facts: no
   vars:
     kasm_dir: /opt/kasm
-    kasm_domain: "{{ node_name }}.kasm.cursosdedesarrollo.com"
+    # kasm_base_domain se define en group_vars/all/vars.yml (por defecto
+    # "kasm.cursosdedesarrollo.com"), mismo valor usado en 20_deploy_kasm.yaml.
+    # Sobreescribir con: -e kasm_base_domain=miotrodominio.com
+    kasm_domain: "{{ node_name }}.{{ kasm_base_domain }}"
     letsencrypt_email: "pepesan@gmail.com"
   tasks:
     - name: Instalar certbot

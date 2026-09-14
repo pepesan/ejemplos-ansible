@@ -1,4 +1,9 @@
-kasm_admin_password: "{{ vault_kasm_admin_password }}"                                                                                                                                                                        
-kasm_user_password: "{{ vault_kasm_user_password }}"                                                                                                                                                                          
+kasm_admin_password: "{{ vault_kasm_admin_password }}"
+kasm_user_password: "{{ vault_kasm_user_password }}"
 letsencrypt_email: "{{ vault_letsencrypt_email }}"
+# Dominio base bajo el que cuelga cada nodo: <node_name>.<kasm_base_domain>
+# (node_name se define por host en el inventory, ej. "node_name=nodo01").
+# Usado por 20_deploy_kasm.yaml y 22_configure_letsencrypt.yaml.
+# Sobreescribir con: -e kasm_base_domain=miotrodominio.com
+kasm_base_domain: "kasm.cursosdedesarrollo.com"
 
