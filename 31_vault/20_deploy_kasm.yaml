@@ -128,3 +128,4 @@
       command: docker exec kasm docker exec kasm_proxy nginx -s reload
 
 # Entra a https://IP_SERVIDOR/ para acceder a Kasm, el usuario es "admin@kasm.local" y la contraseña "Admin1234!"
+# Entra a https://IP_SERVIDOR/ para acceder a Kasm, el usuario es "user@kasm.local" y la contraseña "User1234!"
