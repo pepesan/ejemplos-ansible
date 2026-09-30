@@ -56,6 +56,30 @@
 # ansible-playbook 20_deploy_kasm.yaml --ask-vault-pass -e kasm_image=pepesan/mi-ubuntu-resolute-kasm-python:1.0
 # Python (PyCharm, MariaDB, VS Code Python, con DinD)
 # ansible-playbook 20_deploy_kasm.yaml --ask-vault-pass -e kasm_image=pepesan/mi-ubuntu-resolute-kasm-python-dind:1.1
+# Java Spring Boot web dev (SDKMAN, Maven, Gradle, JDKs LTS, con DinD)
+# ansible-playbook 20_deploy_kasm.yaml --ask-vault-pass -e kasm_image=pepesan/mi-ubuntu-resolute-kasm-java-spring-boot-web-dev-dind:1.2
+# Otras imágenes reconocidas: ...-kasm-java-ciberseguridad-dind, ...-kasm-dind, ...-kasm-go-dind, ...-kasm-desktop
+# Lo mismo, poniendo tú el nombre y la descripción del workspace con -e:
+# ansible-playbook 20_deploy_kasm.yaml --ask-vault-pass -e kasm_image=pepesan/mi-ubuntu-resolute-kasm-java-spring-boot-web-dev-dind:1.2 -e kasm_workspace_name="Java Dev" -e kasm_workspace_desc="Entorno Java con Spring Boot"
+#
+# Nombre y descripción del workspace en Kasm:
+#   Por defecto se deducen del nombre de la imagen (los patrones están en
+#   files/kasm/08_automatic_workspace_configure.sh). Ej. la imagen Java Spring Boot DinD
+#   se crea como "Ubuntu Resolute Java Spring Boot DinD". Una imagen que el script no
+#   reconoce se crea como "Ubuntu Noble Custom" con la descripción genérica
+#   "con IntelliJ, ZAP, Firefox", que puede no ser cierta.
+#   Para fijarlos a mano, pasa una o las dos variables (ambas opcionales e independientes):
+#     kasm_workspace_name  -> nombre visible del workspace
+#     kasm_workspace_desc  -> descripción del workspace
+#   También se pueden dejar fijos editando sus valores en el bloque vars: de 20_deploy_kasm.yaml
+#   (vacío = deducir de la imagen). Ejemplo con una imagen propia no reconocida:
+# ansible-playbook 20_deploy_kasm.yaml --ask-vault-pass -e kasm_image=miusuario/mi-imagen:2.0 -e kasm_workspace_name="Mi workspace" -e kasm_workspace_desc="Entorno de pruebas"
+#   Nota: si ya existe un workspace con el mismo nombre de imagen (con tag), el script lo
+#   omite y NO lo renombra; para cambiarlo, bórralo antes desde la consola de Kasm o
+#   ejecuta el 21_undeploy_kasm.yaml.
+# Si falla la creación, el script termina con error e imprime el motivo:
+#   "ERROR al crear workspace '<nombre>' (imagen <imagen>): <mensaje de la API de Kasm>"
+#
 # Dominio: cada nodo cuelga de <node_name>.<kasm_base_domain> (node_name lo fija el inventory,
 # ej. "node_name=nodo01"). kasm_base_domain por defecto es "kasm.cursosdedesarrollo.com",
 # definido en group_vars/all/vars.yml — usado tanto por 20_deploy_kasm.yaml como por

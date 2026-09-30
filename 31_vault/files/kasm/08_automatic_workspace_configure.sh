@@ -21,20 +21,59 @@ case "$IMAGE_NAME" in
     ;;
 esac
 
-case "$IMAGE_NAME" in
+# Nombre del repositorio sin tag (ej. pepesan/mi-ubuntu-resolute-kasm-python-dind)
+IMAGE_REPO="${IMAGE_NAME%%:*}"
+
+# Las variantes DinD (dockerd interno) terminan en "-dind"
+DIND_SUFFIX=""
+DIND_DESC=""
+if [[ "$IMAGE_REPO" == *-dind ]]; then
+  DIND_SUFFIX=" DinD"
+  DIND_DESC=" y Docker-in-Docker"
+fi
+
+# Los patrones más específicos van primero (java-ciberseguridad y java-spring-boot
+# antes que el caso genérico). Se evalúa contra el repositorio, sin el tag.
+case "$IMAGE_REPO" in
+  *kasm-java-ciberseguridad*)
+    WORKSPACE_NAME="${DISTRO_NAME} Java Ciberseguridad${DIND_SUFFIX}"
+    WORKSPACE_DESC="${DISTRO_DESC} con entorno Java para ciberseguridad (SDKMAN, Maven, Gradle, JDKs LTS)${DIND_DESC}"
+    ;;
+  *kasm-java-spring-boot*)
+    WORKSPACE_NAME="${DISTRO_NAME} Java Spring Boot${DIND_SUFFIX}"
+    WORKSPACE_DESC="${DISTRO_DESC} con entorno Java Spring Boot web (SDKMAN, Maven, Gradle, JDKs LTS)${DIND_DESC}"
+    ;;
+  *kasm-java*)
+    WORKSPACE_NAME="${DISTRO_NAME} Java${DIND_SUFFIX}"
+    WORKSPACE_DESC="${DISTRO_DESC} con entorno de desarrollo Java${DIND_DESC}"
+    ;;
   *kasm-go*)
-    WORKSPACE_NAME="${DISTRO_NAME} Go"
-    WORKSPACE_DESC="${DISTRO_DESC} con entorno de desarrollo Go (GoLand, MariaDB)"
+    WORKSPACE_NAME="${DISTRO_NAME} Go${DIND_SUFFIX}"
+    WORKSPACE_DESC="${DISTRO_DESC} con entorno de desarrollo Go (GoLand, MariaDB)${DIND_DESC}"
     ;;
   *kasm-python*)
-    WORKSPACE_NAME="${DISTRO_NAME} Python"
-    WORKSPACE_DESC="${DISTRO_DESC} con entorno de desarrollo Python (PyCharm, MariaDB)"
+    WORKSPACE_NAME="${DISTRO_NAME} Python${DIND_SUFFIX}"
+    WORKSPACE_DESC="${DISTRO_DESC} con entorno de desarrollo Python (PyCharm, MariaDB)${DIND_DESC}"
+    ;;
+  *kasm-desktop)
+    WORKSPACE_NAME="${DISTRO_NAME} Desktop"
+    WORKSPACE_DESC="${DISTRO_DESC} escritorio base"
+    ;;
+  *kasm-dind)
+    WORKSPACE_NAME="${DISTRO_NAME} DinD"
+    WORKSPACE_DESC="${DISTRO_DESC} con IntelliJ, ZAP, Firefox y Docker-in-Docker"
     ;;
   *)
     WORKSPACE_NAME="${DISTRO_NAME} Custom"
     WORKSPACE_DESC="${DISTRO_DESC} con IntelliJ, ZAP, Firefox"
     ;;
 esac
+
+# Nombre y descripción explícitos del workspace (opcionales). Si no se indican,
+# se usan los deducidos arriba a partir del nombre de la imagen.
+#   KASM_WORKSPACE_NAME="Mi workspace" KASM_WORKSPACE_DESC="Descripción"
+WORKSPACE_NAME="${KASM_WORKSPACE_NAME:-$WORKSPACE_NAME}"
+WORKSPACE_DESC="${KASM_WORKSPACE_DESC:-$WORKSPACE_DESC}"
 
 # Modo privilegiado del contenedor de sesión.
 # Por defecto activado: lo necesitan las imágenes DinD para arrancar su dockerd interno.
@@ -141,16 +180,34 @@ PYEOF
 )
 RESPONSE=$(curl -sk -X POST "${KASM_URL}/api/public/create_image" \
   -H "Content-Type: application/json" \
-  -d "${PAYLOAD}")
+  -d "${PAYLOAD}") || RESPONSE="curl falló (código $?)"
 
 echo "Respuesta: ${RESPONSE}"
 
-if echo $RESPONSE | grep -q "image_id"; then
+CREATE_OK=true
+if echo "$RESPONSE" | grep -q "image_id"; then
   echo "OK Workspace creado correctamente"
 else
-  echo "ERROR al crear workspace"
+  # Motivo concreto: la API de Kasm devuelve {"error_message": "..."}; si la
+  # respuesta no es JSON (curl falló, proxy caído...) se muestra tal cual.
+  ERROR_DETAIL=$(echo "$RESPONSE" | python3 -c '
+import sys, json
+raw = sys.stdin.read().strip()
+try:
+    data = json.loads(raw)
+    print(data.get("error_message") or data.get("message") or raw)
+except Exception:
+    print(raw or "respuesta vacía")
+')
+  echo "ERROR al crear workspace '${WORKSPACE_NAME}' (imagen ${IMAGE_NAME}): ${ERROR_DETAIL}" >&2
+  CREATE_OK=false
 fi
 
+# La API key temporal se limpia siempre, también si la creación falló
 echo ">> Limpiando API key temporal..."
 docker exec kasm docker exec kasm_db psql -U kasmapp -d kasm -c \
   "DELETE FROM api_configs WHERE name='auto-generated';"
+
+if [ "$CREATE_OK" != "true" ]; then
+  exit 1
+fi

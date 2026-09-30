@@ -16,6 +16,10 @@
     # Sobreescribir con: -e kasm_image=pepesan/mi-ubuntu-resolute-kasm-go
     kasm_image: "pepesan/mi-ubuntu-resolute-kasm-python-dind:1.1"
     kasm_version: "1.19.0"
+    # Nombre y descripción del workspace (opcionales). Vacío = se deducen del nombre de la imagen.
+    # Sobreescribir con: -e kasm_workspace_name="Mi workspace" -e kasm_workspace_desc="Mi descripción"
+    kasm_workspace_name: ""
+    kasm_workspace_desc: ""
     # Modo privilegiado del contenedor de sesión (necesario para las imágenes DinD).
     # Desactivar con: -e kasm_privileged=false
     kasm_privileged: true
@@ -108,15 +112,14 @@
       command: bash /opt/kasm/08_automatic_workspace_configure.sh
       environment:
         KASM_IMAGE: "{{ kasm_image }}"
+        KASM_PRIVILEGED: "{{ kasm_privileged | lower }}"
+        KASM_WORKSPACE_NAME: "{{ kasm_workspace_name }}"
+        KASM_WORKSPACE_DESC: "{{ kasm_workspace_desc }}"
       register: workspace_output
 
     - name: Mostrar resultado de configuración del workspace
       debug:
         var: workspace_output.stdout
-
-    - name: Mostrar resultado de configuración del session
-      debug:
-        var: session_output.stdout
 
     - name: Instalar bloqueo de impresión en nginx de kasm_proxy
       copy:
@@ -127,5 +130,6 @@
     - name: Recargar nginx de kasm_proxy
       command: docker exec kasm docker exec kasm_proxy nginx -s reload
 
-# Entra a https://IP_SERVIDOR/ para acceder a Kasm, el usuario es "admin@kasm.local" y la contraseña "Admin1234!"
-# Entra a https://IP_SERVIDOR/ para acceder a Kasm, el usuario es "user@kasm.local" y la contraseña "User1234!"
+# Entra a https://IP_SERVIDOR/ para acceder a Kasm,
+# el usuario es "admin@kasm.local" y la contraseña "Admin1234!"
+# el usuario es "user@kasm.local" y la contraseña "User1234!"

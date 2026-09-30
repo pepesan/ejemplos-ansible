@@ -6,8 +6,13 @@ set -e
 # CONFIGURACIÓN
 # ============================================
 KASM_URL="https://127.0.0.1:443"
-# Segundos que Kasm espera sin keepalive antes de actuar (0 = sin límite)
-KEEPALIVE_EXPIRATION_SECONDS=0
+# Segundos que Kasm espera sin keepalive antes de actuar. Por defecto 1 hora, tras
+# la cual la sesión se pausa (ver KEEPALIVE_EXPIRATION_ACTION).
+# NO usar 0 como "sin límite": Kasm no lo respeta y aplica igualmente el valor de
+# fábrica (3600 s), comprobado en una sesión real (expiration_date = keepalive + 3600).
+# Para mantener las sesiones más tiempo (ej. 7 días = 604800):
+#   KASM_KEEPALIVE_SECONDS=604800 bash 09_configure_session_limits.sh
+KEEPALIVE_EXPIRATION_SECONDS="${KASM_KEEPALIVE_SECONDS:-3600}"
 # Acción cuando expira el keepalive: pause | delete
 KEEPALIVE_EXPIRATION_ACTION="pause"
 
@@ -36,6 +41,13 @@ API_KEY_SECRET=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | head -c 32)
 SALT=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9-' | head -c 36)
 HASH=$(echo -n "${API_KEY_SECRET}${SALT}" | sha256sum | cut -d' ' -f1)
 
+# La API key temporal se borra siempre al salir, también si el script falla a medias
+cleanup_api_key() {
+  docker exec kasm docker exec kasm_db psql -U kasmapp -d kasm -c \
+    "DELETE FROM api_configs WHERE name='session-limit-config';" >/dev/null 2>&1 || true
+}
+trap cleanup_api_key EXIT
+
 echo ">> Eliminando API key temporal anterior si existe..."
 docker exec kasm docker exec kasm_db psql -U kasmapp -d kasm -c \
   "DELETE FROM api_configs WHERE name='session-limit-config';" 2>/dev/null || true
@@ -56,48 +68,25 @@ docker exec kasm docker exec kasm_db psql -U kasmapp -d kasm -c \
 sleep 2
 
 # ============================================
-# 1. ACTUALIZAR keepalive_expiration VÍA API
-#    (el setting global que controla el timeout de 1 hora)
-#    El nombre real es "keepalive_expiration", en segundos.
+# 1. AJUSTE GLOBAL keepalive_expiration (solo informativo)
+#    La API pública update_setting rechaza cualquier payload probado ("Missing
+#    required parameters") y el valor global está cifrado en la BD, así que no se
+#    puede escribir desde aquí. El valor efectivo se fija a nivel del grupo
+#    'All Users' (paso 2), que tiene prioridad sobre el global.
 # ============================================
 echo ""
-echo ">> Obteniendo setting_id de keepalive_expiration vía API..."
+echo ">> Leyendo keepalive_expiration global (valor de fábrica, no se modifica)..."
 SETTINGS_JSON=$(curl -sk -X POST "${KASM_URL}/api/public/get_settings" \
   -H "Content-Type: application/json" \
   -d "{\"api_key\": \"${API_KEY}\", \"api_key_secret\": \"${API_KEY_SECRET}\"}")
-
-KEEPALIVE_SETTING_ID=$(echo "${SETTINGS_JSON}" | python3 -c "
+echo "${SETTINGS_JSON}" | python3 -c "
 import sys, json
 data = json.load(sys.stdin)
 for s in data.get('settings', []):
     if s.get('name') == 'keepalive_expiration':
-        print(s.get('setting_id', ''))
+        print('  global keepalive_expiration =', s.get('value'), 'segundos (no modificado)')
         break
-" 2>/dev/null)
-
-if [ -z "${KEEPALIVE_SETTING_ID}" ]; then
-  echo "ERROR: no se encontró keepalive_expiration en la API"
-  exit 1
-fi
-echo "  setting_id: ${KEEPALIVE_SETTING_ID}"
-
-echo ">> Actualizando keepalive_expiration = ${KEEPALIVE_EXPIRATION_SECONDS} vía API..."
-RESP=$(curl -sk -X POST "${KASM_URL}/api/public/update_setting" \
-  -H "Content-Type: application/json" \
-  -d "{
-    \"api_key\": \"${API_KEY}\",
-    \"api_key_secret\": \"${API_KEY_SECRET}\",
-    \"target_setting\": {
-      \"setting_id\": \"${KEEPALIVE_SETTING_ID}\",
-      \"value\": \"${KEEPALIVE_EXPIRATION_SECONDS}\"
-    }
-  }")
-
-if echo "${RESP}" | grep -q "setting_id"; then
-  echo "OK keepalive_expiration actualizado"
-else
-  echo "ERR respuesta API: ${RESP}"
-fi
+" 2>/dev/null || echo "  (no se pudo leer el ajuste global)"
 
 # ============================================
 # 2. ACTUALIZAR keepalive_expiration_action EN group_settings
@@ -138,7 +127,7 @@ docker exec kasm docker exec kasm_db psql -U kasmapp -d kasm -c "
         '${ALL_USERS_GROUP_ID}',
         'keepalive_expiration',
         '${KEEPALIVE_EXPIRATION_SECONDS}',
-        'integer',
+        'int',
         'The number of seconds a Kasm will stay alive unless a keepalive request is sent from the client.'
       );
       RAISE NOTICE 'INSERT keepalive_expiration (group) realizado';
@@ -183,12 +172,12 @@ docker exec kasm docker exec kasm_db psql -U kasmapp -d kasm -c "
   BEGIN
     FOR v_settings IN 
       SELECT * FROM (VALUES
-        ('allow_kasm_clipboard_down', '${ALLOW_CLIPBOARD_DOWNSTREAM}', 'boolean', 'Disallow copying text from inside Kasm to host'),
-        ('allow_kasm_clipboard_up', '${ALLOW_CLIPBOARD_UPSTREAM}', 'boolean', 'Disallow copying text from host to inside Kasm'),
-        ('allow_kasm_clipboard_seamless', '${ALLOW_CLIPBOARD_SEAMLESS}', 'boolean', 'Disallow seamless clipboard (Chromium)'),
-        ('allow_kasm_downloads', '${ALLOW_FILE_DOWNLOAD}', 'boolean', 'Disallow downloading files from Kasm to host'),
-        ('allow_kasm_uploads', '${ALLOW_FILE_UPLOAD}', 'boolean', 'Disallow uploading files from host to Kasm'),
-        ('allow_kasm_printing', '${ALLOW_PRINTING}', 'boolean', 'Disallow printing inside Kasm sessions')
+        ('allow_kasm_clipboard_down', '${ALLOW_CLIPBOARD_DOWNSTREAM}', 'bool', 'Disallow copying text from inside Kasm to host'),
+        ('allow_kasm_clipboard_up', '${ALLOW_CLIPBOARD_UPSTREAM}', 'bool', 'Disallow copying text from host to inside Kasm'),
+        ('allow_kasm_clipboard_seamless', '${ALLOW_CLIPBOARD_SEAMLESS}', 'bool', 'Disallow seamless clipboard (Chromium)'),
+        ('allow_kasm_downloads', '${ALLOW_FILE_DOWNLOAD}', 'bool', 'Disallow downloading files from Kasm to host'),
+        ('allow_kasm_uploads', '${ALLOW_FILE_UPLOAD}', 'bool', 'Disallow uploading files from host to Kasm'),
+        ('allow_kasm_printing', '${ALLOW_PRINTING}', 'bool', 'Disallow printing inside Kasm sessions')
       ) AS t(name, value, value_type, description)
     LOOP
       IF EXISTS (
@@ -211,18 +200,13 @@ docker exec kasm docker exec kasm_db psql -U kasmapp -d kasm -c "
 # VERIFICACIÓN FINAL
 # ============================================
 echo ""
-echo ">> Verificando keepalive_expiration vía API..."
-VERIFY_JSON=$(curl -sk -X POST "${KASM_URL}/api/public/get_settings" \
-  -H "Content-Type: application/json" \
-  -d "{\"api_key\": \"${API_KEY}\", \"api_key_secret\": \"${API_KEY_SECRET}\"}")
-echo "${VERIFY_JSON}" | python3 -c "
-import sys, json
-data = json.load(sys.stdin)
-for s in data.get('settings', []):
-    if s.get('name') == 'keepalive_expiration':
-        print('  keepalive_expiration =', s.get('value'), 'segundos')
-        break
-" 2>/dev/null
+# Comprobación dura: el valor leído de la BD debe ser el pedido, si no el script falla
+APPLIED_KEEPALIVE=$(docker exec kasm docker exec kasm_db psql -U kasmapp -d kasm -t -c \
+  "SELECT value FROM group_settings WHERE group_id = '${ALL_USERS_GROUP_ID}' AND name = 'keepalive_expiration';" | tr -d ' \n')
+if [ "${APPLIED_KEEPALIVE}" != "${KEEPALIVE_EXPIRATION_SECONDS}" ]; then
+  echo "ERROR: keepalive_expiration del grupo es '${APPLIED_KEEPALIVE}', se esperaba '${KEEPALIVE_EXPIRATION_SECONDS}'" >&2
+  exit 1
+fi
 
 echo ">> Verificando keepalive_expiration y keepalive_expiration_action en group_settings..."
 docker exec kasm docker exec kasm_db psql -U kasmapp -d kasm -c "
@@ -255,13 +239,12 @@ echo "OK prune_images_mode = No Prune"
 # ============================================
 echo ""
 echo ">> Limpiando API key temporal..."
-docker exec kasm docker exec kasm_db psql -U kasmapp -d kasm -c \
-  "DELETE FROM api_configs WHERE name='session-limit-config';"
+cleanup_api_key
 
 echo ""
 echo "=========================================="
 echo "COMPLETADO"
-echo "  keepalive_expiration        = ${KEEPALIVE_EXPIRATION_SECONDS}s (0=sin límite)"
+echo "  keepalive_expiration        = ${KEEPALIVE_EXPIRATION_SECONDS}s (grupo All Users, leído de la BD)"
 echo "  keepalive_expiration_action = ${KEEPALIVE_EXPIRATION_ACTION}"
 echo "  allow_kasm_clipboard_down     = ${ALLOW_CLIPBOARD_DOWNSTREAM}"
 echo "  allow_kasm_clipboard_up       = ${ALLOW_CLIPBOARD_UPSTREAM}"
