@@ -143,9 +143,16 @@ cd /home/pepesan/Dropbox/proyectos/kasm-workspaces-images
 
 | Playbook | Descripción |
 |----------|-------------|
-| `20_deploy_kasm.yaml` | Despliega Kasm completo (instalación, workspace, bastionado) |
-| `21_undeploy_kasm.yaml` | Elimina Kasm completamente para empezar desde cero |
+| `20_deploy_kasm.yaml` | Despliega Kasm completo (instalación, workspace, bastionado) — flujo original, todo en uno |
+| `21_undeploy_kasm.yaml` | Elimina Kasm completamente para empezar desde cero (no toca `/etc/letsencrypt` ni `.credenciales/`) |
 | `22_configure_letsencrypt.yaml` | Configura certificado Let's Encrypt para HTTPS (requiere DNS configurado) |
+| `23_crear_workspace.yaml` | Registra un workspace nuevo sin reinstalar Kasm (idempotente, parametrizable: cores, memoria, GPU, persistencia, categoría, staging...) |
+| `24_limpiar_workspace.yaml` | Borra un workspace (o todos): registro, imagen Docker, layers huérfanos; opcionalmente los perfiles persistentes |
+| `25_instalar_solo_kask_usuarios.yaml` | Instala Kasm + usuario `alumno` + HTTPS real de Let's Encrypt, **sin** crear ningún workspace (fusiona `20`+`22` menos la parte de workspace); genera contraseñas aleatorias y las vuelca en un CSV |
+
+`23`/`24`/`25` son un flujo alternativo a `20_deploy_kasm.yaml` pensado para gestionar varios
+workspaces en el mismo servidor sin tener que reinstalar Kasm cada vez. Ver ejemplos completos de
+uso (todos los parámetros) en `launch_tasks_with_vault.sh`.
 
 ### Uso
 
@@ -178,12 +185,27 @@ La instalación de Kasm tarda varios minutos. Para seguir el progreso en tiempo 
 ssh root@IP_SERVIDOR 'tail -f /opt/kasm/data/opt/kasm_deploy.log'
 ```
 
-Una vez desplegado, acceder a `https://IP_SERVIDOR/` con alguno de estos usuarios:
+Una vez desplegado, acceder a `https://IP_SERVIDOR/` (o al dominio configurado) con el usuario
+administrador (`admin@kasm.local`) o el usuario normal (`user@kasm.local`).
 
-| Rol | Usuario | Contraseña |
-|-----|---------|------------|
-| Administrador | `admin@kasm.local` | `Admin1234!` |
-| Usuario normal | `user@kasm.local` | `User1234!` |
+**Con `20_deploy_kasm.yaml` (flujo original):** las contraseñas son fijas, `Admin1234!` y
+`User1234!` respectivamente, salvo que se sobreescriban con `-e kasm_admin_password=...` /
+`-e kasm_user_password=...`.
+
+**Con `25_instalar_solo_kask_usuarios.yaml` (flujo nuevo):** las contraseñas son **aleatorias**,
+generadas una vez por host y reutilizadas en ejecuciones posteriores (guardadas en
+`.credenciales/`, ignorado por git). Al final del playbook quedan volcadas, junto con la
+contraseña del usuario `alumno` y la URL del servidor, en un fichero CSV:
+
+```
+datos-acceso-<fecha-de-creación>.csv
+```
+
+con las columnas `ip,alumno_password,kasm_url,kasm_admin_user,kasm_admin_password,kasm_user_user,kasm_user_password`
+— una fila por servidor, actualizada (no duplicada) en cada ejecución posterior sobre el mismo
+host, y segura frente a ejecuciones en paralelo sobre varios servidores a la vez (usa un lock de
+fichero). Este CSV también está en `.gitignore`: **nunca se sube al repositorio**, solo vive en
+el disco local de quien ejecuta el playbook.
 
 Dentro del escritorio de la imagen personalizada, el usuario del sistema es:
 

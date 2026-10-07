@@ -1,0 +1,32 @@
+---
+# Playbook puntual: corrige friendly_name/description de un workspace ya creado,
+# sin borrar y recrear (evita la violacion de FK en kasms si ya hay sesiones).
+- name: Corregir nombre/descripcion de un workspace de Kasm
+  hosts: ubuntu
+  gather_facts: no
+  vars:
+    kasm_image: ""
+    kasm_workspace_name: ""
+    kasm_workspace_desc: ""
+  tasks:
+    - name: Actualizar friendly_name y description en la tabla images
+      command:
+        argv:
+          - docker
+          - exec
+          - kasm
+          - docker
+          - exec
+          - kasm_db
+          - psql
+          - -U
+          - kasmapp
+          - -d
+          - kasm
+          - -c
+          - "UPDATE images SET friendly_name = '{{ kasm_workspace_name }}', description = '{{ kasm_workspace_desc }}' WHERE name = '{{ kasm_image }}';"
+      register: update_output
+
+    - name: Mostrar resultado
+      debug:
+        var: update_output.stdout

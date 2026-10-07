@@ -1,5 +1,9 @@
-kasm_admin_password: "{{ vault_kasm_admin_password }}"
-kasm_user_password: "{{ vault_kasm_user_password }}"
+# kasm_admin_password / kasm_user_password: por defecto se generan aleatorias por
+# host en 20_deploy_kasm.yaml (ver credentials_dir) y se guardan en
+# credenciales_kasm.csv. Para fijarlas manualmente: -e kasm_admin_password=...
+# (gana siempre sobre el valor por defecto, por precedencia de -e en Ansible) o
+# -e kasm_admin_password="{{ vault_kasm_admin_password }}" si se prefiere seguir
+# usando el valor fijo del vault.
 letsencrypt_email: "{{ vault_letsencrypt_email }}"
 # Dominio base bajo el que cuelga cada nodo: <node_name>.<kasm_base_domain>
 # (node_name se define por host en el inventory, ej. "node_name=nodo01").

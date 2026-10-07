@@ -1,0 +1,55 @@
+---
+# Borra uno o TODOS los workspaces de Kasm y, opcionalmente, los directorios de
+# perfil persistente de los usuarios que los hayan usado. Siempre borra también
+# la imagen Docker de cada workspace en el DinD y limpia layers huérfanos, para
+# liberar el espacio en disco que Kasm ya no necesita.
+#
+# Por defecto solo lista qué usuarios tienen perfil persistido por workspace,
+# sin borrar esos directorios (operación segura/idempotente). Para borrarlos
+# también — IRREVERSIBLE, pierde escritorio/documentos de esos usuarios—:
+#   -e kasm_delete_persistent_data=true
+#
+# Ejemplos de uso:
+#   # Borrar un workspace concreto
+#   ansible-playbook -i inventory 24_limpiar_workspace.yaml --ask-vault-pass \
+#     -e kasm_image=pepesan/mi-ubuntu-resolute-kasm-go:1.0
+#
+#   # Borrar TODOS los workspaces registrados
+#   ansible-playbook -i inventory 24_limpiar_workspace.yaml --ask-vault-pass \
+#     -e kasm_clean_all=true
+#
+#   # Borrar todos, incluyendo los perfiles persistentes de los usuarios (irreversible)
+#   ansible-playbook -i inventory 24_limpiar_workspace.yaml --ask-vault-pass \
+#     -e kasm_clean_all=true -e kasm_delete_persistent_data=true
+- name: Limpiar (borrar) workspace(s) de Kasm
+  hosts: ubuntu
+  gather_facts: no
+  vars:
+    kasm_dir: /opt/kasm
+    kasm_files_dir: "{{ playbook_dir }}/files/kasm"
+    kasm_image: ""
+    kasm_clean_all: false
+    kasm_delete_persistent_data: false
+  pre_tasks:
+    - name: Comprobar que se ha indicado kasm_image o kasm_clean_all=true
+      fail:
+        msg: "Falta -e kasm_image=usuario/imagen:tag, o -e kasm_clean_all=true para borrar todos"
+      when: kasm_image == "" and not kasm_clean_all
+  tasks:
+    - name: Copiar script de borrado de workspace
+      copy:
+        src: "{{ kasm_files_dir }}/12_delete_workspace.sh"
+        dest: "{{ kasm_dir }}/12_delete_workspace.sh"
+        mode: '0755'
+
+    - name: Borrar workspace(s)
+      command: bash {{ kasm_dir }}/12_delete_workspace.sh
+      environment:
+        KASM_IMAGE: "{{ kasm_image }}"
+        KASM_CLEAN_ALL: "{{ kasm_clean_all | lower }}"
+        KASM_DELETE_PERSISTENT_DATA: "{{ kasm_delete_persistent_data | lower }}"
+      register: delete_output
+
+    - name: Mostrar resultado
+      debug:
+        var: delete_output.stdout

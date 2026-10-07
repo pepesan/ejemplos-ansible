@@ -1,4 +1,9 @@
 inventory-*
 files/drupal/*
+.datos-acceso.lock
 PLAN.md
+datos-acceso-*.csv
+.credenciales/
+__pycache__/
+*.pyc
 

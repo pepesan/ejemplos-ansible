@@ -1,0 +1,96 @@
+---
+# Crea un workspace adicional en una instancia de Kasm ya desplegada (no reinstala
+# Kasm ni toca el swapfile/docker compose — para eso usa 20_deploy_kasm.yaml).
+#
+# Ejemplo de uso:
+#   ansible-playbook -i inventory 23_crear_workspace.yaml --ask-vault-pass \
+#     -e kasm_image=pepesan/mi-ubuntu-resolute-kasm-go:1.0 \
+#     -e kasm_workspace_name="Ubuntu Resolute Go" \
+#     -e kasm_workspace_desc="Entorno de desarrollo Go" \
+#     -e kasm_workspace_cores=2 -e kasm_workspace_memory_gb=4
+- name: Crear workspace adicional en Kasm
+  hosts: ubuntu
+  gather_facts: no
+  vars:
+    kasm_dir: /opt/kasm
+    kasm_files_dir: "{{ playbook_dir }}/files/kasm"
+    # Imagen y datos del workspace. Por defecto: Java Spring Boot web dev (DinD).
+    # Sobreescribir con -e (OJO: valores con espacios hay que pasarlos como JSON,
+    # ej. -e '{"kasm_workspace_name": "Mi nombre con espacios"}', porque
+    # "-e var=valor con espacios" en Ansible trunca en el primer espacio).
+    kasm_image: "pepesan/mi-ubuntu-resolute-kasm-java-spring-boot-web-dev-dind:1.3"
+    kasm_workspace_name: "Ubuntu Resolute Java Spring Boot DinD"
+    kasm_workspace_desc: "Ubuntu 26.04 con entorno Java Spring Boot web (SDKMAN, Maven, Gradle, JDKs LTS) y Docker-in-Docker"
+    kasm_workspace_cores: 4
+    kasm_workspace_memory_gb: 8
+    # DinD necesita el contenedor de sesión privilegiado para arrancar su dockerd interno
+    kasm_workspace_privileged: true
+    kasm_workspace_gpu_count: 0
+    kasm_workspace_session_time_limit: ""
+    kasm_workspace_category: ""
+    kasm_workspace_enabled: true
+    # Ruta en el HOST (dentro del DinD de Kasm) que se monta como home del usuario
+    # y persiste entre sesiones. Debe contener {username} o {user_id}. Vacío = sin
+    # persistencia.
+    kasm_workspace_persistent_profile_path: "/opt/kasm_profiles/{user_id}/{image_id}"
+    # Session Staging (opcional, desactivado por defecto): arranca de antemano
+    # N sesiones de este workspace para reducir el tiempo de espera percibido
+    # por el usuario. Requiere que la zona de Kasm tenga un dominio fijo
+    # configurado (no $request_host$) — si no lo tiene, se avisa y se omite el
+    # staging sin fallar la creación del workspace. Activar con:
+    # -e kasm_workspace_staging_enabled=true -e kasm_workspace_staging_num_sessions=2
+    kasm_workspace_staging_enabled: false
+    kasm_workspace_staging_num_sessions: 1
+    kasm_workspace_staging_expiration_hours: 24
+    kasm_workspace_staging_zone_name: "default"
+  pre_tasks:
+    - name: Comprobar que se ha indicado kasm_image
+      fail:
+        msg: "Falta -e kasm_image=usuario/imagen:tag"
+      when: kasm_image == ""
+
+    - name: Comprobar que se ha indicado kasm_workspace_name
+      fail:
+        msg: "Falta -e kasm_workspace_name=\"Nombre del workspace\""
+      when: kasm_workspace_name == ""
+  tasks:
+    - name: Descargar imagen en el DinD de Kasm
+      command: docker exec kasm docker pull {{ kasm_image }}
+      async: 1800
+      poll: 30
+
+    - name: Copiar script de creación de workspace
+      copy:
+        src: "{{ kasm_files_dir }}/11_create_workspace.sh"
+        dest: "{{ kasm_dir }}/11_create_workspace.sh"
+        mode: '0755'
+
+    - name: Crear workspace
+      command: bash {{ kasm_dir }}/11_create_workspace.sh
+      environment:
+        KASM_IMAGE: "{{ kasm_image }}"
+        KASM_WORKSPACE_NAME: "{{ kasm_workspace_name }}"
+        KASM_WORKSPACE_DESC: "{{ kasm_workspace_desc }}"
+        KASM_CORES: "{{ kasm_workspace_cores }}"
+        KASM_MEMORY_GB: "{{ kasm_workspace_memory_gb }}"
+        KASM_PRIVILEGED: "{{ kasm_workspace_privileged | lower }}"
+        KASM_GPU_COUNT: "{{ kasm_workspace_gpu_count }}"
+        KASM_SESSION_TIME_LIMIT: "{{ kasm_workspace_session_time_limit }}"
+        KASM_CATEGORY: "{{ kasm_workspace_category }}"
+        KASM_ENABLED: "{{ kasm_workspace_enabled | lower }}"
+        KASM_PERSISTENT_PROFILE_PATH: "{{ kasm_workspace_persistent_profile_path }}"
+        KASM_STAGING_ENABLED: "{{ kasm_workspace_staging_enabled | lower }}"
+        KASM_STAGING_NUM_SESSIONS: "{{ kasm_workspace_staging_num_sessions }}"
+        KASM_STAGING_EXPIRATION_HOURS: "{{ kasm_workspace_staging_expiration_hours }}"
+        KASM_STAGING_ZONE_NAME: "{{ kasm_workspace_staging_zone_name }}"
+      register: create_output
+      failed_when: create_output.rc != 0
+
+    - name: Mostrar resultado
+      debug:
+        var: create_output.stdout
+
+    - name: Mostrar avisos (ej. staging omitido, errores no fatales)
+      debug:
+        var: create_output.stderr
+      when: create_output.stderr | length > 0

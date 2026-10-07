@@ -87,11 +87,82 @@
 #   1) Editar kasm_base_domain en group_vars/all/vars.yml (afecta a todos los despliegues)
 #   2) Sobreescribirlo solo para esta llamada con -e:
 # ansible-playbook 20_deploy_kasm.yaml --ask-vault-pass -e kasm_base_domain=miotrodominio.com
-# Undeploy Kasm (elimina contenedores y datos):
+# Undeploy Kasm (elimina contenedores y datos, pero NO el certificado de Let's Encrypt
+# en /etc/letsencrypt ni los ficheros de contraseñas en .credenciales/):
 #ansible-playbook 21_undeploy_kasm.yaml --ask-vault-pass
 # Configurar Let's Encrypt (requiere DNS apuntando al servidor; usa el mismo kasm_base_domain):
 # ansible-playbook 22_configure_letsencrypt.yaml --ask-vault-pass
 # ansible-playbook 22_configure_letsencrypt.yaml --ask-vault-pass -e kasm_base_domain=miotrodominio.com
+#
+# ============================================================
+# 23/24/25: flujo alternativo separando instalación de Kasm y creación de workspaces
+# (recomendado frente a 20_deploy_kasm.yaml si vas a gestionar varios workspaces en el
+# mismo servidor, o si quieres poder añadir/quitar imágenes sin reinstalar Kasm cada vez)
+# ============================================================
+#
+# 25_instalar_solo_kask_usuarios.yaml: instala Kasm + usuario alumno + HTTPS real de
+# Let's Encrypt (fusiona lo que antes eran 20+22), SIN crear ningún workspace. Genera
+# contraseñas aleatorias (alumno, admin@kasm.local, user@kasm.local) la primera vez y
+# las reutiliza en ejecuciones posteriores (guardadas en .credenciales/, gitignored).
+# Al final deja un CSV con todas las credenciales: datos-acceso-<fecha-de-creación>.csv
+# (también gitignored; una fila por IP, se actualiza/añade fila en cada ejecución,
+# seguro para varias máquinas en paralelo gracias a un lock de fichero).
+#
+# Orden recomendado:
+# ansible-playbook -i inventory 01_docker_install.yaml --ask-vault-pass
+# ansible-playbook -i inventory 02_adduser_alumno.yaml --ask-vault-pass
+# ansible-playbook -i inventory 25_instalar_solo_kask_usuarios.yaml --ask-vault-pass
+#
+# Desactivar el paso de Let's Encrypt (ej. si el DNS todavía no apunta al servidor):
+# ansible-playbook -i inventory 25_instalar_solo_kask_usuarios.yaml --ask-vault-pass -e kasm_letsencrypt_enabled=false
+#
+# Sobreescribir contraseñas en vez de generarlas aleatorias:
+# ansible-playbook -i inventory 25_instalar_solo_kask_usuarios.yaml --ask-vault-pass -e kasm_admin_password=MiPass123! -e kasm_user_password=MiPass456!
+#
+# ------------------------------------------------------------
+# 23_crear_workspace.yaml: registra UN workspace nuevo (descarga la imagen + lo crea en
+# Kasm), sin reinstalar nada. Es idempotente: si el workspace (misma imagen:tag) ya
+# existe, lo detecta y no lo duplica. Por defecto crea
+# pepesan/mi-ubuntu-resolute-kasm-java-spring-boot-web-dev-dind con persistencia activada.
+#
+# Todos los parámetros disponibles (todos opcionales salvo kasm_image si no quieres el
+# default; OJO con valores que tengan espacios: -e var="valor con espacios" trunca en el
+# primer espacio en Ansible, usa JSON: -e '{"kasm_workspace_name": "Nombre con espacios"}'):
+# ansible-playbook -i inventory 23_crear_workspace.yaml --ask-vault-pass \
+#   -e kasm_image=pepesan/mi-ubuntu-resolute-kasm-go:1.0 \
+#   -e '{"kasm_workspace_name": "Ubuntu Resolute Go"}' \
+#   -e '{"kasm_workspace_desc": "Entorno de desarrollo Go (GoLand, MariaDB)"}' \
+#   -e kasm_workspace_cores=2 \
+#   -e kasm_workspace_memory_gb=4 \
+#   -e kasm_workspace_privileged=false \
+#   -e kasm_workspace_gpu_count=0 \
+#   -e kasm_workspace_session_time_limit=3600 \
+#   -e kasm_workspace_category=Desarrollo \
+#   -e kasm_workspace_enabled=true \
+#   -e 'kasm_workspace_persistent_profile_path=/opt/kasm_profiles/{user_id}/{image_id}' \
+#   -e kasm_workspace_staging_enabled=false \
+#   -e kasm_workspace_staging_num_sessions=1 \
+#   -e kasm_workspace_staging_expiration_hours=24 \
+#   -e kasm_workspace_staging_zone_name=default
+#
+# Nota sobre staging: requiere que la zona de Kasm tenga un dominio fijo configurado
+# (no $request_host$); si no, se avisa por stderr y se omite sin fallar la creación
+# del workspace (revisa el "stderr" del registro, el playbook lo muestra aparte).
+#
+# ------------------------------------------------------------
+# 24_limpiar_workspace.yaml: borra un workspace (o TODOS) — borra el registro en Kasm,
+# la imagen Docker del DinD (libera espacio real) y limpia layers huérfanos. Por defecto
+# NO borra los perfiles persistentes de los usuarios que lo hayan usado, solo los lista.
+#
+# Borrar un workspace concreto:
+# ansible-playbook -i inventory 24_limpiar_workspace.yaml --ask-vault-pass -e kasm_image=pepesan/mi-ubuntu-resolute-kasm-go:1.0
+#
+# Borrar TODOS los workspaces registrados:
+# ansible-playbook -i inventory 24_limpiar_workspace.yaml --ask-vault-pass -e kasm_clean_all=true
+#
+# Borrar todos, incluyendo los perfiles persistentes de los usuarios (IRREVERSIBLE):
+# ansible-playbook -i inventory 24_limpiar_workspace.yaml --ask-vault-pass -e kasm_clean_all=true -e kasm_delete_persistent_data=true
+#
 # reinicio de la máquina
 # ansible-playbook 30_reboot.yaml --ask-vault-pass
 

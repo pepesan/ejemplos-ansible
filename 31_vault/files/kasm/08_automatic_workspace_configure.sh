@@ -88,6 +88,11 @@ case "${KASM_PRIVILEGED:-true}" in
 esac
 CORES=4
 MEMORY=8589934592 # 8GB en bytes (8 * 1024 * 1024 * 1024)
+
+# Ruta en el HOST (no dentro del contenedor) que Kasm monta como home del usuario
+# y persiste entre sesiones. Debe contener {username} o {user_id}. Vacío = sin
+# persistencia. Se pasa vía: KASM_PERSISTENT_PROFILE_PATH="/opt/kasm_profiles/{user_id}/{image_id}"
+PERSISTENT_PROFILE_PATH="${KASM_PERSISTENT_PROFILE_PATH:-}"
 # ============================================
 
 # Esperar a que Kasm esté listo
@@ -140,8 +145,8 @@ echo "OK Permiso asignado"
 sleep 2
 
 echo ">> Creando workspace (privileged=${PRIVILEGED})..."
-PAYLOAD=$(python3 - <<PYEOF
-import json
+PAYLOAD=$(PERSISTENT_PROFILE_PATH="${PERSISTENT_PROFILE_PATH}" python3 - <<PYEOF
+import json, os
 payload = {
     "api_key": "${API_KEY}",
     "api_key_secret": "${API_KEY_SECRET}",
@@ -175,6 +180,9 @@ payload = {
         })
     }
 }
+persistent_profile_path = os.environ.get("PERSISTENT_PROFILE_PATH", "").strip()
+if persistent_profile_path:
+    payload["target_image"]["persistent_profile_path"] = persistent_profile_path
 print(json.dumps(payload))
 PYEOF
 )

@@ -1,8 +1,12 @@
 ---
 - name: Creación del usuario 'alumno' con contraseña segura
   hosts: ubuntu
-  vars_files:
-    - group_vars/all/vault.yml
+  vars:
+    # Contraseña aleatoria por host, generada una vez y reutilizada en
+    # ejecuciones posteriores (el lookup "password" guarda el valor en este
+    # fichero y lo relee si ya existe). Sobreescribir con: -e alumno_password_plain=...
+    credentials_dir: "{{ playbook_dir }}/.credenciales"
+    alumno_password_plain: "{{ lookup('password', credentials_dir + '/' + inventory_hostname + '-alumno.pass length=20 chars=ascii_letters,digits') }}"
   tasks:
     - name: Crear grupo 'alumno'
       ansible.builtin.group:
