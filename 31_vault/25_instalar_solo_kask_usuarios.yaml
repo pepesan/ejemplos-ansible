@@ -39,6 +39,12 @@
     # valor (no se genera uno nuevo). Solo para volcarla al CSV de credenciales.
     alumno_password_value: "{{ lookup('password', credentials_dir + '/' + inventory_hostname + '-alumno.pass length=20 chars=ascii_letters,digits') }}"
     kasm_credentials_csv: "{{ playbook_dir }}/credenciales_kasm.csv"
+    # Prefijo de proyecto formativo (curso) para el CSV de credenciales:
+    # evita mezclar en el mismo fichero filas de alumnos de cursos distintos
+    # desplegando Kasm en paralelo. Genera datos-acceso-<prefijo>-<fecha>.csv
+    # en vez del datos-acceso-<fecha>.csv clásico. Sobreescribir con:
+    # -e kasm_proyecto_formativo=mi-curso-2026
+    kasm_proyecto_formativo: "general"
     # Certificado HTTPS real (Let's Encrypt), igual que 22_configure_letsencrypt.yaml
     # (reutilizado aquí, no se toca ese fichero). Requiere que kasm_domain resuelva
     # ya a este host y que el puerto 80 esté libre para el challenge HTTP-01.
@@ -228,7 +234,7 @@
         msg: "Kasm accesible en https://{{ kasm_domain }} (HTTP {{ kasm_check.stdout }})"
       when: kasm_letsencrypt_enabled
 
-    - name: Guardar credenciales de este nodo en datos-acceso-<fecha>.csv
+    - name: Guardar credenciales de este nodo en datos-acceso-<proyecto>-<fecha>.csv
       delegate_to: localhost
       become: false
       command: >
@@ -238,6 +244,7 @@
         --kasm-url https://{{ kasm_domain }}
         --kasm-admin-user admin@kasm.local
         --kasm-user-user user@kasm.local
+        --proyecto-formativo "{{ kasm_proyecto_formativo }}"
       environment:
         ALUMNO_PASSWORD: "{{ alumno_password_value }}"
         KASM_ADMIN_PASSWORD: "{{ kasm_admin_password }}"
@@ -249,7 +256,7 @@
       become: false
       find:
         paths: "{{ playbook_dir }}"
-        patterns: "datos-acceso-*.csv"
+        patterns: "datos-acceso-{{ kasm_proyecto_formativo }}-*.csv"
       register: credenciales_csv_encontrado
 
     - name: Indicar dónde quedaron las credenciales

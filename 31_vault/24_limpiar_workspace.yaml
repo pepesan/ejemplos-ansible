@@ -1,26 +1,32 @@
 ---
-# Borra uno o TODOS los workspaces de Kasm y, opcionalmente, los directorios de
-# perfil persistente de los usuarios que los hayan usado. Siempre borra también
-# la imagen Docker de cada workspace en el DinD y limpia layers huérfanos, para
-# liberar el espacio en disco que Kasm ya no necesita.
+# Borra uno o TODOS los workspaces de Kasm: antes de nada cierra cualquier sesión
+# que esté abierta en ese momento (docker rm -f), y por defecto también borra los
+# directorios de perfil persistente de los usuarios que los hayan usado. Siempre
+# borra además la imagen Docker de cada workspace en el DinD y limpia layers
+# huérfanos, para liberar el espacio en disco que Kasm ya no necesita.
 #
-# Por defecto solo lista qué usuarios tienen perfil persistido por workspace,
-# sin borrar esos directorios (operación segura/idempotente). Para borrarlos
-# también — IRREVERSIBLE, pierde escritorio/documentos de esos usuarios—:
-#   -e kasm_delete_persistent_data=true
+# Por defecto SÍ borra esos directorios de perfil persistente — IRREVERSIBLE,
+# pierde escritorio/documentos de esos usuarios. Es el comportamiento por defecto
+# a propósito: el perfil persistente se indexa por image_id (no por workspace), así
+# que si no se borra al limpiar el workspace, un workspace nuevo que reutilice
+# contenido antiguo (p. ej. tras actualizar la imagen sin recrear el workspace,
+# ver sesión del 2026-10-08 con el icono de docker-twitch) puede arrastrar ficheros
+# de una versión anterior sin que sea evidente por qué. Para conservarlos (ej. si
+# solo quieres reinstalar el workspace manteniendo el home de los usuarios):
+#   -e kasm_delete_persistent_data=false
 #
 # Ejemplos de uso:
-#   # Borrar un workspace concreto
+#   # Borrar un workspace concreto (incluye su perfil persistente)
 #   ansible-playbook -i inventory 24_limpiar_workspace.yaml --ask-vault-pass \
 #     -e kasm_image=pepesan/mi-ubuntu-resolute-kasm-go:1.0
 #
-#   # Borrar TODOS los workspaces registrados
+#   # Borrar TODOS los workspaces registrados (incluye todos los perfiles persistentes)
 #   ansible-playbook -i inventory 24_limpiar_workspace.yaml --ask-vault-pass \
 #     -e kasm_clean_all=true
 #
-#   # Borrar todos, incluyendo los perfiles persistentes de los usuarios (irreversible)
+#   # Borrar el workspace pero conservar los perfiles persistentes de los usuarios
 #   ansible-playbook -i inventory 24_limpiar_workspace.yaml --ask-vault-pass \
-#     -e kasm_clean_all=true -e kasm_delete_persistent_data=true
+#     -e kasm_image=pepesan/mi-ubuntu-resolute-kasm-go:1.0 -e kasm_delete_persistent_data=false
 - name: Limpiar (borrar) workspace(s) de Kasm
   hosts: ubuntu
   gather_facts: no
@@ -29,7 +35,7 @@
     kasm_files_dir: "{{ playbook_dir }}/files/kasm"
     kasm_image: ""
     kasm_clean_all: false
-    kasm_delete_persistent_data: false
+    kasm_delete_persistent_data: true
   pre_tasks:
     - name: Comprobar que se ha indicado kasm_image o kasm_clean_all=true
       fail:

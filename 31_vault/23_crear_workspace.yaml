@@ -68,6 +68,7 @@
     - name: Crear workspace
       command: bash {{ kasm_dir }}/11_create_workspace.sh
       environment:
+        KASM_DIR: "{{ kasm_dir }}"
         KASM_IMAGE: "{{ kasm_image }}"
         KASM_WORKSPACE_NAME: "{{ kasm_workspace_name }}"
         KASM_WORKSPACE_DESC: "{{ kasm_workspace_desc }}"
@@ -94,3 +95,26 @@
       debug:
         var: create_output.stderr
       when: create_output.stderr | length > 0
+
+    - name: Comprobar si existe la API key persistente de Kasm en el servidor
+      stat:
+        path: "{{ kasm_dir }}/.kasm_api_key.json"
+      register: kasm_api_key_remote_stat
+
+    - name: Leer la API key persistente generada en el servidor
+      slurp:
+        path: "{{ kasm_dir }}/.kasm_api_key.json"
+      register: kasm_api_key_remote_content
+      when: kasm_api_key_remote_stat.stat.exists
+
+    # Copia local (controlador), gitignorada vía .credenciales/, para que otras
+    # tareas/playbooks puedan reutilizar la misma API key sin tener que volver
+    # a consultar la base de datos de Kasm por SSH.
+    - name: Guardar copia local de la API key de Kasm
+      delegate_to: localhost
+      become: false
+      copy:
+        content: "{{ kasm_api_key_remote_content.content | b64decode }}"
+        dest: "{{ playbook_dir }}/kasm-api-key-{{ inventory_hostname }}.json"
+        mode: '0600'
+      when: kasm_api_key_remote_stat.stat.exists

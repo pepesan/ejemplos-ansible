@@ -10,10 +10,17 @@
 #   KASM_IMAGE=usuario/imagen:tag  bash 12_delete_workspace.sh   # borra solo esa imagen
 #   KASM_CLEAN_ALL=true            bash 12_delete_workspace.sh   # borra TODOS los workspaces registrados
 #
-# Por defecto NO borra los directorios de perfil persistente de los usuarios que
-# hayan usado cada workspace — solo los lista. Para borrarlos también (IRREVERSIBLE,
-# pierde los datos del escritorio/documentos de esos usuarios para esa imagen):
-#   KASM_DELETE_PERSISTENT_DATA=true
+# Antes de borrar el registro del workspace, cierra (docker rm -f) cualquier sesión
+# que esté abierta en ese momento usando esa imagen — si no, "docker rmi" falla por
+# estar la imagen en uso y el contenedor queda huérfano, sin workspace al que pertenecer.
+#
+# Por defecto SÍ borra los directorios de perfil persistente de los usuarios que
+# hayan usado cada workspace (IRREVERSIBLE, pierde los datos del escritorio/
+# documentos de esos usuarios para esa imagen). Es el default a propósito: ese
+# perfil se indexa por image_id, no por workspace, así que si se deja vivo puede
+# arrastrar contenido de una versión anterior de la imagen a un workspace nuevo
+# que reutilice el mismo image_id. Para conservarlos:
+#   KASM_DELETE_PERSISTENT_DATA=false
 #
 # Además, siempre borra la imagen Docker de cada workspace en el DinD de Kasm y
 # hace limpieza de layers huérfanos (docker image prune) al final, para liberar
@@ -22,7 +29,7 @@
 set -e
 
 CLEAN_ALL="${KASM_CLEAN_ALL:-false}"
-DELETE_PERSISTENT_DATA="${KASM_DELETE_PERSISTENT_DATA:-false}"
+DELETE_PERSISTENT_DATA="${KASM_DELETE_PERSISTENT_DATA:-true}"
 
 PSQL() {
   docker exec kasm docker exec kasm_db psql -U kasmapp -d kasm "$@"
@@ -50,24 +57,51 @@ delete_one() {
     "SELECT persistent_profile_path FROM images WHERE image_id = '${IMAGE_ID}';" | sed 's/^ *//;s/ *$//')
 
   echo "OK Workspace encontrado: image_id=${IMAGE_ID}"
-  local USER_IDS=""
+
+  # Cerrar primero las sesiones abiertas de este workspace: si se borra la imagen
+  # Docker mientras un contenedor de sesión sigue corriendo, "docker rmi" falla por
+  # estar en uso, y el contenedor queda huérfano (sin fila en "images" a la que
+  # apuntar). Se borran por "ancestor" (todo contenedor arrancado desde esta imagen),
+  # no por user_id, para no depender de ninguna API key ni de qué usuario la abrió.
+  echo ""
+  echo ">> Comprobando sesiones activas de este workspace..."
+  local SESSION_CONTAINERS
+  SESSION_CONTAINERS=$(docker exec kasm docker ps -q --filter "ancestor=${IMAGE_NAME}")
+  if [ -n "$SESSION_CONTAINERS" ]; then
+    echo ">> Cerrando sesión(es) activa(s): $(echo "$SESSION_CONTAINERS" | tr '\n' ' ')"
+    docker exec kasm docker rm -f $SESSION_CONTAINERS
+    echo "OK Sesión(es) cerrada(s)."
+  else
+    echo "OK No hay sesiones activas de este workspace."
+  fi
+  # Limpiar también cualquier fila de "kasms" que quedara apuntando a esos
+  # contenedores ya eliminados (evita el mismo patrón de filas huérfanas
+  # "operational_status=running" sin contenedor real detrás, documentado en
+  # PLAN.md para el caso de RestartPolicy unless-stopped tras un reinicio).
+  PSQL -c "DELETE FROM kasms WHERE image_id = '${IMAGE_ID}';" >/dev/null
+
+  # Los directorios de perfil persistido se buscan en disco (glob dentro del DinD),
+  # no en la tabla "kasms": esa tabla solo tiene filas de sesiones ACTIVAS/recientes,
+  # y pierde la fila en cuanto la sesión se destruye — así que una sesión ya cerrada
+  # (lo normal al limpiar un workspace) sería invisible aunque su perfil siga en disco.
+  local PERSISTED_DIRS=""
   if [ -n "$PERSISTENT_PROFILE_PATH" ]; then
     echo "   persistent_profile_path: ${PERSISTENT_PROFILE_PATH}"
+    # OJO: el directorio real en disco usa el image_id CON guiones (formato uuid
+    # canónico de Postgres, que es justo lo que ya trae $IMAGE_ID) — no quitarlos.
+    local GLOB_PATH="${PERSISTENT_PROFILE_PATH/\{user_id\}/*}"
+    GLOB_PATH="${GLOB_PATH/\{username\}/*}"
+    GLOB_PATH="${GLOB_PATH/\{image_id\}/$IMAGE_ID}"
     echo ""
-    echo ">> Usuarios que han usado este workspace (tendrán un directorio de perfil persistido):"
-    USER_IDS=$(PSQL -t -c "SELECT DISTINCT user_id FROM kasms WHERE image_id = '${IMAGE_ID}';" | tr -d ' ' | grep -v '^$' || true)
-    if [ -z "$USER_IDS" ]; then
+    echo ">> Directorios de perfil persistido encontrados en disco (${GLOB_PATH}):"
+    PERSISTED_DIRS=$(docker exec kasm sh -c "ls -d ${GLOB_PATH} 2>/dev/null" || true)
+    if [ -z "$PERSISTED_DIRS" ]; then
       echo "   (ninguno todavía)"
     else
-      while read -r uid; do
-        [ -z "$uid" ] && continue
-        local uname
-        uname=$(PSQL -t -c "SELECT username FROM users WHERE user_id = '${uid}';" | tr -d ' ')
-        local REAL_PATH="${PERSISTENT_PROFILE_PATH/\{user_id\}/$uid}"
-        REAL_PATH="${REAL_PATH/\{username\}/$uname}"
-        REAL_PATH="${REAL_PATH/\{image_id\}/$(echo "$IMAGE_ID" | tr -d '-')}"
-        echo "   - ${uname} (${uid}) -> ${REAL_PATH}"
-      done <<< "$USER_IDS"
+      while read -r dir; do
+        [ -z "$dir" ] && continue
+        echo "   - ${dir}"
+      done <<< "$PERSISTED_DIRS"
     fi
   else
     echo "   (este workspace no tenía persistencia activada)"
@@ -78,21 +112,16 @@ delete_one() {
   PSQL -c "DELETE FROM images WHERE image_id = '${IMAGE_ID}';"
   echo "OK Workspace '${IMAGE_NAME}' borrado del catálogo de Kasm."
 
-  if [ "$DELETE_PERSISTENT_DATA" = "true" ] && [ -n "$PERSISTENT_PROFILE_PATH" ] && [ -n "$USER_IDS" ]; then
+  if [ "$DELETE_PERSISTENT_DATA" = "true" ] && [ -n "$PERSISTED_DIRS" ]; then
     echo ""
     echo ">> KASM_DELETE_PERSISTENT_DATA=true: borrando directorios de perfil persistente..."
-    while read -r uid; do
-      [ -z "$uid" ] && continue
-      local uname
-      uname=$(PSQL -t -c "SELECT username FROM users WHERE user_id = '${uid}';" | tr -d ' ' 2>/dev/null || true)
-      local REAL_PATH="${PERSISTENT_PROFILE_PATH/\{user_id\}/$uid}"
-      REAL_PATH="${REAL_PATH/\{username\}/$uname}"
-      REAL_PATH="${REAL_PATH/\{image_id\}/$(echo "$IMAGE_ID" | tr -d '-')}"
-      echo "   Borrando ${REAL_PATH}..."
-      docker exec kasm rm -rf "${REAL_PATH}"
-    done <<< "$USER_IDS"
+    while read -r dir; do
+      [ -z "$dir" ] && continue
+      echo "   Borrando ${dir}..."
+      docker exec kasm rm -rf "${dir}"
+    done <<< "$PERSISTED_DIRS"
     echo "OK Directorios de perfil persistente borrados."
-  elif [ "$DELETE_PERSISTENT_DATA" != "true" ] && [ -n "$PERSISTENT_PROFILE_PATH" ]; then
+  elif [ "$DELETE_PERSISTENT_DATA" != "true" ] && [ -n "$PERSISTED_DIRS" ]; then
     echo ""
     echo "AVISO Los directorios de perfil persistente listados arriba NO se han borrado."
     echo "      Para borrarlos también: -e kasm_delete_persistent_data=true"

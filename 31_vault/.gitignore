@@ -4,6 +4,9 @@ files/drupal/*
 PLAN.md
 datos-acceso-*.csv
 .credenciales/
+kasm-api-key-*.json
 __pycache__/
 *.pyc
 
+logs/
+.datos-acceso-prueba-contabo.lock

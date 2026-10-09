@@ -147,12 +147,77 @@ cd /home/pepesan/Dropbox/proyectos/kasm-workspaces-images
 | `21_undeploy_kasm.yaml` | Elimina Kasm completamente para empezar desde cero (no toca `/etc/letsencrypt` ni `.credenciales/`) |
 | `22_configure_letsencrypt.yaml` | Configura certificado Let's Encrypt para HTTPS (requiere DNS configurado) |
 | `23_crear_workspace.yaml` | Registra un workspace nuevo sin reinstalar Kasm (idempotente, parametrizable: cores, memoria, GPU, persistencia, categoría, staging...) |
-| `24_limpiar_workspace.yaml` | Borra un workspace (o todos): registro, imagen Docker, layers huérfanos; opcionalmente los perfiles persistentes |
+| `24_limpiar_workspace.yaml` | Borra un workspace (o todos): cierra primero sus sesiones abiertas, borra registro, imagen Docker, layers huérfanos, y por defecto también los perfiles persistentes (`-e kasm_delete_persistent_data=false` para conservarlos) |
 | `25_instalar_solo_kask_usuarios.yaml` | Instala Kasm + usuario `alumno` + HTTPS real de Let's Encrypt, **sin** crear ningún workspace (fusiona `20`+`22` menos la parte de workspace); genera contraseñas aleatorias y las vuelca en un CSV |
 
 `23`/`24`/`25` son un flujo alternativo a `20_deploy_kasm.yaml` pensado para gestionar varios
 workspaces en el mismo servidor sin tener que reinstalar Kasm cada vez. Ver ejemplos completos de
 uso (todos los parámetros) en `launch_tasks_with_vault.sh`.
+
+### API key de Kasm: persistente, una por servidor
+
+`23_crear_workspace.yaml` necesita una API key administrativa de Kasm para hablar con
+`/api/public/create_image` (y, de paso, con `/api/public/get_images`, `request_kasm`,
+`get_kasm_status` y `destroy_kasm`, útiles para validar que un workspace levanta sesión de
+verdad). En vez de crear y destruir una API key distinta en cada ejecución (como hacían las
+primeras versiones de este flujo), ahora se genera **una sola vez por servidor** y se reutiliza:
+
+- Se guarda en el propio servidor, fuera de cualquier contenedor, en `/opt/kasm/.kasm_api_key.json`
+  (solo legible por root). La base de datos de Kasm únicamente guarda el *hash* del secreto, así
+  que ese fichero es la única copia del secreto en claro.
+- Al generarla se le conceden dos permisos: `200` (grupo "Administrators" — crear/listar
+  imágenes) y `100` (grupo "All Users" — pedir, consultar y destruir sesiones). Con los dos, la
+  misma key sirve tanto para crear workspaces como para lanzar una sesión de prueba después.
+- Cada ejecución de `23_crear_workspace.yaml` se trae una copia a tu máquina (al controlador), en
+  `kasm-api-key-<ip-del-host>.json`, en la raíz de este proyecto — **una API key por servidor**,
+  nunca compartida entre hosts distintos. Ese fichero está en `.gitignore` (patrón
+  `kasm-api-key-*.json`): nunca se sube al repositorio.
+- Generarla está protegido con un lock de fichero (`flock`, igual que el CSV de credenciales) para
+  que dos ejecuciones casi simultáneas contra el mismo servidor no acaben creando dos API keys en
+  paralelo.
+- `21_undeploy_kasm.yaml` borra `/opt/kasm` entero, así que también se lleva por delante esta API
+  key — es intencionado (es un "borrar todo y empezar de cero"); la siguiente vez que se cree un
+  workspace en ese servidor se genera una nueva.
+
+#### Validar que un workspace levanta sesión de verdad
+
+Con la API key ya guardada en local (`kasm-api-key-<ip>.json`), se puede comprobar que un
+workspace recién creado realmente arranca un contenedor de sesión y llega a `running`, sin tener
+que entrar al navegador:
+
+```bash
+DOMAIN="https://kasmcontabo.kasm.cursosdedesarrollo.com"   # tu dominio/IP de Kasm
+API_KEY=$(python3 -c "import json;print(json.load(open('kasm-api-key-IP_SERVIDOR.json'))['api_key'])")
+API_SECRET=$(python3 -c "import json;print(json.load(open('kasm-api-key-IP_SERVIDOR.json'))['api_key_secret'])")
+
+# user_id del usuario que lanzará la sesión (user@kasm.local u otro)
+USER_ID=$(curl -sk -X POST "$DOMAIN/api/authenticate" -H "Content-Type: application/json" \
+  -d '{"username":"user@kasm.local","password":"LA_PASSWORD_DEL_CSV"}' | python3 -c 'import sys,json;print(json.load(sys.stdin)["user_id"])')
+
+# image_id del workspace a probar (sale en "Crear workspace" o en get_images)
+IMAGE_ID=$(curl -sk -X POST "$DOMAIN/api/public/get_images" -H "Content-Type: application/json" \
+  -d "{\"api_key\":\"$API_KEY\",\"api_key_secret\":\"$API_SECRET\"}" \
+  | python3 -c 'import sys,json; [print(i["image_id"]) for i in json.load(sys.stdin)["images"] if "NOMBRE_DE_LA_IMAGEN" in i["name"]]')
+
+# Pedir la sesión
+KASM_ID=$(curl -sk -X POST "$DOMAIN/api/public/request_kasm" -H "Content-Type: application/json" \
+  -d "{\"api_key\":\"$API_KEY\",\"api_key_secret\":\"$API_SECRET\",\"user_id\":\"$USER_ID\",\"image_id\":\"$IMAGE_ID\"}" \
+  | python3 -c 'import sys,json;print(json.load(sys.stdin)["kasm_id"])')
+
+# Consultar el estado hasta que sea "running" (dentro de kasm.operational_status)
+curl -sk -X POST "$DOMAIN/api/public/get_kasm_status" -H "Content-Type: application/json" \
+  -d "{\"api_key\":\"$API_KEY\",\"api_key_secret\":\"$API_SECRET\",\"user_id\":\"$USER_ID\",\"kasm_id\":\"$KASM_ID\"}" \
+  | python3 -c 'import sys,json;print(json.load(sys.stdin)["kasm"]["operational_status"])'
+
+# Limpiar la sesión de prueba
+curl -sk -X POST "$DOMAIN/api/public/destroy_kasm" -H "Content-Type: application/json" \
+  -d "{\"api_key\":\"$API_KEY\",\"api_key_secret\":\"$API_SECRET\",\"user_id\":\"$USER_ID\",\"kasm_id\":\"$KASM_ID\"}"
+```
+
+Validado en Contabo (2026-10-08): dos ciclos completos `21` → `25` → `23` (workspace de escritorio
+`java-spring-boot-web-dev-dind:1.5`) → `23` (workspace terminal `terminal-dind:1.1`), y en ambos
+ciclos las dos sesiones (escritorio y terminal) llegaron a `operational_status: running` sin
+intervención manual.
 
 ### Uso
 
@@ -198,14 +263,20 @@ generadas una vez por host y reutilizadas en ejecuciones posteriores (guardadas 
 contraseña del usuario `alumno` y la URL del servidor, en un fichero CSV:
 
 ```
-datos-acceso-<fecha-de-creación>.csv
+datos-acceso-<proyecto-formativo>-<fecha-de-creación>.csv
 ```
 
-con las columnas `ip,alumno_password,kasm_url,kasm_admin_user,kasm_admin_password,kasm_user_user,kasm_user_password`
+El prefijo `<proyecto-formativo>` (por defecto `general`, variable `kasm_proyecto_formativo`) evita
+mezclar en el mismo CSV credenciales de cursos distintos desplegando Kasm en paralelo; sobreescribir
+con `-e kasm_proyecto_formativo=mi-curso-2026`. Sin este parámetro en versiones anteriores del playbook
+se generaba `datos-acceso-<fecha>.csv` (sin prefijo) — esos ficheros antiguos siguen siendo válidos y
+no se tocan.
+
+Columnas: `ip,alumno_password,kasm_url,kasm_admin_user,kasm_admin_password,kasm_user_user,kasm_user_password`
 — una fila por servidor, actualizada (no duplicada) en cada ejecución posterior sobre el mismo
 host, y segura frente a ejecuciones en paralelo sobre varios servidores a la vez (usa un lock de
-fichero). Este CSV también está en `.gitignore`: **nunca se sube al repositorio**, solo vive en
-el disco local de quien ejecuta el playbook.
+fichero, uno distinto por proyecto formativo). Este CSV también está en `.gitignore`: **nunca se
+sube al repositorio**, solo vive en el disco local de quien ejecuta el playbook.
 
 Dentro del escritorio de la imagen personalizada, el usuario del sistema es:
 

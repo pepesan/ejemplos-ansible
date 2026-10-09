@@ -107,27 +107,63 @@ if [ -n "$EXISTING_IMAGE_ID" ]; then
   exit 0
 fi
 
-API_KEY=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | head -c 12)
-API_KEY_SECRET=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | head -c 32)
-SALT=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9-' | head -c 36)
-HASH=$(echo -n "${API_KEY_SECRET}${SALT}" | sha256sum | cut -d' ' -f1)
+# API key persistente: se genera una sola vez por servidor y se reutiliza en
+# creaciones posteriores de workspace, en vez de crear y destruir una nueva
+# cada vez (evita churn en api_configs/group_permissions y permite que otras
+# herramientas de administración, ej. para lanzar sesiones de prueba, reutilicen
+# la misma credencial). Se persiste fuera del contenedor, en el host, en un
+# fichero solo legible por root; el secreto en claro solo existe aquí (en la
+# BD únicamente se guarda su hash, por eso hay que guardarlo la primera vez).
+API_KEY_FILE="${KASM_DIR:-/opt/kasm}/.kasm_api_key.json"
+API_KEY_LOCK="${API_KEY_FILE}.lock"
+API_KEY_NAME="ansible-managed-kasm-api"
 
-echo ">> Eliminando API key anterior si existe..."
-docker exec kasm docker exec kasm_db psql -U kasmapp -d kasm -c \
-  "DELETE FROM api_configs WHERE name='auto-generated-create';"
+# Igual que el CSV de credenciales (actualizar_credenciales_csv.py): con
+# forks>1 o varios playbooks lanzados casi a la vez contra el mismo host,
+# dos ejecuciones podrían ver "no existe el fichero" simultáneamente y generar
+#/insertar dos API keys en paralelo. flock (bloqueante) serializa el
+# check-or-create para que solo una gane y las demás reutilicen su resultado.
+(
+  flock -x 200
+  if [ -f "$API_KEY_FILE" ]; then
+    echo ">> Reutilizando API key persistente (${API_KEY_FILE})"
+  else
+    echo ">> No existe API key persistente todavía: generando una nueva..."
+    NEW_API_KEY=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | head -c 12)
+    NEW_API_KEY_SECRET=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | head -c 32)
+    SALT=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9-' | head -c 36)
+    HASH=$(echo -n "${NEW_API_KEY_SECRET}${SALT}" | sha256sum | cut -d' ' -f1)
 
-echo ">> Insertando API key en la base de datos..."
-docker exec kasm docker exec kasm_db psql -U kasmapp -d kasm -c "
-  INSERT INTO api_configs (name, api_key, api_key_secret_hash, salt, enabled, read_only, created)
-  VALUES ('auto-generated-create', '${API_KEY}', '${HASH}', '${SALT}', true, false, now());
-"
-API_ID=$(docker exec kasm docker exec kasm_db psql -U kasmapp -d kasm -t -c \
-  "SELECT api_id FROM api_configs WHERE name='auto-generated-create';" | tr -d ' ')
-docker exec kasm docker exec kasm_db psql -U kasmapp -d kasm -c "
-  INSERT INTO group_permissions (permission_id, api_id) VALUES (200, '${API_ID}');
-"
+    echo ">> Eliminando restos de una API key anterior con el mismo nombre, si los hay..."
+    docker exec kasm docker exec kasm_db psql -U kasmapp -d kasm -c \
+      "DELETE FROM api_configs WHERE name='${API_KEY_NAME}';"
 
-sleep 2
+    echo ">> Insertando API key en la base de datos..."
+    docker exec kasm docker exec kasm_db psql -U kasmapp -d kasm -c "
+      INSERT INTO api_configs (name, api_key, api_key_secret_hash, salt, enabled, read_only, created)
+      VALUES ('${API_KEY_NAME}', '${NEW_API_KEY}', '${HASH}', '${SALT}', true, false, now());
+    "
+    API_ID=$(docker exec kasm docker exec kasm_db psql -U kasmapp -d kasm -t -c \
+      "SELECT api_id FROM api_configs WHERE name='${API_KEY_NAME}';" | tr -d ' ')
+    # Permiso 200 ("Administrators", create_image/get_images) para crear workspaces, y
+    # permiso 100 ("All Users", request_kasm/get_kasm_status/destroy_kasm) para poder
+    # validar con esta misma key que una sesión real levanta tras crear el workspace.
+    docker exec kasm docker exec kasm_db psql -U kasmapp -d kasm -c "
+      INSERT INTO group_permissions (permission_id, api_id) VALUES (200, '${API_ID}');
+      INSERT INTO group_permissions (permission_id, api_id) VALUES (100, '${API_ID}');
+    "
+
+    TMP_API_KEY_FILE="${API_KEY_FILE}.tmp"
+    python3 -c "import json; json.dump({'api_key': '${NEW_API_KEY}', 'api_key_secret': '${NEW_API_KEY_SECRET}'}, open('${TMP_API_KEY_FILE}', 'w'))"
+    chmod 600 "$TMP_API_KEY_FILE"
+    mv "$TMP_API_KEY_FILE" "$API_KEY_FILE"  # atómico dentro del mismo filesystem
+
+    sleep 2
+  fi
+) 200>"$API_KEY_LOCK"
+
+API_KEY=$(python3 -c "import json; print(json.load(open('${API_KEY_FILE}'))['api_key'])")
+API_KEY_SECRET=$(python3 -c "import json; print(json.load(open('${API_KEY_FILE}'))['api_key_secret'])")
 
 echo ">> Creando workspace '${WORKSPACE_NAME}' (imagen ${IMAGE_NAME}, cores=${CORES}, memoria=${MEMORY_GB}GB, privileged=${PRIVILEGED})..."
 PAYLOAD=$(PERSISTENT_PROFILE_PATH="${PERSISTENT_PROFILE_PATH}" \
@@ -213,10 +249,6 @@ except Exception:
   echo "ERROR al crear workspace '${WORKSPACE_NAME}' (imagen ${IMAGE_NAME}): ${ERROR_DETAIL}" >&2
   CREATE_OK=false
 fi
-
-echo ">> Limpiando API key temporal..."
-docker exec kasm docker exec kasm_db psql -U kasmapp -d kasm -c \
-  "DELETE FROM api_configs WHERE name='auto-generated-create';"
 
 if [ "$CREATE_OK" != "true" ]; then
   exit 1

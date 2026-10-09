@@ -104,9 +104,11 @@
 # Let's Encrypt (fusiona lo que antes eran 20+22), SIN crear ningún workspace. Genera
 # contraseñas aleatorias (alumno, admin@kasm.local, user@kasm.local) la primera vez y
 # las reutiliza en ejecuciones posteriores (guardadas en .credenciales/, gitignored).
-# Al final deja un CSV con todas las credenciales: datos-acceso-<fecha-de-creación>.csv
+# Al final deja un CSV con todas las credenciales: datos-acceso-<proyecto-formativo>-<fecha-de-creación>.csv
 # (también gitignored; una fila por IP, se actualiza/añade fila en cada ejecución,
-# seguro para varias máquinas en paralelo gracias a un lock de fichero).
+# seguro para varias máquinas en paralelo gracias a un lock de fichero). El prefijo
+# <proyecto-formativo> por defecto es "general"; cámbialo con -e kasm_proyecto_formativo=...
+# para no mezclar en el mismo CSV credenciales de cursos distintos desplegados en paralelo.
 #
 # Orden recomendado:
 # ansible-playbook -i inventory 01_docker_install.yaml --ask-vault-pass
@@ -118,6 +120,10 @@
 #
 # Sobreescribir contraseñas en vez de generarlas aleatorias:
 # ansible-playbook -i inventory 25_instalar_solo_kask_usuarios.yaml --ask-vault-pass -e kasm_admin_password=MiPass123! -e kasm_user_password=MiPass456!
+#
+# Prefijo de proyecto formativo (curso) para el CSV de credenciales — genera
+# datos-acceso-curso-devops-2026-<fecha>.csv en vez de datos-acceso-general-<fecha>.csv:
+# ansible-playbook -i inventory 25_instalar_solo_kask_usuarios.yaml --ask-vault-pass -e kasm_proyecto_formativo=curso-devops-2026
 #
 # ------------------------------------------------------------
 # 23_crear_workspace.yaml: registra UN workspace nuevo (descarga la imagen + lo crea en
@@ -149,19 +155,56 @@
 # (no $request_host$); si no, se avisa por stderr y se omite sin fallar la creación
 # del workspace (revisa el "stderr" del registro, el playbook lo muestra aparte).
 #
+# API key de Kasm: se genera una sola vez por servidor (persistente en el propio
+# servidor, /opt/kasm/.kasm_api_key.json, protegido con flock frente a ejecuciones
+# en paralelo) y se reutiliza en creaciones posteriores de workspace, en vez de
+# crear/destruir una nueva cada vez. Cada ejecución de este playbook se trae una
+# copia a esta carpeta en kasm-api-key-<ip>.json (gitignored, patrón
+# kasm-api-key-*.json) — una API key por servidor, nunca compartida entre hosts.
+# Tiene permisos tanto para crear workspaces (200, admin) como para pedir/consultar/
+# destruir sesiones (100, usuario), así que la misma key sirve para validar después
+# que un workspace levanta sesión de verdad sin entrar al navegador:
+#
+# DOMAIN="https://tu-dominio-kasm"
+# API_KEY=$(python3 -c "import json;print(json.load(open('kasm-api-key-IP.json'))['api_key'])")
+# API_SECRET=$(python3 -c "import json;print(json.load(open('kasm-api-key-IP.json'))['api_key_secret'])")
+# USER_ID=$(curl -sk -X POST "$DOMAIN/api/authenticate" -H "Content-Type: application/json" \
+#   -d '{"username":"user@kasm.local","password":"LA_PASSWORD_DEL_CSV"}' \
+#   | python3 -c 'import sys,json;print(json.load(sys.stdin)["user_id"])')
+# IMAGE_ID=$(curl -sk -X POST "$DOMAIN/api/public/get_images" -H "Content-Type: application/json" \
+#   -d "{\"api_key\":\"$API_KEY\",\"api_key_secret\":\"$API_SECRET\"}" \
+#   | python3 -c 'import sys,json; [print(i["image_id"]) for i in json.load(sys.stdin)["images"] if "NOMBRE_IMAGEN" in i["name"]]')
+# KASM_ID=$(curl -sk -X POST "$DOMAIN/api/public/request_kasm" -H "Content-Type: application/json" \
+#   -d "{\"api_key\":\"$API_KEY\",\"api_key_secret\":\"$API_SECRET\",\"user_id\":\"$USER_ID\",\"image_id\":\"$IMAGE_ID\"}" \
+#   | python3 -c 'import sys,json;print(json.load(sys.stdin)["kasm_id"])')
+# curl -sk -X POST "$DOMAIN/api/public/get_kasm_status" -H "Content-Type: application/json" \
+#   -d "{\"api_key\":\"$API_KEY\",\"api_key_secret\":\"$API_SECRET\",\"user_id\":\"$USER_ID\",\"kasm_id\":\"$KASM_ID\"}" \
+#   | python3 -c 'import sys,json;print(json.load(sys.stdin)["kasm"]["operational_status"])'   # -> "running"
+# curl -sk -X POST "$DOMAIN/api/public/destroy_kasm" -H "Content-Type: application/json" \
+#   -d "{\"api_key\":\"$API_KEY\",\"api_key_secret\":\"$API_SECRET\",\"user_id\":\"$USER_ID\",\"kasm_id\":\"$KASM_ID\"}"
+#
+# Validado en Contabo (2026-10-08): dos ciclos completos 21 -> 25 -> 23 (escritorio
+# java-spring-boot-web-dev-dind:1.5) -> 23 (terminal terminal-dind:1.1); en ambos
+# ciclos ambas sesiones llegaron a operational_status "running" sin intervención manual.
+#
 # ------------------------------------------------------------
 # 24_limpiar_workspace.yaml: borra un workspace (o TODOS) — borra el registro en Kasm,
 # la imagen Docker del DinD (libera espacio real) y limpia layers huérfanos. Por defecto
-# NO borra los perfiles persistentes de los usuarios que lo hayan usado, solo los lista.
+# TAMBIÉN borra los perfiles persistentes de los usuarios que lo hayan usado (IRREVERSIBLE).
+# Es el default a propósito: el perfil persistente se indexa por image_id, no por
+# workspace, así que si se deja vivo puede arrastrar contenido de una versión anterior
+# de la imagen a un workspace nuevo que reutilice el mismo image_id (ver sesión del
+# 2026-10-08: icono de docker-twitch desactualizado tras actualizar la imagen sin
+# recrear el workspace, mismo image_id de por medio).
 #
-# Borrar un workspace concreto:
+# Borrar un workspace concreto (incluye su perfil persistente):
 # ansible-playbook -i inventory 24_limpiar_workspace.yaml --ask-vault-pass -e kasm_image=pepesan/mi-ubuntu-resolute-kasm-go:1.0
 #
-# Borrar TODOS los workspaces registrados:
+# Borrar TODOS los workspaces registrados (incluye todos los perfiles persistentes):
 # ansible-playbook -i inventory 24_limpiar_workspace.yaml --ask-vault-pass -e kasm_clean_all=true
 #
-# Borrar todos, incluyendo los perfiles persistentes de los usuarios (IRREVERSIBLE):
-# ansible-playbook -i inventory 24_limpiar_workspace.yaml --ask-vault-pass -e kasm_clean_all=true -e kasm_delete_persistent_data=true
+# Borrar el workspace pero conservar los perfiles persistentes de los usuarios:
+# ansible-playbook -i inventory 24_limpiar_workspace.yaml --ask-vault-pass -e kasm_image=pepesan/mi-ubuntu-resolute-kasm-go:1.0 -e kasm_delete_persistent_data=false
 #
 # reinicio de la máquina
 # ansible-playbook 30_reboot.yaml --ask-vault-pass
