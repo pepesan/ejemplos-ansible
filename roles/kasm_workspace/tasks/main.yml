@@ -37,8 +37,15 @@
         KASM_STAGING_NUM_SESSIONS: "{{ kasm_workspace_group_staging_num_sessions }}"
         KASM_STAGING_EXPIRATION_HOURS: "{{ kasm_workspace_group_staging_expiration_hours }}"
         KASM_STAGING_ZONE_NAME: "{{ kasm_workspace_group_staging_zone_name }}"
+        KASM_AUTOSTART_ENABLED: "{{ kasm_workspace_autostart_enabled | lower }}"
+        KASM_AUTOSTART_USER: "{{ kasm_workspace_autostart_user }}"
+        KASM_AUTOSTART_TIMEOUT_SECONDS: "{{ kasm_workspace_autostart_timeout_seconds }}"
       register: kasm_workspace_create_output
-      changed_when: "'already configured' not in kasm_workspace_create_output.stdout"
+      # A reused workspace prints "already configured", but the autostart
+      # session may still have been launched on this run.
+      changed_when: >-
+        'already configured' not in kasm_workspace_create_output.stdout
+        or 'Autostart session started' in kasm_workspace_create_output.stdout
       failed_when: kasm_workspace_create_output.rc != 0
 
     - name: Show creation result

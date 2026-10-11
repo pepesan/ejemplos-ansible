@@ -16,3 +16,6 @@ roles/PLAN.md
 
 # Roles y collections de Galaxy instalados localmente (se regeneran con requirements.yml)
 .ansible/
+
+# Roles de Galaxy instalados dentro de roles/ (se regeneran con roles/requirements.yml)
+roles/geerlingguy.*/

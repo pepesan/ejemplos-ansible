@@ -73,7 +73,7 @@
 - name: Upsert settings that differ from the desired value
   ansible.builtin.command: >
     docker exec kasm docker exec kasm_db psql -U kasmapp -d kasm -c "
-      DO \$\$
+      DO $$
       BEGIN
         IF EXISTS (
           SELECT 1 FROM group_settings
@@ -89,7 +89,7 @@
           );
         END IF;
       END;
-      \$\$;
+      $$;
     "
   loop: "{{ kasm_group_setting_current.results }}"
   loop_control:

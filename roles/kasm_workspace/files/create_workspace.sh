@@ -54,6 +54,13 @@ STAGING_NUM_SESSIONS="${KASM_STAGING_NUM_SESSIONS:-1}"
 STAGING_EXPIRATION_HOURS="${KASM_STAGING_EXPIRATION_HOURS:-24}"
 STAGING_ZONE_NAME="${KASM_STAGING_ZONE_NAME:-default}"
 
+# Autostart (optional): launches one session of this workspace for a given
+# Kasm user right after creating/reusing the workspace, so that user's first
+# login finds a session already running instead of a cold start.
+AUTOSTART_ENABLED="${KASM_AUTOSTART_ENABLED:-false}"
+AUTOSTART_USER="${KASM_AUTOSTART_USER:-user@kasm.local}"
+AUTOSTART_TIMEOUT_SECONDS="${KASM_AUTOSTART_TIMEOUT_SECONDS:-600}"
+
 echo ">> Waiting for the Kasm service at ${KASM_URL}..."
 until curl -sk --fail "${KASM_URL}" -o /dev/null; do
   echo "Waiting for Kasm..."
@@ -108,6 +115,65 @@ configure_staging() {
       expiration = EXCLUDED.expiration;
   "
   echo "OK Staging configured: ${STAGING_NUM_SESSIONS} pre-warmed session(s), expiration ${STAGING_EXPIRATION_HOURS}h."
+}
+
+# Launches a session of this workspace for AUTOSTART_USER through the public
+# request_kasm API (the persistent API key already holds permission 100, see
+# below) and waits until it is "running". Idempotent: a row in "kasms" for
+# the same user+image means a session already exists (Kasm deletes the row as
+# soon as a session is destroyed), so nothing is launched twice. Never fails
+# the workspace creation: problems here are warnings, like staging.
+# Must be called after API_KEY/API_KEY_SECRET are set.
+autostart_session() {
+  [ "$AUTOSTART_ENABLED" != "true" ] && return 0
+
+  echo ""
+  echo ">> Autostart: launching a session of '${IMAGE_NAME}' for ${AUTOSTART_USER}..."
+  local USER_ID IMAGE_ID EXISTING RESPONSE KASM_ID STATUS ELAPSED=0
+  USER_ID=$(PSQL -t -c "SELECT user_id FROM users WHERE username = '${AUTOSTART_USER}';" | tr -d ' \n')
+  if [ -z "$USER_ID" ]; then
+    echo "WARNING Autostart: user '${AUTOSTART_USER}' does not exist. No session launched." >&2
+    return 0
+  fi
+
+  # Canonical (dashed) image_id straight from the DB, whichever form the API
+  # returned it in.
+  IMAGE_ID=$(PSQL -t -c "SELECT image_id FROM images WHERE name = '${IMAGE_NAME}';" | tr -d ' \n')
+  if [ -z "$IMAGE_ID" ]; then
+    echo "WARNING Autostart: image '${IMAGE_NAME}' is not registered. No session launched." >&2
+    return 0
+  fi
+
+  EXISTING=$(PSQL -t -c "SELECT kasm_id FROM kasms WHERE user_id = '${USER_ID}' AND image_id = '${IMAGE_ID}' LIMIT 1;" | tr -d ' \n')
+  if [ -n "$EXISTING" ]; then
+    echo "OK Autostart: ${AUTOSTART_USER} already has a session of this workspace (${EXISTING}). Autostart session already running."
+    return 0
+  fi
+
+  RESPONSE=$(curl -sk -X POST "${KASM_URL}/api/public/request_kasm" \
+    -H "Content-Type: application/json" \
+    -d "{\"api_key\": \"${API_KEY}\", \"api_key_secret\": \"${API_KEY_SECRET}\", \"user_id\": \"${USER_ID}\", \"image_id\": \"${IMAGE_ID}\"}") \
+    || RESPONSE="curl failed (code $?)"
+
+  KASM_ID=$(echo "$RESPONSE" | python3 -c 'import sys,json; print(json.load(sys.stdin).get("kasm_id",""))' 2>/dev/null || true)
+  if [ -z "$KASM_ID" ]; then
+    # Never print the raw response on success (it carries a session token),
+    # only on failure, where it is the error payload.
+    echo "WARNING Autostart: request_kasm did not return a kasm_id. Response: ${RESPONSE}" >&2
+    return 0
+  fi
+
+  echo ">> Autostart: session ${KASM_ID} requested, waiting for it to be running (max ${AUTOSTART_TIMEOUT_SECONDS}s)..."
+  while [ "$ELAPSED" -lt "$AUTOSTART_TIMEOUT_SECONDS" ]; do
+    STATUS=$(PSQL -t -c "SELECT operational_status FROM kasms WHERE kasm_id = '${KASM_ID}';" | tr -d ' \n')
+    if [ "$STATUS" = "running" ]; then
+      echo "OK Autostart session started: ${KASM_ID} for ${AUTOSTART_USER} (${ELAPSED}s)."
+      return 0
+    fi
+    sleep 5
+    ELAPSED=$(( ELAPSED + 5 ))
+  done
+  echo "WARNING Autostart: session ${KASM_ID} is not running after ${AUTOSTART_TIMEOUT_SECONDS}s (last status: '${STATUS:-unknown}')." >&2
 }
 
 # Persistent API key: generated once per server and reused on later workspace
@@ -191,6 +257,7 @@ for image in data.get("images", []):
 if [ -n "$EXISTING_IMAGE_ID" ]; then
   echo "OK Workspace with image ${IMAGE_NAME} is already configured. Skipping creation."
   configure_staging "$EXISTING_IMAGE_ID"
+  autostart_session
   exit 0
 fi
 
@@ -264,6 +331,7 @@ if echo "$RESPONSE" | grep -q "image_id"; then
     # The API returns image_id without dashes; Postgres uuid columns accept
     # it as-is (Postgres normalises the format), no need to reformat it.
     configure_staging "$NEW_IMAGE_ID"
+    autostart_session
   fi
 else
   ERROR_DETAIL=$(echo "$RESPONSE" | python3 -c '

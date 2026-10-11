@@ -37,6 +37,22 @@ Variables are grouped by what they configure, not just alphabetically:
   to already have a fixed `proxy_hostname` configured (not `$request_host$`)
   — if not, the script skips staging with a warning instead of failing the
   whole workspace creation.
+- **`_autostart`** — launches one session of the workspace for a Kasm user
+  right after the workspace is created (or reused), so that user's first
+  login finds a session already running instead of a cold start of the
+  image: `kasm_workspace_autostart_enabled` (default `false`),
+  `_user` (default `user@kasm.local`), `_timeout_seconds` (default `600`).
+  Uses the public `request_kasm` API with the persistent API key (which
+  already holds permission 100). Idempotent: if the user already has a
+  session of that workspace, nothing is launched. A problem here (unknown
+  user, session not running in time) is a warning, never a failure of the
+  workspace creation. **Cost:** a running session permanently reserves the
+  workspace's `cores`/`memory_gb`. **Keeping it warm:** with the group's
+  default `keepalive_expiration` of 3600 s and action `pause`, a session
+  nobody is connected to is paused after an hour — raise
+  `kasm_group_keepalive_seconds` in the [`kasm_group`](../kasm_group/README.md)
+  role (Kasm ignores `0`). The session does not survive a Kasm/server
+  restart; re-run the playbook to relaunch it.
 - **`state: absent` only**: `kasm_workspace_clean_all` (delete every
   registered workspace instead of one), `kasm_workspace_delete_persistent_data`
   (defaults to `true` — irreversible, see warning below).

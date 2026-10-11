@@ -38,6 +38,24 @@ Las variables se agrupan por lo que configuran, no solo alfabéticamente:
   tenga un `proxy_hostname` fijo configurado (no `$request_host$`) — si no,
   el script omite el staging con un aviso en vez de fallar toda la creación
   del workspace.
+- **`_autostart`** — lanza una sesión del workspace para un usuario de Kasm
+  justo después de crear (o reutilizar) el workspace, de modo que el primer
+  login de ese usuario encuentre una sesión ya corriendo en vez de un
+  arranque en frío de la imagen: `kasm_workspace_autostart_enabled` (por
+  defecto `false`), `_user` (por defecto `user@kasm.local`),
+  `_timeout_seconds` (por defecto `600`). Usa la API pública `request_kasm`
+  con la API key persistente (que ya tiene el permiso 100). Idempotente: si
+  el usuario ya tiene una sesión de ese workspace, no lanza otra. Un
+  problema aquí (usuario inexistente, sesión que no llega a `running` a
+  tiempo) es un aviso, nunca un fallo de la creación del workspace.
+  **Coste:** una sesión en marcha reserva de forma permanente los
+  `cores`/`memory_gb` del workspace. **Mantenerla caliente:** con el
+  `keepalive_expiration` por defecto del grupo (3600 s) y acción `pause`,
+  una sesión a la que nadie está conectado se pausa a la hora — sube
+  `kasm_group_keepalive_seconds` en el rol
+  [`kasm_group`](../kasm_group/README.es.md) (Kasm ignora `0`). La sesión no
+  sobrevive a un reinicio de Kasm o del servidor; vuelve a ejecutar el
+  playbook para relanzarla.
 - **Solo con `state: absent`**: `kasm_workspace_clean_all` (borra todos los
   workspaces registrados en vez de uno), `kasm_workspace_delete_persistent_data`
   (por defecto `true` — irreversible, ver aviso abajo).

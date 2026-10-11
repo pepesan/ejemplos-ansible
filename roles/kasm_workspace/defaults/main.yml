@@ -29,6 +29,18 @@ kasm_workspace_group_staging_num_sessions: 1
 kasm_workspace_group_staging_expiration_hours: 24
 kasm_workspace_group_staging_zone_name: "default"
 
+# "autostart" family: launches one session of this workspace for a given Kasm
+# user right after the workspace is created/reused, so the first login finds
+# a session already running instead of a cold start. Off by default: one
+# running session permanently reserves cores_/memory_gb of the host. To keep
+# it alive while nobody is connected, raise kasm_group_keepalive_seconds in
+# the kasm_group role (3600 + action "pause" pauses it after an hour).
+kasm_workspace_autostart_enabled: false
+kasm_workspace_autostart_user: "user@kasm.local"
+# Seconds to wait for the session to reach "running" (cold start of a large
+# image can take minutes).
+kasm_workspace_autostart_timeout_seconds: 600
+
 # absent-only settings.
 kasm_workspace_clean_all: false
 kasm_workspace_delete_persistent_data: true
