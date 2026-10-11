@@ -1,2 +1,15 @@
 .idea
 inventory-*
+
+# Generated secrets: random per-host passwords, the Kasm API key, and the
+# resulting access CSV. Never commit these, regardless of which playbook_dir
+# a role writes them to (31_vault/, roles/examples/, ...).
+.credenciales/
+datos-acceso-*.csv
+.datos-acceso*.lock
+kasm-api-key-*.json
+__pycache__/
+*.pyc
+
+# Plan de trabajo local de los roles (no se versiona)
+roles/PLAN.md
