@@ -1,0 +1,24 @@
+---
+# Requires a real, already-installed "kasm" container (Postgres, public API)
+# reachable via `docker exec kasm ...` — same reasoning as kasm_group and
+# kasm_docker_image. Structure only; real verification happens in Fase A/B
+# testing (create a workspace, confirm the session reaches "running").
+driver:
+  name: docker
+platforms:
+  - name: kasm-workspace-role-test
+    image: geerlingguy/docker-ubuntu2404-ansible:latest
+    pre_build_image: true
+    privileged: true
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    cgroupns_mode: host
+    command: ""
+provisioner:
+  name: ansible
+  env:
+    ANSIBLE_ROLES_PATH: "../../.."
+  playbooks:
+    converge: converge.yml
+verifier:
+  name: ansible

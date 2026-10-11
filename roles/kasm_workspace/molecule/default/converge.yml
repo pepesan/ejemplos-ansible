@@ -1,0 +1,9 @@
+---
+# Not runnable standalone: needs a live Kasm instance. Kept for lint/syntax
+# validation.
+- name: Converge
+  hosts: all
+  tasks:
+    - name: Converge requires a real Kasm instance — see molecule.yml comment
+      ansible.builtin.debug:
+        msg: "Skipping real converge: kasm_workspace needs a live Kasm container."

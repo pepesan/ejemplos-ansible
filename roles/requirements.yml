@@ -1,0 +1,19 @@
+---
+# Galaxy dependencies reused by the roles in this directory instead of
+# reimplementing already-solved, well-maintained automation.
+roles:
+  - name: geerlingguy.docker
+    version: "8.0.0"
+  - name: geerlingguy.swap
+    version: "2.1.0"
+  - name: geerlingguy.certbot
+    # Pinned past 5.2.0 on purpose: that version has a real bug (a list
+    # variable used directly in a "when:" where ansible-core 2.16+ requires
+    # a strict boolean), fixed upstream in a later release with
+    # "is truthy". Confirmed broken against 5.2.0 during E2E testing on
+    # Contabo (2026-10-09) — https://github.com/geerlingguy/ansible-role-certbot/issues/257
+    version: "5.4.1"
+
+collections:
+  - name: community.docker
+    version: ">=3.10.0"

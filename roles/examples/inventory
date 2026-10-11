@@ -1,0 +1,6 @@
+[ubuntu]
+X.X.X.X node_name=node01
+
+[ubuntu:vars]
+ansible_user=root
+ansible_become=false

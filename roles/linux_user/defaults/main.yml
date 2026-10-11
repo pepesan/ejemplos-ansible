@@ -1,0 +1,22 @@
+---
+linux_user_name: ""
+linux_user_shell: /bin/bash
+linux_user_extra_groups: []
+
+# Directory (control node) where the generated password and its hashing
+# salt are persisted, so repeated runs reuse the same values instead of
+# rotating the password or producing a different hash every time (see
+# linux_user_password_salt below).
+linux_user_credentials_dir: "{{ playbook_dir }}/.credenciales"
+linux_user_pass_prefix: "{{ linux_user_credentials_dir }}/{{ inventory_hostname }}-{{ linux_user_name }}"
+
+# Random per-host password, generated once and re-read on later runs.
+# Override with -e linux_user_password_plain=...
+linux_user_password_plain: "{{ lookup('password', linux_user_pass_prefix + '.pass length=20 chars=ascii_letters,digits') }}"
+
+# password_hash() generates a random salt on every call unless one is given
+# explicitly, which makes the hash (and therefore the user task) look
+# "changed" on every single run even when the password itself hasn't
+# changed. Persisting the salt the same way as the password itself fixes
+# that: same input -> same hash -> idempotent.
+linux_user_password_salt: "{{ lookup('password', linux_user_pass_prefix + '-salt.txt length=16 chars=ascii_letters,digits') }}"

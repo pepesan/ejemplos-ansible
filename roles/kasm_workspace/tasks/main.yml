@@ -1,0 +1,101 @@
+---
+- name: Create a Kasm workspace
+  when: kasm_workspace_state == "present"
+  block:
+    - name: Ensure kasm_workspace_image is set
+      ansible.builtin.fail:
+        msg: "kasm_workspace_image is required (e.g. -e kasm_workspace_image=user/image:tag)"
+      when: kasm_workspace_image == ""
+
+    - name: Ensure kasm_workspace_name is set
+      ansible.builtin.fail:
+        msg: 'kasm_workspace_name is required (e.g. -e kasm_workspace_name="Workspace name")'
+      when: kasm_workspace_name == ""
+
+    - name: Copy the create-workspace script
+      ansible.builtin.copy:
+        src: create_workspace.sh
+        dest: "{{ kasm_dir }}/create_workspace.sh"
+        mode: "0755"
+
+    - name: Create the workspace
+      ansible.builtin.command: bash {{ kasm_dir }}/create_workspace.sh
+      environment:
+        KASM_DIR: "{{ kasm_dir }}"
+        KASM_IMAGE: "{{ kasm_workspace_image }}"
+        KASM_WORKSPACE_NAME: "{{ kasm_workspace_name }}"
+        KASM_WORKSPACE_DESC: "{{ kasm_workspace_desc }}"
+        KASM_CORES: "{{ kasm_workspace_cores }}"
+        KASM_MEMORY_GB: "{{ kasm_workspace_memory_gb }}"
+        KASM_PRIVILEGED: "{{ kasm_workspace_privileged | lower }}"
+        KASM_GPU_COUNT: "{{ kasm_workspace_gpu_count }}"
+        KASM_SESSION_TIME_LIMIT: "{{ kasm_workspace_session_time_limit }}"
+        KASM_CATEGORY: "{{ kasm_workspace_category }}"
+        KASM_ENABLED: "{{ kasm_workspace_enabled | lower }}"
+        KASM_PERSISTENT_PROFILE_PATH: "{{ kasm_workspace_profile_path }}"
+        KASM_STAGING_ENABLED: "{{ kasm_workspace_group_staging_enabled | lower }}"
+        KASM_STAGING_NUM_SESSIONS: "{{ kasm_workspace_group_staging_num_sessions }}"
+        KASM_STAGING_EXPIRATION_HOURS: "{{ kasm_workspace_group_staging_expiration_hours }}"
+        KASM_STAGING_ZONE_NAME: "{{ kasm_workspace_group_staging_zone_name }}"
+      register: kasm_workspace_create_output
+      changed_when: "'already configured' not in kasm_workspace_create_output.stdout"
+      failed_when: kasm_workspace_create_output.rc != 0
+
+    - name: Show creation result
+      ansible.builtin.debug:
+        var: kasm_workspace_create_output.stdout
+
+    - name: Show warnings (e.g. staging skipped, non-fatal errors)
+      ansible.builtin.debug:
+        var: kasm_workspace_create_output.stderr
+      when: kasm_workspace_create_output.stderr | length > 0
+
+    - name: Check whether Kasm's persistent API key exists on the server
+      ansible.builtin.stat:
+        path: "{{ kasm_dir }}/.kasm_api_key.json"
+      register: kasm_workspace_api_key_remote_stat
+
+    - name: Read the persistent API key generated on the server
+      ansible.builtin.slurp:
+        path: "{{ kasm_dir }}/.kasm_api_key.json"
+      register: kasm_workspace_api_key_remote_content
+      when: kasm_workspace_api_key_remote_stat.stat.exists
+
+    # Local (control node) copy, gitignored via .credenciales/, so other
+    # tasks/playbooks can reuse the same API key without going back to
+    # Kasm's database over SSH.
+    - name: Save a local copy of Kasm's API key
+      ansible.builtin.copy:
+        content: "{{ kasm_workspace_api_key_remote_content.content | b64decode }}"
+        dest: "{{ playbook_dir }}/kasm-api-key-{{ inventory_hostname }}.json"
+        mode: "0600"
+      delegate_to: localhost
+      become: false
+      when: kasm_workspace_api_key_remote_stat.stat.exists
+
+- name: Delete Kasm workspace(s)
+  when: kasm_workspace_state == "absent"
+  block:
+    - name: Ensure kasm_workspace_image or kasm_workspace_clean_all is set
+      ansible.builtin.fail:
+        msg: "kasm_workspace_image is required (e.g. -e kasm_workspace_image=user/image:tag), or set -e kasm_workspace_clean_all=true to delete all"
+      when: kasm_workspace_image == "" and not kasm_workspace_clean_all
+
+    - name: Copy the delete-workspace script
+      ansible.builtin.copy:
+        src: delete_workspace.sh
+        dest: "{{ kasm_dir }}/delete_workspace.sh"
+        mode: "0755"
+
+    - name: Delete the workspace(s)
+      ansible.builtin.command: bash {{ kasm_dir }}/delete_workspace.sh
+      environment:
+        KASM_IMAGE: "{{ kasm_workspace_image }}"
+        KASM_CLEAN_ALL: "{{ kasm_workspace_clean_all | lower }}"
+        KASM_DELETE_PERSISTENT_DATA: "{{ kasm_workspace_delete_persistent_data | lower }}"
+      register: kasm_workspace_delete_output
+      changed_when: "\"removed from Kasm's catalog\" in kasm_workspace_delete_output.stdout"
+
+    - name: Show deletion result
+      ansible.builtin.debug:
+        var: kasm_workspace_delete_output.stdout

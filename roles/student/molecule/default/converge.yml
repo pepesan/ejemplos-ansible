@@ -1,0 +1,9 @@
+---
+- name: Converge
+  hosts: all
+  tasks:
+    - name: Include the student role
+      ansible.builtin.include_role:
+        name: student
+      vars:
+        student_credentials_dir: /tmp/molecule-student-credentials

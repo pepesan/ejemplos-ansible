@@ -1,0 +1,109 @@
+---
+# Writes directly to Kasm's Postgres "group_settings" table: these settings
+# have no working public API (the public update_setting endpoint rejects
+# every payload tried, and the values here are per-group overrides, not the
+# encrypted global ones). Idempotent by design: each setting's current value
+# is read first and the UPSERT only runs when it differs from the desired
+# one, so a second run reports no changes (verified by Molecule's
+# idempotence check).
+
+- name: Look up the target group's id
+  ansible.builtin.command: >
+    docker exec kasm docker exec kasm_db psql -U kasmapp -d kasm -t -c
+    "SELECT group_id FROM groups WHERE name = '{{ kasm_group_name }}';"
+  register: kasm_group_id_lookup
+  changed_when: false
+
+# kasm_group_state only supports "present" on purpose: there is no confirmed
+# public API nor a verified minimal schema for safely deleting a Kasm group
+# (risk of leaving orphaned group_users/group_permissions rows, or — worse —
+# deleting a built-in group like "All Users" that Kasm itself depends on).
+# Creation is additive and fails loudly (non-zero psql exit) rather than
+# silently if the "groups" table has NOT NULL columns this INSERT doesn't
+# account for, instead of guessing at a DELETE that could break Kasm.
+- name: Create the group if it does not exist yet ({{ kasm_group_state }})
+  ansible.builtin.command: >
+    docker exec kasm docker exec kasm_db psql -U kasmapp -d kasm -c
+    "INSERT INTO groups (name, priority) VALUES ('{{ kasm_group_name }}', {{ kasm_group_priority }});"
+  when:
+    - kasm_group_state == "present"
+    - kasm_group_id_lookup.stdout | trim == ""
+  changed_when: true
+
+- name: Re-check the group's id after creation
+  ansible.builtin.command: >
+    docker exec kasm docker exec kasm_db psql -U kasmapp -d kasm -t -c
+    "SELECT group_id FROM groups WHERE name = '{{ kasm_group_name }}';"
+  # Registered under its own name, never reused from the initial lookup
+  # above: re-registering a *conditional* task onto the same variable
+  # overwrites it with a "skipped" result (no .stdout key at all) whenever
+  # the condition is false, breaking every task after it that still expects
+  # the original lookup's .stdout. Confirmed the hard way on Contabo E2E
+  # testing (2026-10-09) when the group already existed and this task
+  # (correctly) skipped.
+  register: kasm_group_id_recheck
+  changed_when: false
+  when: kasm_group_id_lookup.stdout | trim == ""
+
+- name: Set the group id fact
+  ansible.builtin.set_fact:
+    kasm_group_id: >-
+      {{ (kasm_group_id_recheck.stdout
+          if (kasm_group_id_recheck is defined and kasm_group_id_recheck is not skipped)
+          else kasm_group_id_lookup.stdout) | trim }}
+
+- name: Fail if the group still does not exist
+  ansible.builtin.fail:
+    msg: >-
+      Kasm group '{{ kasm_group_name }}' not found and could not be created
+      (kasm_group_state=present is the only supported state; see README for
+      why 'absent' is not implemented)
+  when: kasm_group_id == ""
+
+- name: Read each setting's current value
+  ansible.builtin.command: >
+    docker exec kasm docker exec kasm_db psql -U kasmapp -d kasm -t -c
+    "SELECT value FROM group_settings WHERE group_id = '{{ kasm_group_id }}' AND name = '{{ item.name }}';"
+  register: kasm_group_setting_current
+  changed_when: false
+  loop: "{{ kasm_group_setting_values }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Upsert settings that differ from the desired value
+  ansible.builtin.command: >
+    docker exec kasm docker exec kasm_db psql -U kasmapp -d kasm -c "
+      DO \$\$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM group_settings
+          WHERE group_id = '{{ kasm_group_id }}' AND name = '{{ item.item.name }}'
+        ) THEN
+          UPDATE group_settings SET value = '{{ item.item.value }}'
+          WHERE group_id = '{{ kasm_group_id }}' AND name = '{{ item.item.name }}';
+        ELSE
+          INSERT INTO group_settings (group_id, name, value, value_type, description)
+          VALUES (
+            '{{ kasm_group_id }}', '{{ item.item.name }}', '{{ item.item.value }}',
+            '{{ item.item.value_type }}', '{{ item.item.description }}'
+          );
+        END IF;
+      END;
+      \$\$;
+    "
+  loop: "{{ kasm_group_setting_current.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when: (item.stdout | trim) != (item.item.value | string)
+  changed_when: true
+
+- name: Verify the applied values
+  ansible.builtin.command: >
+    docker exec kasm docker exec kasm_db psql -U kasmapp -d kasm -t -c
+    "SELECT value FROM group_settings WHERE group_id = '{{ kasm_group_id }}' AND name = '{{ item.name }}';"
+  register: kasm_group_setting_verify
+  changed_when: false
+  failed_when: (kasm_group_setting_verify.stdout | trim) != (item.value | string)
+  loop: "{{ kasm_group_setting_values }}"
+  loop_control:
+    label: "{{ item.name }}"

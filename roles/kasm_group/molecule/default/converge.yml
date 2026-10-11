@@ -1,0 +1,11 @@
+---
+# Not runnable standalone: this role needs a live Kasm instance (a "kasm"
+# container with Postgres already up) reachable via `docker exec kasm ...`.
+# Kept for lint/syntax validation; see the role README and Fase A/B testing
+# for real end-to-end verification.
+- name: Converge
+  hosts: all
+  tasks:
+    - name: Converge requires a real Kasm instance — see molecule.yml comment
+      ansible.builtin.debug:
+        msg: "Skipping real converge: kasm_group needs a live Kasm container."

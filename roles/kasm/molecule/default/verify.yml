@@ -1,0 +1,15 @@
+---
+- name: Verify
+  hosts: all
+  tasks:
+    - name: Check the Kasm directory and compose file exist
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: kasm_verify_paths
+      loop:
+        - /opt/kasm/compose.yaml
+        - /opt/kasm/init/fix_and_install_kasm.sh
+
+    - name: Assert they were created
+      ansible.builtin.assert:
+        that: kasm_verify_paths.results | map(attribute='stat.exists') | list is all

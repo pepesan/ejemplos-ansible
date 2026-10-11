@@ -1,0 +1,28 @@
+---
+- name: Ensure linux_user_name is set
+  ansible.builtin.fail:
+    msg: "linux_user_name is required"
+  when: linux_user_name == ""
+
+- name: Ensure the user's own group exists
+  ansible.builtin.group:
+    name: "{{ linux_user_name }}"
+    state: present
+
+- name: Ensure the extra groups exist
+  ansible.builtin.group:
+    name: "{{ item }}"
+    state: present
+  loop: "{{ linux_user_extra_groups }}"
+
+- name: Ensure the user exists
+  ansible.builtin.user:
+    name: "{{ linux_user_name }}"
+    shell: "{{ linux_user_shell }}"
+    state: present
+    groups: "{{ [linux_user_name] + linux_user_extra_groups }}"
+    append: true
+    create_home: true
+    password: "{{ linux_user_password_plain | password_hash('sha512', linux_user_password_salt) }}"
+    update_password: always
+  no_log: true

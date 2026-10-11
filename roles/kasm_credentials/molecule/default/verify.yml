@@ -1,0 +1,37 @@
+---
+# kasm_credentials writes the CSV via delegate_to: localhost (the control
+# node), not the managed host — so this scenario actually writes to
+# /tmp/molecule-kasm-credentials on whichever machine runs `molecule test`,
+# not inside the test container. Verification must delegate the same way.
+- name: Verify
+  hosts: all
+  tasks:
+    - name: Find the generated access CSV
+      ansible.builtin.find:
+        paths: /tmp/molecule-kasm-credentials
+        patterns: "datos-acceso-*.csv"
+      delegate_to: localhost
+      become: false
+      register: kasm_credentials_verify_csv
+
+    - name: Assert the CSV was created
+      ansible.builtin.assert:
+        that: kasm_credentials_verify_csv.files | length > 0
+
+    - name: Read the CSV content
+      ansible.builtin.slurp:
+        path: "{{ kasm_credentials_verify_csv.files[0].path }}"
+      delegate_to: localhost
+      become: false
+      register: kasm_credentials_verify_csv_content
+
+    - name: Assert it contains this host's row
+      ansible.builtin.assert:
+        that: (kasm_credentials_verify_csv_content.content | b64decode) is search(inventory_hostname)
+
+    - name: Clean up the temp directory on the control node
+      ansible.builtin.file:
+        path: /tmp/molecule-kasm-credentials
+        state: absent
+      delegate_to: localhost
+      become: false

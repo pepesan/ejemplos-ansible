@@ -1,0 +1,14 @@
+---
+- name: Converge
+  hosts: all
+  tasks:
+    - name: Include the kasm_credentials role
+      ansible.builtin.include_role:
+        name: kasm_credentials
+      vars:
+        kasm_credentials_dir: /tmp/molecule-kasm-credentials/.credenciales
+        kasm_credentials_csv_dir: /tmp/molecule-kasm-credentials
+        # kasm_domain belongs to the "kasm" role (not kasm_credentials): it's
+        # an external required input this role consumes, normally set by
+        # "kasm" when composed together — see the role README.
+        kasm_domain: molecule.example.com  # noqa var-naming[no-role-prefix]

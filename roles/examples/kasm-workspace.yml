@@ -1,0 +1,36 @@
+---
+# Pulls a workspace image into Kasm's DinD and registers (or deletes) the
+# workspace. Requires Kasm already installed (site-kasm.yml).
+#
+# Usage (create):
+#   ansible-playbook -i <inventory> kasm-workspace.yml \
+#     -e kasm_workspace_state=present \
+#     -e kasm_docker_image_name=user/image:tag \
+#     -e kasm_workspace_image=user/image:tag \
+#     -e '{"kasm_workspace_name": "My workspace"}'
+#
+# Usage (delete):
+#   ansible-playbook -i <inventory> kasm-workspace.yml \
+#     -e kasm_workspace_state=absent \
+#     -e kasm_docker_image_name=user/image:tag \
+#     -e kasm_workspace_image=user/image:tag
+- name: Create or delete a Kasm workspace
+  hosts: ubuntu
+  vars:
+    kasm_workspace_state: present
+  roles:
+    # present: the image must exist in the DinD before the workspace can
+    # reference it, so kasm_docker_image runs first.
+    - role: kasm_docker_image
+      vars:
+        kasm_docker_image_state: present
+      when: kasm_workspace_state == "present"
+
+    - kasm_workspace
+
+    # absent: delete the workspace registration (and any session using the
+    # image) first, then remove the now-unreferenced Docker image.
+    - role: kasm_docker_image
+      vars:
+        kasm_docker_image_state: absent
+      when: kasm_workspace_state == "absent"

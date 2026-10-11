@@ -1,0 +1,20 @@
+---
+# Kernel modules required by Docker's networking/overlay stack.
+docker_kernel_modules:
+  - overlay
+  - br_netfilter
+
+# sysctl values required for container networking (bridged traffic routing).
+docker_sysctl_values:
+  - { key: net.ipv4.ip_forward, value: "1" }
+  - { key: net.bridge.bridge-nf-call-iptables, value: "1" }
+
+# geerlingguy.docker variables set here so this role is a self-contained,
+# opinionated entry point (override with -e if a caller needs something else).
+docker_edition: "ce"
+docker_package_state: present
+docker_service_state: started
+docker_service_enabled: true
+docker_install_compose_plugin: true
+docker_users:
+  - "{{ ansible_user_id }}"

@@ -1,0 +1,21 @@
+---
+kasm_dir: /opt/kasm
+kasm_url: "https://127.0.0.1:443"
+
+kasm_user_username: ""
+kasm_user_password: ""
+kasm_user_first_name: ""
+kasm_user_last_name: ""
+kasm_user_locked: false
+kasm_user_disabled: false
+kasm_user_organization: ""
+kasm_user_phone: ""
+
+# present: create the user if missing. absent: delete it if present.
+kasm_user_state: present
+
+# Reuses the same persistent, ansible-managed API key bootstrapped by
+# kasm_workspace if it already exists on this host, instead of minting a
+# second one. Requires "Users Create"/"Users Delete"/"Users View"
+# permissions granted to it — see the role README.
+kasm_user_api_key_file: "{{ kasm_dir }}/.kasm_api_key.json"

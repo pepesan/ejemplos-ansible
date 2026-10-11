@@ -1,0 +1,10 @@
+---
+- name: Converge
+  hosts: all
+  roles:
+    - role: kasm
+      vars:
+        kasm_base_domain: molecule.example.com
+        kasm_letsencrypt_enabled: false
+        kasm_admin_password: "molecule-test-admin"
+        kasm_user_password: "molecule-test-user"

@@ -1,0 +1,18 @@
+---
+# Full Kasm Workspaces install: Docker, the "alumno" student user, Kasm
+# itself (TLS on by default), and per-group session settings.
+#
+# Usage:
+#   ansible-playbook -i <inventory> site-kasm.yml \
+#     -e kasm_base_domain=example.com
+#
+# See the companion shell scripts in this directory for concrete examples
+# (default domain, custom domain, no TLS).
+- name: Install Kasm Workspaces end to end
+  hosts: ubuntu
+  roles:
+    - docker
+    - student
+    - kasm_credentials
+    - kasm
+    - kasm_group

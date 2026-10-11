@@ -1,0 +1,34 @@
+---
+kasm_dir: /opt/kasm
+
+# present: create/reuse the workspace. absent: delete it (or all of them).
+kasm_workspace_state: present
+
+kasm_workspace_image: ""
+kasm_workspace_name: ""
+kasm_workspace_desc: "{{ kasm_workspace_name }}"
+kasm_workspace_cores: 4
+kasm_workspace_memory_gb: 8
+kasm_workspace_privileged: false
+kasm_workspace_gpu_count: 0
+kasm_workspace_session_time_limit: ""
+kasm_workspace_category: ""
+kasm_workspace_enabled: true
+
+# "profile" family: persistent home directory settings for this workspace.
+# Path on the HOST (inside Kasm's DinD) mounted as the user's home across
+# sessions. Must contain {username} or {user_id}. Empty = no persistence.
+kasm_workspace_profile_path: ""
+
+# "group" family: zone/group-level settings this workspace participates in.
+# Session Staging pre-warms containers ahead of time; it is configured at
+# the zone level, not per workspace alone, and requires the zone to have a
+# fixed proxy_hostname (see role README).
+kasm_workspace_group_staging_enabled: false
+kasm_workspace_group_staging_num_sessions: 1
+kasm_workspace_group_staging_expiration_hours: 24
+kasm_workspace_group_staging_zone_name: "default"
+
+# absent-only settings.
+kasm_workspace_clean_all: false
+kasm_workspace_delete_persistent_data: true

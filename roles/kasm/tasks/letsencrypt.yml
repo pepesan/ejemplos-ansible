@@ -1,0 +1,71 @@
+---
+# The generic certbot install/issue/renew-cron work is delegated to
+# geerlingguy.certbot (see meta/main.yml); this file only covers what is
+# specific to Kasm: finding where it stores its certs, copying the
+# certbot-issued cert there, restarting kasm_proxy, installing the renewal
+# deploy-hook, and verifying HTTPS actually comes up.
+
+- name: Find Kasm's real certificate directory
+  ansible.builtin.find:
+    paths: "{{ kasm_dir }}/data/opt/kasm"
+    patterns: "kasm_nginx.crt"
+    recurse: true
+  register: kasm_cert_found
+
+- name: Set the certificate path fact
+  ansible.builtin.set_fact:
+    kasm_cert_dir: "{{ kasm_cert_found.files[0].path | dirname }}"
+
+- name: Copy the certificate into Kasm
+  ansible.builtin.copy:
+    src: "/etc/letsencrypt/live/{{ kasm_domain }}/fullchain.pem"
+    dest: "{{ kasm_cert_dir }}/kasm_nginx.crt"
+    remote_src: true
+    mode: "0644"
+  register: kasm_cert_copy
+
+- name: Copy the private key into Kasm
+  ansible.builtin.copy:
+    src: "/etc/letsencrypt/live/{{ kasm_domain }}/privkey.pem"
+    dest: "{{ kasm_cert_dir }}/kasm_nginx.key"
+    remote_src: true
+    mode: "0600"
+  register: kasm_key_copy
+
+# Only restart (and wait for the port to come back up) when the cert or key
+# actually changed — on every later run with an unchanged cert this is a
+# no-op, instead of bouncing kasm_proxy on every single playbook run.
+- name: Restart kasm_proxy to pick up the Let's Encrypt certificate
+  ansible.builtin.command: docker exec kasm docker restart kasm_proxy
+  when: kasm_cert_copy is changed or kasm_key_copy is changed
+  changed_when: true
+
+- name: Install the renewal deploy-hook
+  ansible.builtin.copy:
+    src: letsencrypt_deploy_hook.sh
+    dest: /etc/letsencrypt/renewal-hooks/deploy/restart-kasm.sh
+    mode: "0755"
+
+- name: Wait for kasm_proxy to come back up after the restart
+  ansible.builtin.wait_for:
+    port: 443
+    host: localhost
+    delay: 5
+    timeout: 30
+  when: kasm_cert_copy is changed or kasm_key_copy is changed
+
+- name: Verify Kasm responds with the Let's Encrypt certificate
+  ansible.builtin.uri:
+    url: "https://localhost"
+    validate_certs: false
+    status_code: [200, 302]
+    timeout: 10
+  register: kasm_https_check
+  retries: 6
+  delay: 5
+  until: kasm_https_check.status is defined
+  changed_when: false
+
+- name: HTTPS verification result
+  ansible.builtin.debug:
+    msg: "Kasm reachable at https://{{ kasm_domain }} (HTTP {{ kasm_https_check.status }})"

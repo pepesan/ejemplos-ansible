@@ -1,0 +1,24 @@
+services:
+  kasm:
+    image: lscr.io/linuxserver/kasm:{{ kasm_image_tag }}
+    container_name: kasm
+    privileged: true
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ={{ kasm_install_timezone | default('UTC') }}
+      - KASM_PORT=443
+    volumes:
+      - ./data/opt:/opt
+      - ./data/profiles:/profiles
+      - ./init:/scripts
+      - /dev/input:/dev/input
+      - /run/udev/data:/run/udev/data
+    ports:
+      - "443:443"
+      - "3001:3000"
+    restart: unless-stopped
+
+volumes:
+  kasm_opt:
+  kasm_profiles:

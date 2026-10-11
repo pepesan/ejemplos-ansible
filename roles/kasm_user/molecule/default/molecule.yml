@@ -1,0 +1,24 @@
+---
+# Requires a real, already-installed "kasm" container with a bootstrapped
+# persistent API key (see kasm_workspace) reachable at kasm_url — same
+# reasoning as the other Kasm-dependent roles. Structure only; real
+# verification happens in Fase A/B testing.
+driver:
+  name: docker
+platforms:
+  - name: kasm-user-role-test
+    image: geerlingguy/docker-ubuntu2404-ansible:latest
+    pre_build_image: true
+    privileged: true
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    cgroupns_mode: host
+    command: ""
+provisioner:
+  name: ansible
+  env:
+    ANSIBLE_ROLES_PATH: "../../.."
+  playbooks:
+    converge: converge.yml
+verifier:
+  name: ansible

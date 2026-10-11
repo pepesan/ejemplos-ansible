@@ -1,0 +1,13 @@
+---
+galaxy_info:
+  role_name: kasm_uninstall
+  description: Removes a Kasm Workspaces install (container, persisted data, optionally its Let's Encrypt certs) for a clean re-install
+  author: pepesan
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - all
+
+dependencies: []

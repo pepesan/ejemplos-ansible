@@ -1,0 +1,38 @@
+---
+kasm_dir: /opt/kasm
+kasm_version: "1.19.0"
+kasm_image_tag: "1.19.0-ls148"
+
+# Base domain this node hangs off: <node_name>.<kasm_base_domain>. No sane
+# default outside this project's own deployments on purpose — set it
+# explicitly (-e kasm_base_domain=example.com) or via group_vars.
+kasm_base_domain: "example.com"
+kasm_domain: "{{ node_name }}.{{ kasm_base_domain }}"
+
+# geerlingguy.swap variables, prefixed with kasm_ and mapped explicitly to
+# the dependency's own variable names in meta/main.yml. Using the exact
+# same name here ("swap_file_size_mb: {{ swap_file_size_mb }}") would create
+# a self-referencing Jinja loop ("Recursive loop detected in template") —
+# confirmed the hard way.
+kasm_swap_file_size_mb: "4096"
+
+# TLS is ON by default: real Let's Encrypt certificate, requires kasm_domain
+# to already resolve to this host and port 80 free for the HTTP-01 challenge.
+# Set to false for local/DNS-less environments (self-signed cert stays).
+kasm_letsencrypt_enabled: true
+letsencrypt_email: "admin@{{ kasm_base_domain }}"
+
+# geerlingguy.certbot variables, same kasm_ prefix and same reason as swap above.
+kasm_certbot_create_if_missing: true
+kasm_certbot_create_method: standalone
+kasm_certbot_admin_email: "{{ letsencrypt_email }}"
+kasm_certbot_certs:
+  - domains:
+      - "{{ kasm_domain }}"
+kasm_certbot_auto_renew: true
+
+# geerlingguy.certbot's own default is [nginx] (stop/start a host nginx
+# around the cert request). We don't need it: Kasm's nginx runs inside its
+# DinD, not on the host, so there is no host service competing with
+# certbot's standalone HTTP-01 challenge on port 80.
+kasm_certbot_create_standalone_stop_services: false

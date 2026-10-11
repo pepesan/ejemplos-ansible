@@ -1,0 +1,13 @@
+---
+# Thin wrapper over the generic linux_user role: fixes the username to
+# "alumno" and its default groups. See linux_user's README for the
+# idempotency note on password hashing.
+- name: Include the generic linux_user role
+  ansible.builtin.include_role:
+    name: linux_user
+  vars:
+    linux_user_name: "{{ student_name }}"
+    linux_user_shell: "{{ student_shell }}"
+    linux_user_extra_groups: "{{ student_extra_groups }}"
+    linux_user_credentials_dir: "{{ student_credentials_dir }}"
+    linux_user_password_plain: "{{ student_password_plain }}"

@@ -1,0 +1,13 @@
+---
+galaxy_info:
+  role_name: student
+  description: Creates the "alumno" (student) user with a persisted random password
+  author: pepesan
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - all
+
+dependencies: []

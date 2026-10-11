@@ -1,0 +1,32 @@
+---
+- name: Check whether the Kasm compose file still exists
+  ansible.builtin.stat:
+    path: "{{ kasm_dir }}/compose.yaml"
+  register: kasm_uninstall_compose_file
+
+- name: Stop and remove the Kasm container (and its DinD networks/volumes)
+  community.docker.docker_compose_v2:
+    project_src: "{{ kasm_dir }}"
+    files:
+      - compose.yaml
+    state: absent
+    remove_volumes: true
+  when: kasm_uninstall_compose_file.stat.exists
+
+- name: Remove the persisted Kasm data (database, certs, install marker, profiles)
+  ansible.builtin.file:
+    path: "{{ kasm_dir }}/data"
+    state: absent
+  when: kasm_uninstall_remove_data
+
+- name: Remove the rest of the Kasm directory (compose.yaml, init script)
+  ansible.builtin.file:
+    path: "{{ kasm_dir }}"
+    state: absent
+  when: kasm_uninstall_remove_all
+
+- name: Remove the host's Let's Encrypt certificate for this domain
+  ansible.builtin.file:
+    path: "/etc/letsencrypt/live/{{ kasm_domain }}"
+    state: absent
+  when: kasm_uninstall_remove_letsencrypt_certs

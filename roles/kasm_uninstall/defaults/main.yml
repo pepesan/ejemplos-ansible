@@ -1,0 +1,22 @@
+---
+# Same path used by the kasm role to install — must match to find anything.
+kasm_dir: /opt/kasm
+
+# Wipes the DinD container's persisted state: database, Kasm's own
+# self-signed certs, install marker, logs, session profiles. This is what
+# makes the *next* kasm role run a genuine fresh install instead of the
+# "already installed" fast path.
+kasm_uninstall_remove_data: true
+
+# Removes compose.yaml/init script too, not just the data/ subdirectory.
+# Harmless either way: the kasm role recreates both idempotently on its
+# next run. Kept as a separate switch in case something outside this
+# project's roles reads kasm_dir/compose.yaml directly.
+kasm_uninstall_remove_all: true
+
+# Real Let's Encrypt certs live on the HOST (not inside kasm_dir), issued by
+# geerlingguy.certbot. Off by default: removing them forces a brand new
+# certificate request on the next install, and Let's Encrypt rate-limits
+# that per domain — only opt in when you actually need a clean TLS slate.
+kasm_uninstall_remove_letsencrypt_certs: false
+kasm_domain: "{{ node_name }}.{{ kasm_base_domain | default('example.com') }}"

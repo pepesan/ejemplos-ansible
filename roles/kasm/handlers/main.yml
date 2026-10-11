@@ -1,0 +1,4 @@
+---
+- name: Reload kasm_proxy's nginx
+  ansible.builtin.command: docker exec kasm docker exec kasm_proxy nginx -s reload
+  changed_when: true

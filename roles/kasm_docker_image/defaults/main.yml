@@ -1,0 +1,9 @@
+---
+kasm_docker_image_name: ""
+# present: pull the image if it isn't already in Kasm's DinD.
+# absent: remove it (fails loudly if a workspace still references it or a
+# session still uses it — stop the workspace/session first).
+kasm_docker_image_state: present
+
+# absent only: also prune dangling layers/images left behind afterwards.
+kasm_docker_image_prune_after_remove: true

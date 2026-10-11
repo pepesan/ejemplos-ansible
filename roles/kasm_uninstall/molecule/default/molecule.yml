@@ -1,0 +1,20 @@
+---
+driver:
+  name: docker
+platforms:
+  - name: kasm-uninstall-role-test
+    image: geerlingguy/docker-ubuntu2404-ansible:latest
+    pre_build_image: true
+    privileged: true
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    cgroupns_mode: host
+    command: ""
+provisioner:
+  name: ansible
+  env:
+    ANSIBLE_ROLES_PATH: "../../.."
+  playbooks:
+    converge: converge.yml
+verifier:
+  name: ansible

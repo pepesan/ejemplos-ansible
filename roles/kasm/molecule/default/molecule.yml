@@ -1,0 +1,27 @@
+---
+# NOT run on a developer workstation: this role sets a host-kernel sysctl
+# value (AppArmor userns restriction) that would affect the REAL kernel
+# inside a plain Molecule container (containers share the host kernel), and
+# needs a privileged Docker-in-Docker environment plus a real HTTP/DNS path
+# for the Let's Encrypt flow that a generic container can't provide anyway.
+# Scenario kept for structure/lint; actually exercised end-to-end in the
+# session's Fase A/B testing against real VMs.
+driver:
+  name: docker
+platforms:
+  - name: kasm-role-test
+    image: geerlingguy/docker-ubuntu2404-ansible:latest
+    pre_build_image: true
+    privileged: true
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    cgroupns_mode: host
+    command: ""
+provisioner:
+  name: ansible
+  env:
+    ANSIBLE_ROLES_PATH: "../../.."
+  playbooks:
+    converge: converge.yml
+verifier:
+  name: ansible

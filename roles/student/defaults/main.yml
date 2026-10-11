@@ -1,0 +1,16 @@
+---
+student_name: alumno
+student_shell: /bin/bash
+student_extra_groups:
+  - docker
+  - sudo
+
+# Directory (on the control node) where generated passwords are persisted so
+# repeated runs reuse the same value instead of generating a new one.
+# Override with -e to point several roles/playbooks at the same directory.
+student_credentials_dir: "{{ playbook_dir }}/.credenciales"
+
+# Random per-host password, generated once and re-read on later runs (the
+# "password" lookup persists it to a file under student_credentials_dir).
+# Override with -e student_password_plain=...
+student_password_plain: "{{ lookup('password', student_credentials_dir + '/' + inventory_hostname + '-alumno.pass length=20 chars=ascii_letters,digits') }}"

@@ -1,0 +1,37 @@
+---
+- name: Converge
+  hosts: all
+  vars:
+    kasm_dir: /opt/kasm
+  tasks:
+    - name: Install Docker (needed to have something real to uninstall)
+      ansible.builtin.include_role:
+        name: docker
+
+    - name: Create the fake Kasm directory
+      ansible.builtin.file:
+        path: "{{ kasm_dir }}/data"
+        state: directory
+        mode: "0755"
+
+    - name: Deploy a throwaway compose file standing in for the real Kasm container
+      ansible.builtin.copy:
+        dest: "{{ kasm_dir }}/compose.yaml"
+        mode: "0644"
+        content: |
+          services:
+            kasm:
+              image: busybox:latest
+              container_name: kasm
+              command: sleep 3600
+
+    - name: Bring the fake container up
+      community.docker.docker_compose_v2:
+        project_src: "{{ kasm_dir }}"
+        files:
+          - compose.yaml
+        state: present
+
+    - name: Run the role under test
+      ansible.builtin.include_role:
+        name: kasm_uninstall

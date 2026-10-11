@@ -1,0 +1,22 @@
+---
+- name: Verify
+  hosts: all
+  tasks:
+    - name: Gather the test user's facts
+      ansible.builtin.getent:
+        database: passwd
+        key: molecule_test_user
+
+    - name: Assert the user exists with the right shell
+      ansible.builtin.assert:
+        that:
+          - "'molecule_test_user' in getent_passwd"
+          - getent_passwd.molecule_test_user[5] == "/bin/bash"
+
+    - name: Assert the user belongs to the docker and sudo groups
+      ansible.builtin.command: id -nG molecule_test_user
+      register: linux_user_groups
+      changed_when: false
+      failed_when: >-
+        'docker' not in linux_user_groups.stdout
+        or 'sudo' not in linux_user_groups.stdout

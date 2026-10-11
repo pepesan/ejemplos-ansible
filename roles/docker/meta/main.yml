@@ -1,0 +1,14 @@
+---
+galaxy_info:
+  role_name: docker
+  description: Docker Engine plus the kernel tuning Kasm workloads need
+  author: pepesan
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - all
+
+dependencies:
+  - role: geerlingguy.docker

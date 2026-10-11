@@ -1,0 +1,26 @@
+---
+# NOT safe to run `molecule test` on a developer workstation: this role
+# loads kernel modules (modprobe) and sets sysctl values that, inside a
+# Docker container, apply to the HOST's real kernel (containers share the
+# host kernel, they don't have their own). This scenario exists for
+# structure/lint purposes; actual execution happens in a disposable VM
+# (see the session's Fase A/B testing), never on a real workstation.
+driver:
+  name: docker
+platforms:
+  - name: docker-role-test
+    image: geerlingguy/docker-ubuntu2404-ansible:latest
+    pre_build_image: true
+    privileged: true
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    cgroupns_mode: host
+    command: ""
+provisioner:
+  name: ansible
+  env:
+    ANSIBLE_ROLES_PATH: "../../.."
+  playbooks:
+    converge: converge.yml
+verifier:
+  name: ansible

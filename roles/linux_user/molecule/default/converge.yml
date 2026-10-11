@@ -1,0 +1,13 @@
+---
+- name: Converge
+  hosts: all
+  tasks:
+    - name: Include the linux_user role
+      ansible.builtin.include_role:
+        name: linux_user
+      vars:
+        linux_user_name: molecule_test_user
+        linux_user_extra_groups:
+          - docker
+          - sudo
+        linux_user_credentials_dir: /tmp/molecule-linux-user-credentials

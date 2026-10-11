@@ -1,0 +1,61 @@
+---
+kasm_dir: /opt/kasm
+
+# Which Kasm group these settings apply to. Run the role again with a
+# different kasm_group_name to configure another group (e.g. "Instructors").
+kasm_group_name: "All Users"
+
+# "present" creates the group if it doesn't exist yet, then applies the
+# settings below. There is no "absent": deleting a Kasm group is not
+# implemented (see README) because there is no verified-safe way to do it
+# without risking orphaned rows or deleting a built-in group Kasm depends on.
+kasm_group_state: present
+kasm_group_priority: 100
+
+# Seconds Kasm waits without a keepalive before acting, and what happens
+# when it expires. NOTE: Kasm ignores 0 as "unlimited" and falls back to its
+# factory value (3600s) regardless — confirmed on a real session.
+kasm_group_keepalive_seconds: 3600
+kasm_group_keepalive_action: pause  # pause | delete
+
+# Hardening: disabled by default (locked down).
+kasm_group_allow_clipboard_down: false
+kasm_group_allow_clipboard_up: false
+kasm_group_allow_clipboard_seamless: false
+kasm_group_allow_downloads: false
+kasm_group_allow_uploads: false
+kasm_group_allow_printing: false
+
+kasm_group_setting_values:
+  - name: keepalive_expiration
+    value: "{{ kasm_group_keepalive_seconds }}"
+    value_type: int
+    description: "The number of seconds a Kasm will stay alive unless a keepalive request is sent from the client."
+  - name: keepalive_expiration_action
+    value: "{{ kasm_group_keepalive_action }}"
+    value_type: string
+    description: "Action to take when keepalive expires: pause or delete"
+  - name: allow_kasm_clipboard_down
+    value: "{{ kasm_group_allow_clipboard_down | lower }}"
+    value_type: bool
+    description: "Disallow copying text from inside Kasm to host"
+  - name: allow_kasm_clipboard_up
+    value: "{{ kasm_group_allow_clipboard_up | lower }}"
+    value_type: bool
+    description: "Disallow copying text from host to inside Kasm"
+  - name: allow_kasm_clipboard_seamless
+    value: "{{ kasm_group_allow_clipboard_seamless | lower }}"
+    value_type: bool
+    description: "Disallow seamless clipboard (Chromium)"
+  - name: allow_kasm_downloads
+    value: "{{ kasm_group_allow_downloads | lower }}"
+    value_type: bool
+    description: "Disallow downloading files from Kasm to host"
+  - name: allow_kasm_uploads
+    value: "{{ kasm_group_allow_uploads | lower }}"
+    value_type: bool
+    description: "Disallow uploading files from host to Kasm"
+  - name: allow_kasm_printing
+    value: "{{ kasm_group_allow_printing | lower }}"
+    value_type: bool
+    description: "Disallow printing inside Kasm sessions"

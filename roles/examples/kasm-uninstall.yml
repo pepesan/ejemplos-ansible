@@ -1,0 +1,15 @@
+---
+# Removes an existing Kasm install so the next site-kasm.yml run is a
+# genuine fresh install, instead of fixing a half-broken server by hand.
+#
+# Usage:
+#   ansible-playbook -i <inventory> kasm-uninstall.yml
+#
+# To also force a brand new Let's Encrypt certificate on the next install:
+#   ansible-playbook -i <inventory> kasm-uninstall.yml \
+#     -e kasm_uninstall_remove_letsencrypt_certs=true \
+#     -e node_name=kasmcontabo -e kasm_base_domain=example.com
+- name: Uninstall Kasm
+  hosts: ubuntu
+  roles:
+    - kasm_uninstall

@@ -1,0 +1,36 @@
+---
+galaxy_info:
+  role_name: kasm
+  description: Installs Kasm Workspaces (no workspace registered yet) with optional real TLS
+  author: pepesan
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - all
+
+# Variables are passed explicitly to each dependency below, rather than
+# relying on kasm/defaults/main.yml to override the dependency's own
+# defaults.yml — role-default-level variables from a depending role do NOT
+# reliably override a dependency's own defaults (known Ansible gotcha:
+# "last loaded wins" is not guaranteed to be the depending role). Passing
+# them as role parameters here has proper, guaranteed precedence instead.
+# Confirmed the hard way: certbot_create_if_missing silently stayed at
+# certbot's own "false" default, so no certificate was ever issued.
+#
+# Our own defaults use a kasm_ prefix (kasm_swap_file_size_mb, etc.) instead
+# of the dependency's exact variable names — mapping a variable to a role
+# parameter of the SAME name ("swap_file_size_mb: {{ swap_file_size_mb }}")
+# creates a self-referencing Jinja loop ("Recursive loop detected in
+# template"), also confirmed the hard way.
+dependencies:
+  - role: geerlingguy.swap
+    swap_file_size_mb: "{{ kasm_swap_file_size_mb }}"
+  - role: geerlingguy.certbot
+    certbot_create_if_missing: "{{ kasm_certbot_create_if_missing }}"
+    certbot_create_method: "{{ kasm_certbot_create_method }}"
+    certbot_admin_email: "{{ kasm_certbot_admin_email }}"
+    certbot_certs: "{{ kasm_certbot_certs }}"
+    certbot_auto_renew: "{{ kasm_certbot_auto_renew }}"
+    certbot_create_standalone_stop_services: "{{ kasm_certbot_create_standalone_stop_services }}"

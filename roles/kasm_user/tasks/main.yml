@@ -1,0 +1,95 @@
+---
+# Unlike kasm_workspace/kasm_group, Kasm's public API fully covers
+# user management (create_user, get_users, delete_user), so this role is
+# pure ansible.builtin.uri — no direct Postgres access, no wrapped bash
+# script.
+
+- name: Ensure kasm_user_username is set
+  ansible.builtin.fail:
+    msg: "kasm_user_username is required"
+  when: kasm_user_username == ""
+
+- name: Check whether the persistent API key exists on this host
+  ansible.builtin.stat:
+    path: "{{ kasm_user_api_key_file }}"
+  register: kasm_user_api_key_stat
+
+- name: Fail with guidance if no API key is available yet
+  ansible.builtin.fail:
+    msg: >-
+      {{ kasm_user_api_key_file }} does not exist on this host. Run
+      kasm_workspace at least once first (it bootstraps the persistent API
+      key), or create one manually and grant it "Users Create", "Users
+      Delete" and "Users View" permissions.
+  when: not kasm_user_api_key_stat.stat.exists
+
+- name: Read the persistent API key
+  ansible.builtin.slurp:
+    path: "{{ kasm_user_api_key_file }}"
+  register: kasm_user_api_key_content
+
+- name: Set API credential facts
+  ansible.builtin.set_fact:
+    kasm_user_api_key: "{{ (kasm_user_api_key_content.content | b64decode | from_json).api_key }}"
+    kasm_user_api_key_secret: "{{ (kasm_user_api_key_content.content | b64decode | from_json).api_key_secret }}"
+  no_log: true
+
+- name: List existing Kasm users
+  ansible.builtin.uri:
+    url: "{{ kasm_url }}/api/public/get_users"
+    method: POST
+    body_format: json
+    body:
+      api_key: "{{ kasm_user_api_key }}"
+      api_key_secret: "{{ kasm_user_api_key_secret }}"
+    validate_certs: false
+    status_code: 200
+  register: kasm_user_list
+  changed_when: false
+  no_log: true
+
+- name: Find this user in the list
+  ansible.builtin.set_fact:
+    kasm_user_existing: "{{ kasm_user_list.json.users | selectattr('username', 'equalto', kasm_user_username) | list | first | default(None) }}"
+
+- name: Create the user
+  ansible.builtin.uri:
+    url: "{{ kasm_url }}/api/public/create_user"
+    method: POST
+    body_format: json
+    body:
+      api_key: "{{ kasm_user_api_key }}"
+      api_key_secret: "{{ kasm_user_api_key_secret }}"
+      target_user:
+        username: "{{ kasm_user_username }}"
+        password: "{{ kasm_user_password }}"
+        first_name: "{{ kasm_user_first_name }}"
+        last_name: "{{ kasm_user_last_name }}"
+        locked: "{{ kasm_user_locked }}"
+        disabled: "{{ kasm_user_disabled }}"
+        organization: "{{ kasm_user_organization }}"
+        phone: "{{ kasm_user_phone }}"
+    validate_certs: false
+    status_code: 200
+  when:
+    - kasm_user_state == "present"
+    - kasm_user_existing is none
+  no_log: true
+
+- name: Delete the user
+  ansible.builtin.uri:
+    url: "{{ kasm_url }}/api/public/delete_user"
+    method: POST
+    body_format: json
+    body:
+      api_key: "{{ kasm_user_api_key }}"
+      api_key_secret: "{{ kasm_user_api_key_secret }}"
+      target_user:
+        user_id: "{{ kasm_user_existing.user_id }}"
+      force: true
+    validate_certs: false
+    status_code: 200
+  when:
+    - kasm_user_state == "absent"
+    - kasm_user_existing is not none
+  no_log: true

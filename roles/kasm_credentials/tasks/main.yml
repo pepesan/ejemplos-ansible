@@ -1,0 +1,50 @@
+---
+- name: Ensure the CSV directory exists on the control node
+  ansible.builtin.file:
+    path: "{{ kasm_credentials_csv_dir }}"
+    state: directory
+    mode: "0755"
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Copy the CSV updater script to the control node
+  ansible.builtin.copy:
+    src: update_credentials_csv.py
+    dest: "{{ kasm_credentials_csv_dir }}/update_credentials_csv.py"
+    mode: "0755"
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Record this node's credentials in datos-acceso-<project>-<date>.csv
+  ansible.builtin.command: >
+    python3 {{ kasm_credentials_csv_dir }}/update_credentials_csv.py
+    --csv-dir {{ kasm_credentials_csv_dir }}
+    --ip {{ inventory_hostname }}
+    --kasm-url https://{{ kasm_domain }}
+    --kasm-admin-user {{ kasm_credentials_admin_user }}
+    --kasm-user-user {{ kasm_credentials_user_user }}
+    --proyecto-formativo "{{ kasm_proyecto_formativo }}"
+  delegate_to: localhost
+  become: false
+  environment:
+    ALUMNO_PASSWORD: "{{ kasm_credentials_alumno_password }}"
+    KASM_ADMIN_PASSWORD: "{{ kasm_admin_password }}"
+    KASM_USER_PASSWORD: "{{ kasm_user_password }}"
+  register: kasm_credentials_csv_update
+  changed_when: "'CHANGED' in kasm_credentials_csv_update.stdout"
+  no_log: true
+
+- name: Locate the updated credentials CSV
+  ansible.builtin.find:
+    paths: "{{ kasm_credentials_csv_dir }}"
+    patterns: "datos-acceso-{{ kasm_proyecto_formativo if kasm_proyecto_formativo else '[0-9]*' }}-*.csv"
+  delegate_to: localhost
+  become: false
+  register: kasm_credentials_csv_found
+
+- name: Report where the credentials were saved
+  ansible.builtin.debug:
+    msg: "Access credentials saved to {{ kasm_credentials_csv_found.files[0].path }} (row IP {{ inventory_hostname }})"
+  when: kasm_credentials_csv_found.files | length > 0

@@ -1,0 +1,15 @@
+---
+- name: Verify
+  hosts: all
+  tasks:
+    - name: The fake kasm container must be gone
+      ansible.builtin.command: docker ps -a --filter name=^kasm$ --format "{{ '{{.Names}}' }}"
+      register: kasm_container_check
+      changed_when: false
+      failed_when: kasm_container_check.stdout | trim != ""
+
+    - name: The Kasm directory must be gone
+      ansible.builtin.stat:
+        path: /opt/kasm
+      register: kasm_dir_check
+      failed_when: kasm_dir_check.stat.exists

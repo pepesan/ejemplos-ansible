@@ -1,0 +1,92 @@
+---
+# Ubuntu 23.10+/24.04+ restricts unprivileged user namespaces via AppArmor by
+# default. That breaks bwrap (used by GTK/glycin icon sandboxing and by
+# Chrome/Electron inside the session container), causing XFCE to crash-loop
+# into a black screen. Disabled at the host level.
+- name: Disable AppArmor restriction on unprivileged user namespaces (avoids XFCE black screen)
+  ansible.posix.sysctl:
+    name: kernel.apparmor_restrict_unprivileged_userns
+    value: "0"
+    sysctl_set: true
+    state: present
+    reload: true
+    sysctl_file: /etc/sysctl.d/99-kasm-userns.conf
+  failed_when: false
+
+- name: Create the Kasm directory
+  ansible.builtin.file:
+    path: "{{ kasm_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Create the init scripts directory
+  ansible.builtin.file:
+    path: "{{ kasm_dir }}/init"
+    state: directory
+    mode: "0755"
+
+- name: Deploy the Kasm compose file
+  ansible.builtin.template:
+    src: compose.yaml.j2
+    dest: "{{ kasm_dir }}/compose.yaml"
+    mode: "0644"
+
+- name: Copy the fix-and-install script
+  ansible.builtin.copy:
+    src: fix_and_install_kasm.sh
+    dest: "{{ kasm_dir }}/init/fix_and_install_kasm.sh"
+    mode: "0755"
+
+- name: Launch the Kasm container with docker compose
+  community.docker.docker_compose_v2:
+    project_src: "{{ kasm_dir }}"
+    files:
+      - compose.yaml
+    state: present
+
+- name: Tip — follow the install log in real time
+  ansible.builtin.debug:
+    msg: "Follow progress from another terminal: ssh root@{{ inventory_hostname }} 'tail -f {{ kasm_dir }}/data/opt/kasm_deploy.log'"
+
+- name: Run the Kasm fix-and-install script
+  community.docker.docker_container_exec:
+    container: kasm
+    command: bash /scripts/fix_and_install_kasm.sh
+    env:
+      KASM_ADMIN_PASSWORD: "{{ kasm_admin_password }}"
+      KASM_USER_PASSWORD: "{{ kasm_user_password }}"
+  register: kasm_install_output
+  changed_when: "'already installed' not in kasm_install_output.stdout"
+  no_log: true
+
+- name: Show install result
+  ansible.builtin.debug:
+    var: kasm_install_output.stdout
+
+# Session timeouts and hardening (per group) are configured by the separate
+# kasm_group role, run after this one — see that role's README.
+# Image pruning mode is server-wide (not per group), so it stays here.
+- name: Read current image-pruning mode
+  ansible.builtin.command: >
+    docker exec kasm docker exec kasm_db psql -U kasmapp -d kasm -t -c
+    "SELECT prune_images_mode FROM servers LIMIT 1;"
+  register: kasm_prune_mode_current
+  changed_when: false
+
+- name: Disable aggressive image pruning (keeps custom images available)
+  ansible.builtin.command: >
+    docker exec kasm docker exec kasm_db psql -U kasmapp -d kasm -c
+    "UPDATE servers SET prune_images_mode = 'No Prune';"
+  when: kasm_prune_mode_current.stdout | trim != "No Prune"
+  changed_when: true
+
+- name: Install the print-block nginx snippet for kasm_proxy
+  ansible.builtin.copy:
+    src: nginx/print_block.conf
+    dest: "{{ kasm_dir }}/data/opt/kasm/{{ kasm_version }}/conf/nginx/containers.d/print_block.conf"
+    mode: "0644"
+  notify: Reload kasm_proxy's nginx
+
+- name: Configure real HTTPS (Let's Encrypt)
+  ansible.builtin.include_tasks: letsencrypt.yml
+  when: kasm_letsencrypt_enabled

@@ -1,0 +1,42 @@
+---
+# Manages the Docker image itself inside Kasm's DinD (lscr.io/linuxserver/kasm
+# runs its own nested Docker daemon, reached via "docker exec kasm docker
+# ..."), independent of whether that image is registered as a Kasm workspace
+# (see kasm_workspace). Idempotent: checks whether the image is already
+# present before pulling/removing it.
+
+- name: Ensure kasm_docker_image_name is set
+  ansible.builtin.fail:
+    msg: "kasm_docker_image_name is required (e.g. -e kasm_docker_image_name=user/image:tag)"
+  when: kasm_docker_image_name == ""
+
+- name: Check whether the image already exists in Kasm's DinD
+  ansible.builtin.command: docker exec kasm docker image inspect {{ kasm_docker_image_name }}
+  register: kasm_docker_image_inspect
+  changed_when: false
+  failed_when: false
+
+- name: Pull the image into Kasm's DinD
+  ansible.builtin.command: docker exec kasm docker pull {{ kasm_docker_image_name }}
+  async: 1800
+  poll: 30
+  when:
+    - kasm_docker_image_state == "present"
+    - kasm_docker_image_inspect.rc != 0
+  changed_when: true
+
+- name: Remove the image from Kasm's DinD
+  ansible.builtin.command: docker exec kasm docker rmi {{ kasm_docker_image_name }}
+  register: kasm_docker_image_remove
+  when:
+    - kasm_docker_image_state == "absent"
+    - kasm_docker_image_inspect.rc == 0
+  changed_when: true
+
+- name: Prune dangling layers/images left behind
+  ansible.builtin.command: docker exec kasm docker image prune -f
+  register: kasm_docker_image_prune
+  changed_when: "'Total reclaimed space: 0B' not in kasm_docker_image_prune.stdout"
+  when:
+    - kasm_docker_image_state == "absent"
+    - kasm_docker_image_prune_after_remove

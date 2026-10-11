@@ -1,0 +1,24 @@
+---
+# Requires a real, already-installed "kasm" container (Postgres, API) to
+# converge against — a generic Molecule container has none of that. This
+# scenario validates structure/lint only; full converge+verify happens in
+# the session's Fase A/B testing against a real Kasm deployment.
+driver:
+  name: docker
+platforms:
+  - name: kasm-group-role-test
+    image: geerlingguy/docker-ubuntu2404-ansible:latest
+    pre_build_image: true
+    privileged: true
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    cgroupns_mode: host
+    command: ""
+provisioner:
+  name: ansible
+  env:
+    ANSIBLE_ROLES_PATH: "../../.."
+  playbooks:
+    converge: converge.yml
+verifier:
+  name: ansible

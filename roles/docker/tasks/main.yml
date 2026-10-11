@@ -1,0 +1,25 @@
+---
+# geerlingguy.docker (see meta/main.yml) already installs Docker Engine, the
+# Compose plugin, manages the service and adds users to the docker group.
+# This role only adds what that role does not cover: the kernel modules and
+# sysctl values Kasm's container networking needs.
+
+- name: Ensure required kernel modules are loaded
+  community.general.modprobe:
+    name: "{{ item }}"
+    state: present
+  loop: "{{ docker_kernel_modules }}"
+
+- name: Configure sysctl values for container networking
+  ansible.posix.sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    sysctl_set: true
+    state: present
+    reload: true
+  loop: "{{ docker_sysctl_values }}"
+
+- name: Install python3-docker (required by Ansible's docker modules)
+  ansible.builtin.package:
+    name: python3-docker
+    state: present
