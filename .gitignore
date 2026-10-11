@@ -13,3 +13,6 @@ __pycache__/
 
 # Plan de trabajo local de los roles (no se versiona)
 roles/PLAN.md
+
+# Roles y collections de Galaxy instalados localmente (se regeneran con requirements.yml)
+.ansible/
