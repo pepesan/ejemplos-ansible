@@ -17,7 +17,7 @@
   become: false
   run_once: true
 
-- name: Record this node's credentials in datos-acceso-<project>-<date>.csv
+- name: Record this node's credentials in the access CSV (datos-acceso-<inventory>.csv)
   ansible.builtin.command: >
     python3 {{ kasm_credentials_csv_dir }}/update_credentials_csv.py
     --csv-dir {{ kasm_credentials_csv_dir }}
@@ -26,6 +26,7 @@
     --kasm-admin-user {{ kasm_credentials_admin_user }}
     --kasm-user-user {{ kasm_credentials_user_user }}
     --proyecto-formativo "{{ kasm_proyecto_formativo }}"
+    {{ ('--csv-name ' ~ (kasm_credentials_csv_name | quote)) if kasm_credentials_csv_name else '' }}
   delegate_to: localhost
   become: false
   environment:
@@ -39,7 +40,10 @@
 - name: Locate the updated credentials CSV
   ansible.builtin.find:
     paths: "{{ kasm_credentials_csv_dir }}"
-    patterns: "datos-acceso-{{ kasm_proyecto_formativo if kasm_proyecto_formativo else '[0-9]*' }}-*.csv"
+    patterns: >-
+      {{ kasm_credentials_csv_name
+         if kasm_credentials_csv_name
+         else 'datos-acceso-' ~ ((kasm_proyecto_formativo | lower ~ '-') if kasm_proyecto_formativo else '') ~ now(fmt='%Y-%m-%d') ~ '.csv' }}
   delegate_to: localhost
   become: false
   register: kasm_credentials_csv_found

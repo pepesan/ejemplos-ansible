@@ -15,7 +15,6 @@ never left half-written if the process is interrupted.
 """
 import csv
 import fcntl
-import glob
 import os
 import sys
 import argparse
@@ -44,26 +43,36 @@ def sanitize_prefix(proyecto_formativo):
 
 
 def resolve_csv_path(directory, proyecto_formativo=""):
-    """Reuses the existing datos-acceso[-<course>]-<date>.csv file (the
-    oldest one, in case there is more than one) instead of creating a new
-    one every day. Only creates one, dated today, if none exists yet. The
-    course/cohort prefix keeps credentials from different courses deployed
-    in parallel from mixing in the same CSV; without a prefix the classic
-    filename is kept (compatible with CSVs generated before this parameter
-    existed). Must always be called with the lock already held."""
+    """Legacy naming, used only when no explicit --csv-name is given: always
+    the file dated with the day of the run, datos-acceso[-<course>]-<date>.csv.
+    A new day starts a new file, so the date in the name is always the day the
+    rows were written (it used to reuse the oldest existing file, whose date
+    then misled). The course/cohort prefix keeps credentials from different
+    courses deployed in parallel from mixing in the same CSV. Must always be
+    called with the lock already held."""
     prefix = sanitize_prefix(proyecto_formativo)
-    if prefix:
-        pattern = f"datos-acceso-{prefix}-*.csv"
-    else:
-        # No prefix: only match classic "datos-acceso-<date>.csv" files,
-        # never another course's (which carry their own prefix before the date).
-        pattern = "datos-acceso-[0-9]*.csv"
-    existing = sorted(glob.glob(os.path.join(directory, pattern)))
-    if existing:
-        return existing[0]
     today = date.today().isoformat()
     name = f"datos-acceso-{prefix}-{today}.csv" if prefix else f"datos-acceso-{today}.csv"
     return os.path.join(directory, name)
+
+
+def safe_csv_name(name):
+    """Validates an explicit CSV file name: a bare file name (no directories)
+    made of letters, digits, '.', '_' and '-', ending in .csv. Raises
+    SystemExit otherwise, so a bad value can never write outside --csv-dir."""
+    allowed = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-")
+    if (
+        not name
+        or name != os.path.basename(name)
+        or name.startswith(".")
+        or not name.endswith(".csv")
+        or any(c not in allowed for c in name)
+    ):
+        raise SystemExit(
+            f"--csv-name {name!r} is not a plain *.csv file name "
+            "(letters, digits, '.', '_' and '-' only, no directories)"
+        )
+    return name
 
 
 def update_row(csv_path, ip, row):
@@ -108,7 +117,15 @@ def main():
         help="Optional prefix (course/cohort) so credentials from different "
              "courses deployed in parallel don't mix in the same CSV. "
              "Without this argument the classic filename is used "
-             "(datos-acceso-<date>.csv).",
+             "(datos-acceso-<date>.csv, dated with the day of the run).",
+    )
+    parser.add_argument(
+        "--csv-name",
+        default="",
+        help="Exact CSV file name inside --csv-dir (e.g. "
+             "datos-acceso-inventory-mi-curso.csv). When given it takes "
+             "precedence over --proyecto-formativo and over the "
+             "dated naming: that one file is used as is.",
     )
     args = parser.parse_args()
 
@@ -125,12 +142,19 @@ def main():
     prefix = sanitize_prefix(args.proyecto_formativo)
 
     os.makedirs(args.csv_dir, exist_ok=True)
-    lock_name = f".datos-acceso-{prefix}.lock" if prefix else ".datos-acceso.lock"
+    explicit_name = safe_csv_name(args.csv_name) if args.csv_name else ""
+    if explicit_name:
+        lock_name = f".{explicit_name}.lock"
+    else:
+        lock_name = f".datos-acceso-{prefix}.lock" if prefix else ".datos-acceso.lock"
     lock_path = os.path.join(args.csv_dir, lock_name)
     with open(lock_path, "w") as lock_file:
         fcntl.flock(lock_file, fcntl.LOCK_EX)  # blocking: waits its turn
         try:
-            csv_path = resolve_csv_path(args.csv_dir, args.proyecto_formativo)
+            if explicit_name:
+                csv_path = os.path.join(args.csv_dir, explicit_name)
+            else:
+                csv_path = resolve_csv_path(args.csv_dir, args.proyecto_formativo)
             changed = update_row(csv_path, args.ip, row)
         finally:
             fcntl.flock(lock_file, fcntl.LOCK_UN)

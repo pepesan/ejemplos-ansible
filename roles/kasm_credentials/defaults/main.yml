@@ -22,4 +22,11 @@ kasm_credentials_user_user: "user@kasm.local"
 # filename.
 kasm_proyecto_formativo: ""
 
+# Exact name of the access CSV, derived from the inventory file used for the
+# run: `-i inventory-mi-curso` -> datos-acceso-inventory-mi-curso.csv. No date,
+# so every deployment from the same inventory lands in the same file and the
+# name says which hosts are in it. Set it to "" to fall back to
+# datos-acceso[-<proyecto>]-<date of the run>.csv (a new file each day).
+kasm_credentials_csv_name: "datos-acceso-{{ inventory_file | default('inventario') | basename }}.csv"
+
 kasm_credentials_csv_dir: "{{ playbook_dir }}"
