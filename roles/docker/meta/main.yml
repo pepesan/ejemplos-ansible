@@ -11,4 +11,7 @@ galaxy_info:
         - all
 
 dependencies:
+  # First on purpose: it must run before geerlingguy.docker starts installing
+  # packages through apt, so a broken IPv6 route cannot stall that install.
+  - role: ipv4_preference
   - role: geerlingguy.docker

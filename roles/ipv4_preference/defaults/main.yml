@@ -1,0 +1,12 @@
+---
+# Master switch. Set to false to skip the role entirely (e.g. on hosts whose
+# IPv6 route is known to be good and where you want the distro default).
+ipv4_preference_enabled: true
+
+# glibc's getaddrinfo(3) sorting config. Same path on every Debian/Ubuntu.
+ipv4_preference_gai_conf: /etc/gai.conf
+
+# Precedence given to IPv4-mapped addresses (::ffff:0:0/96). glibc's default
+# is 35, below the 40 of native IPv6, which is what makes IPv6 win. Any value
+# above 40 flips the preference; 100 is the value documented in gai.conf(5).
+ipv4_preference_precedence: 100

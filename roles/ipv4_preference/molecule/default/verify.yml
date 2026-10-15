@@ -1,0 +1,16 @@
+---
+- name: Verify
+  hosts: all
+  tasks:
+    - name: Read gai.conf
+      ansible.builtin.slurp:
+        src: /etc/gai.conf
+      register: gai_conf
+
+    - name: The IPv4 precedence directive must be present exactly once, uncommented
+      ansible.builtin.assert:
+        that:
+          - (gai_conf.content | b64decode).splitlines()
+            | select('match', '^\s*precedence\s+::ffff:0:0/96\s+100\s*$')
+            | list | length == 1
+        fail_msg: "gai.conf must contain exactly one active 'precedence ::ffff:0:0/96  100' line"

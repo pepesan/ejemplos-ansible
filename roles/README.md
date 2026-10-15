@@ -13,7 +13,8 @@ each role's own `README.md` (English, canonical) / `README.es.md`
 
 | Role | Depends on | What it does |
 |---|---|---|
-| [`docker`](docker/README.md) | `geerlingguy.docker` (Galaxy) | Kernel modules + sysctl Kasm's container networking needs, on top of a maintained Docker install role |
+| [`ipv4_preference`](ipv4_preference/README.md) | — | Makes glibc prefer IPv4 over IPv6 (`/etc/gai.conf`); first dependency of `docker`, so it runs before any `apt` install |
+| [`docker`](docker/README.md) | `ipv4_preference`, `geerlingguy.docker` (Galaxy) | Kernel modules + sysctl Kasm's container networking needs, on top of a maintained Docker install role |
 | [`linux_user`](linux_user/README.md) | — | Generic: creates a Linux user with a persisted random password, ensuring its groups exist first |
 | [`student`](student/README.md) | `linux_user` | Thin wrapper: fixes the username to `alumno` and its default groups (`docker`+`sudo`) |
 | [`kasm`](kasm/README.md) | `geerlingguy.swap`, `geerlingguy.certbot` (Galaxy) | Installs Kasm Workspaces (no workspace registered yet): compose, fix-and-install, image-pruning mode, nginx print blocking, and — by default — real Let's Encrypt TLS |

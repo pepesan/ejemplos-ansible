@@ -1,0 +1,7 @@
+---
+- name: Converge
+  hosts: all
+  tasks:
+    - name: Run the role under test
+      ansible.builtin.include_role:
+        name: ipv4_preference

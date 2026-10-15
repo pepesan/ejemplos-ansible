@@ -1,0 +1,18 @@
+---
+# Makes glibc's name resolution (getaddrinfo) prefer IPv4 over IPv6 when a
+# name resolves to both. It does NOT disable IPv6: an IPv6-only destination
+# still works. Only affects programs that go through glibc (apt, curl, git,
+# python...). Go binaries such as dockerd have their own resolver and ignore
+# gai.conf, and containers have their own /etc/gai.conf.
+- name: Prefer IPv4 over IPv6 in glibc address selection
+  ansible.builtin.lineinfile:
+    path: "{{ ipv4_preference_gai_conf }}"
+    # Anchored on the *uncommented* directive: the stock gai.conf ships it
+    # commented out with '#', so on a fresh host this appends one line, and
+    # on later runs it matches (and rewrites in place) that same line.
+    regexp: '^\s*precedence\s+::ffff:0:0/96'
+    line: "precedence ::ffff:0:0/96  {{ ipv4_preference_precedence }}"
+    state: present
+    create: true
+    mode: "0644"
+  when: ipv4_preference_enabled | bool

@@ -13,7 +13,8 @@ cada rol para la referencia completa de variables.
 
 | Rol | Depende de | Qué hace |
 |---|---|---|
-| [`docker`](docker/README.es.md) | `geerlingguy.docker` (Galaxy) | Módulos de kernel + sysctl que la red de contenedores de Kasm necesita, sobre un rol de instalación de Docker ya mantenido |
+| [`ipv4_preference`](ipv4_preference/README.es.md) | — | Hace que glibc prefiera IPv4 sobre IPv6 (`/etc/gai.conf`); primera dependencia de `docker`, así que corre antes de cualquier instalación con `apt` |
+| [`docker`](docker/README.es.md) | `ipv4_preference`, `geerlingguy.docker` (Galaxy) | Módulos de kernel + sysctl que la red de contenedores de Kasm necesita, sobre un rol de instalación de Docker ya mantenido |
 | [`linux_user`](linux_user/README.es.md) | — | Genérico: crea un usuario Linux con password aleatoria persistida, asegurando antes que sus grupos existen |
 | [`student`](student/README.es.md) | `linux_user` | Wrapper fino: fija el username a `alumno` y sus grupos por defecto (`docker`+`sudo`) |
 | [`kasm`](kasm/README.es.md) | `geerlingguy.swap`, `geerlingguy.certbot` (Galaxy) | Instala Kasm Workspaces (sin workspace registrado todavía): compose, fix-e-instalación, modo de pruning de imágenes, bloqueo de impresión en nginx y, por defecto, TLS real con Let's Encrypt |
