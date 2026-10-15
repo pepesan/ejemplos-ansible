@@ -38,6 +38,36 @@ locales/sin DNS, desactivar explícitamente:
 
 Kasm queda accesible con su certificado autofirmado.
 
+## Cómo se verifica la instalación (y se reintenta)
+
+`files/fix_and_install_kasm.sh` ejecuta el `install.sh` de Kasm dentro del
+contenedor. Hay dos cosas fáciles de hacer mal y muy caras de depurar:
+
+- **`install.sh` puede abortar pronto** con `dial unix .../kasmlogger.sock` o
+  `.../kasmnetwork.sock: connect: connection refused`. Son los plugins de
+  Docker propios de Kasm (`kasmweb/logger`, `kasmweb/sidecar`) que no
+  responden en su socket en el instante en que Docker intenta habilitarlos:
+  una carrera de tiempo, no un fallo persistente. El plugin está arriba unos
+  segundos después, así que habilitarlo a mano justo a continuación funciona.
+  Afecta más a unos hosts que a otros y es más probable cuantas más
+  instalaciones corran a la vez (ver `examples/`: usar un `-f` bajo).
+- **El éxito lo decide el estado de los servicios, no el código de salida.**
+  El script tolera un `install.sh` con código distinto de cero (un timeout
+  inocuo del healthcheck de `kasm_manager` es un caso conocido), así que
+  comprueba que `kasm_db`, `kasm_api` y `kasm_manager` estén realmente en
+  marcha. Si no lo están, habilita los plugins desactivados y vuelve a
+  ejecutar `install.sh`, hasta 3 intentos, y solo entonces sale con error
+  **sin** escribir el marcador de instalación
+  (`/opt/kasm/data/opt/kasm_install_complete` en el host).
+
+Una versión anterior escribía el marcador siempre, y su bucle de "esperar a
+que estén sanos" daba por bueno el caso de **no haber ningún contenedor**
+(nada está `unhealthy` ni `starting`). El play "pasaba" y fallaba varias
+tareas después, en `Read current image-pruning mode`, con
+`No such container: kasm_db`, y cada reejecución imprimía
+`already installed. Skipping` sin reparar nada. Si te encuentras ese estado en
+un host, borra el marcador y vuelve a ejecutar.
+
 ## Variables
 
 | Variable | Valor por defecto | Propósito |

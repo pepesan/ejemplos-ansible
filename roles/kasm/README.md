@@ -37,6 +37,33 @@ environments, disable explicitly:
 
 Kasm then stays reachable over its self-signed certificate.
 
+## How the install is verified (and retried)
+
+`files/fix_and_install_kasm.sh` runs Kasm's `install.sh` inside the container.
+Two things about it are easy to get wrong and cost a lot of time to debug:
+
+- **`install.sh` can abort early** with `dial unix .../kasmlogger.sock` or
+  `.../kasmnetwork.sock: connect: connection refused`. Those are Kasm's own
+  Docker plugins (`kasmweb/logger`, `kasmweb/sidecar`) not answering on their
+  socket in the instant Docker tries to enable them: a timing race, not a
+  persistent fault. The plugin is up seconds later, so enabling it by hand
+  just after works. It hits some hosts more than others and gets more likely
+  the more installs run at once (see `examples/` — use a low `-f`).
+- **Success is decided by the services, not by the exit code.** The script
+  tolerates a non-zero `install.sh` (a harmless `kasm_manager` healthcheck
+  timeout is a known case), so it checks that `kasm_db`, `kasm_api` and
+  `kasm_manager` are actually running. If they are not, it enables any
+  disabled plugin and runs `install.sh` again, up to 3 attempts, and only
+  then exits with an error **without** writing the install marker
+  (`/opt/kasm/data/opt/kasm_install_complete` on the host).
+
+An earlier version wrote the marker regardless and its "wait until healthy"
+loop declared success when there were *no* containers at all (nothing is
+`unhealthy` or `starting`). The play then "passed" and failed several tasks
+later in `Read current image-pruning mode` with `No such container: kasm_db`,
+and every re-run printed `already installed. Skipping` and repaired nothing.
+If you meet that state on a host, delete the marker and re-run.
+
 ## Variables
 
 | Variable | Default | Purpose |
