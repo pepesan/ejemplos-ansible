@@ -17,16 +17,16 @@
   ansible.builtin.file:
     path: "{{ kasm_dir }}/data"
     state: absent
-  when: kasm_uninstall_remove_data
+  when: kasm_uninstall_remove_data | bool
 
 - name: Remove the rest of the Kasm directory (compose.yaml, init script)
   ansible.builtin.file:
     path: "{{ kasm_dir }}"
     state: absent
-  when: kasm_uninstall_remove_all
+  when: kasm_uninstall_remove_all | bool
 
 - name: Remove the host's Let's Encrypt certificate for this domain
   ansible.builtin.file:
     path: "/etc/letsencrypt/live/{{ kasm_domain }}"
     state: absent
-  when: kasm_uninstall_remove_letsencrypt_certs
+  when: kasm_uninstall_remove_letsencrypt_certs | bool
