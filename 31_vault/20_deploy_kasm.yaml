@@ -8,13 +8,13 @@
     # Imagen Kasm a desplegar. Opciones disponibles:
     #   pepesan/mi-ubuntu-resolute-kasm:1.0        -> Ubuntu 26.04 con IntelliJ, ZAP, Firefox
     #   pepesan/mi-ubuntu-resolute-kasm-go:1.0     -> Ubuntu 26.04 con entorno de desarrollo Go
-    #   pepesan/mi-ubuntu-resolute-kasm-python-dind:1.1 -> Ubuntu 26.04 con PyCharm, MariaDB, DinD (por defecto)
+    #   pepesan/mi-ubuntu-resolute-kasm-python-dind:1.3 -> Ubuntu 26.04 con PyCharm, MariaDB, DinD, lanzador docker-twitch (por defecto)
     #   pepesan/mi-ubuntu-noble-kasm:1.0           -> Ubuntu 24.04 con IntelliJ, ZAP, Firefox
     #   pepesan/mi-ubuntu-noble-kasm-go:1.0        -> Ubuntu 24.04 con entorno de desarrollo Go
     #   pepesan/mi-ubuntu-noble-kasm-python:1.0    -> Ubuntu 24.04 con entorno de desarrollo Python
     # Repositorio de imágenes personalizadas: https://github.com/pepesan/kasm-workspaces-images.git
     # Sobreescribir con: -e kasm_image=pepesan/mi-ubuntu-resolute-kasm-go
-    kasm_image: "pepesan/mi-ubuntu-resolute-kasm-python-dind:1.1"
+    kasm_image: "pepesan/mi-ubuntu-resolute-kasm-python-dind:1.3"
     kasm_version: "1.19.0"
     # Nombre y descripción del workspace (opcionales). Vacío = se deducen del nombre de la imagen.
     # Sobreescribir con: -e kasm_workspace_name="Mi workspace" -e kasm_workspace_desc="Mi descripción"
@@ -46,6 +46,18 @@
     alumno_password_value: "{{ lookup('password', credentials_dir + '/' + inventory_hostname + '-alumno.pass length=20 chars=ascii_letters,digits') }}"
     kasm_credentials_csv: "{{ playbook_dir }}/credenciales_kasm.csv"
   tasks:
+    # Prefiere IPv4 sobre IPv6 en la resolución de nombres del host (glibc,
+    # getaddrinfo). Evita esperas de decenas de segundos en apt/curl/git cuando
+    # un destino resuelve a IPv6 pero la ruta IPv6 del VPS no funciona. No
+    # desactiva IPv6 ni afecta a los contenedores (cada uno tiene su gai.conf).
+    - name: Preferir IPv4 sobre IPv6
+      lineinfile:
+        path: /etc/gai.conf
+        regexp: '^\s*precedence\s+::ffff:0:0/96'
+        line: 'precedence ::ffff:0:0/96  100'
+        state: present
+        create: true
+
     # En Ubuntu 23.10+/24.04+ el kernel restringe por defecto los user namespaces
     # sin privilegios vía AppArmor. Esto rompe bwrap (usado por el sandboxing de
     # iconos GTK/glycin y por Chrome/Electron dentro del contenedor de sesión),
