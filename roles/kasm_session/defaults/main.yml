@@ -1,0 +1,28 @@
+---
+kasm_dir: /opt/kasm
+kasm_url: "https://127.0.0.1:443"
+
+# present: make sure the user has one running session of the workspace
+#          (launch it if missing, wait until it is "running").
+# absent:  destroy that session if it exists.
+kasm_session_state: present
+
+# Kasm username that owns the session. It must already exist (see kasm_user).
+kasm_session_user: "user@kasm.local"
+
+# An ALREADY REGISTERED workspace, by its image "name" (the docker image,
+# e.g. pepesan/mi-ubuntu-resolute-kasm-python-dind:1.3) or by its
+# "friendly_name" (what the dashboard shows, e.g. "Python Docker (Ubuntu
+# 26.04)"). Required; see kasm_workspace to register one.
+kasm_session_workspace: ""
+
+# How long to wait for the session to reach "running" (a cold start of a
+# large image can take minutes), polling every kasm_session_poll_seconds.
+kasm_session_timeout_seconds: 600
+kasm_session_poll_seconds: 5
+
+# Reuses the persistent, ansible-managed API key bootstrapped by
+# kasm_workspace on this host (same file kasm_user reads). It needs the
+# request_kasm / get_kasm_status / get_kasms / destroy_kasm permissions,
+# which that key already holds.
+kasm_session_api_key_file: "{{ kasm_dir }}/.kasm_api_key.json"

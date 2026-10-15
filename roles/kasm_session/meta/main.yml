@@ -1,0 +1,13 @@
+---
+galaxy_info:
+  role_name: kasm_session
+  description: Starts (or destroys) a running session of an already registered Kasm workspace for a given user, via the public API
+  author: pepesan
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - all
+
+dependencies: []

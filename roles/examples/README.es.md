@@ -84,7 +84,7 @@ ansible-playbook -i $INV kasm-workspace.yml \
   -e kasm_workspace_privileged=true \
   2>&1 | tee /tmp/kasm-workspace.log
 
-# 3. Las credenciales están en ./datos-acceso-<fecha>.csv
+# 3. Las credenciales están en ./datos-acceso-<nombre del fichero de inventario>.csv
 ```
 
 > Envía siempre la salida de los playbooks a un log con `tee` (como arriba)
@@ -100,6 +100,7 @@ ansible-playbook -i $INV kasm-workspace.yml \
 | `site-kasm.yml` | Instalación completa: `docker` → `student` → `kasm_credentials` → `kasm` → `kasm_group` |
 | `kasm-workspace.yml` | Crea o borra **un** workspace (`kasm_docker_image` → `kasm_workspace`, al revés para borrar) |
 | `kasm-uninstall.yml` | Elimina una instalación de Kasm existente (`kasm_uninstall`) para que el siguiente `site-kasm.yml` sea una instalación realmente nueva |
+| `kasm-session.yml` | Arranca o destruye una sesión en ejecución de un workspace ya registrado para un usuario (`kasm_session`; por defecto `user@kasm.local`). Los nombres con espacios van como JSON |
 
 ### Scripts (envoltorios finos de los playbooks)
 
@@ -215,7 +216,7 @@ git. No los commitees nunca.
 | `.credenciales/<ip>-alumno.pass` | Contraseña del usuario Linux `alumno` |
 | `.credenciales/<ip>-kasm-admin.pass` | Contraseña de `admin@kasm.local` |
 | `.credenciales/<ip>-kasm-user.pass` | Contraseña de `user@kasm.local` |
-| `datos-acceso-<fecha>.csv` | Una fila por servidor: IP, URL de Kasm y las tres credenciales. Con `kasm_proyecto_formativo=x`: `datos-acceso-x-<fecha>.csv` |
+| `datos-acceso-<nombre del fichero de inventario>.csv` | Una fila por servidor: IP, URL de Kasm y las tres credenciales. Con `kasm_proyecto_formativo=x`: `datos-acceso-x-<fecha>.csv` |
 | `kasm-api-key-<ip>.json` | Copia de la API key persistente (se crea con el primer workspace) |
 
 Las contraseñas se generan **una vez** y se releen en ejecuciones

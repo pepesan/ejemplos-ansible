@@ -24,6 +24,7 @@ cada rol para la referencia completa de variables.
 | [`kasm_workspace`](kasm_workspace/README.es.md) | — | Da de alta/baja un workspace (la fila en la tabla `images`), `state: present\|absent` |
 | [`kasm_user`](kasm_user/README.es.md) | — | Crea/borra un usuario de la aplicación Kasm, API pública pura (`ansible.builtin.uri`, sin SQL) |
 | [`kasm_uninstall`](kasm_uninstall/README.es.md) | — | Desinstala Kasm de forma limpia (contenedor + datos persistidos, opcionalmente su cert de Let's Encrypt) para una reinstalación realmente nueva |
+| [`kasm_session`](kasm_session/README.es.md) | — | Arranca/destruye una sesión en ejecución de un workspace ya registrado para un usuario (por defecto `user@kasm.local`), solo API pública; exporta el `kasm_id` y el contenedor de la sesión |
 
 `docker`, `linux_user` y `student` son genéricos (nombre simple, estilo
 Galaxy, como `geerlingguy.*`); el resto son específicos de Kasm y mantienen

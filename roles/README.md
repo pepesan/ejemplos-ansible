@@ -24,6 +24,7 @@ each role's own `README.md` (English, canonical) / `README.es.md`
 | [`kasm_workspace`](kasm_workspace/README.md) | — | Registers/deletes a workspace (the `images` table row), `state: present\|absent` |
 | [`kasm_user`](kasm_user/README.md) | — | Creates/deletes a Kasm application user, pure public-API (`ansible.builtin.uri`, no SQL) |
 | [`kasm_uninstall`](kasm_uninstall/README.md) | — | Removes a Kasm install cleanly (container + persisted data, optionally its Let's Encrypt cert) for a genuine fresh re-install |
+| [`kasm_session`](kasm_session/README.md) | — | Starts/destroys a running session of an already registered workspace for a user (default `user@kasm.local`), pure public API; exports `kasm_id` and the session's container id |
 
 `docker`, `linux_user` and `student` are generic (bare names, Galaxy-style,
 like `geerlingguy.*`); the rest are Kasm-specific and keep the `kasm_`

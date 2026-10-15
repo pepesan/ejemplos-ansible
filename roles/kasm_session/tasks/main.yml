@@ -1,0 +1,246 @@
+---
+# Pure ansible.builtin.uri against Kasm's public API (get_users, get_images,
+# get_kasms, request_kasm, get_kasm_status, destroy_kasm) — no direct
+# Postgres access, same approach as kasm_user. Runs on the Kasm host and talks
+# to the local API, authenticated with the persistent key kasm_workspace
+# creates.
+#
+# Facts exported on success (state present):
+#   kasm_session_id            the session's kasm_id
+#   kasm_session_container_id  its container id inside Kasm's DinD
+#                              (docker exec kasm docker exec <id> ...)
+#   kasm_session_status        operational_status ("running")
+
+- name: Ensure kasm_session_workspace is set
+  ansible.builtin.assert:
+    that:
+      - kasm_session_workspace | length > 0
+    fail_msg: >-
+      kasm_session_workspace is required: the name or friendly_name of an
+      already registered workspace (-e kasm_session_workspace="...").
+
+- name: Check whether the persistent API key exists on this host
+  ansible.builtin.stat:
+    path: "{{ kasm_session_api_key_file }}"
+  register: kasm_session_api_key_stat
+
+- name: Fail with guidance if no API key is available yet
+  ansible.builtin.fail:
+    msg: >-
+      {{ kasm_session_api_key_file }} does not exist on this host. Register
+      a workspace first (kasm_workspace role) so the persistent API key is
+      created.
+  when: not kasm_session_api_key_stat.stat.exists
+
+- name: Read the persistent API key
+  ansible.builtin.slurp:
+    path: "{{ kasm_session_api_key_file }}"
+  register: kasm_session_api_key_content
+  no_log: true
+
+- name: Set API credential facts
+  ansible.builtin.set_fact:
+    kasm_session_api_key: "{{ (kasm_session_api_key_content.content | b64decode | from_json).api_key }}"
+    kasm_session_api_key_secret: "{{ (kasm_session_api_key_content.content | b64decode | from_json).api_key_secret }}"
+  no_log: true
+
+- name: List Kasm users
+  ansible.builtin.uri:
+    url: "{{ kasm_url }}/api/public/get_users"
+    method: POST
+    body_format: json
+    body:
+      api_key: "{{ kasm_session_api_key }}"
+      api_key_secret: "{{ kasm_session_api_key_secret }}"
+    validate_certs: false
+    status_code: 200
+  register: kasm_session_users
+  changed_when: false
+  no_log: true
+
+- name: Resolve the user's id
+  ansible.builtin.set_fact:
+    kasm_session_user_id: >-
+      {{ (kasm_session_users.json.users
+          | selectattr('username', 'equalto', kasm_session_user)
+          | map(attribute='user_id') | list | first | default('')) }}
+
+- name: Fail if the user does not exist
+  ansible.builtin.fail:
+    msg: >-
+      Kasm user '{{ kasm_session_user }}' does not exist on this host. Known
+      users: {{ kasm_session_users.json.users | map(attribute='username') | list | join(', ') }}.
+      Create it with the kasm_user role.
+  when: kasm_session_user_id | length == 0
+
+- name: List registered workspaces
+  ansible.builtin.uri:
+    url: "{{ kasm_url }}/api/public/get_images"
+    method: POST
+    body_format: json
+    body:
+      api_key: "{{ kasm_session_api_key }}"
+      api_key_secret: "{{ kasm_session_api_key_secret }}"
+    validate_certs: false
+    status_code: 200
+  register: kasm_session_images
+  changed_when: false
+  no_log: true
+
+- name: Resolve the workspace (by name or friendly_name)
+  ansible.builtin.set_fact:
+    kasm_session_matches: >-
+      {{ (kasm_session_images.json.images
+          | selectattr('name', 'equalto', kasm_session_workspace) | list)
+         + (kasm_session_images.json.images
+          | selectattr('friendly_name', 'equalto', kasm_session_workspace) | list) }}
+
+- name: Fail if the workspace is not registered, or is ambiguous
+  ansible.builtin.fail:
+    msg: >-
+      {{ 'No registered workspace matches' if kasm_session_matches | length == 0
+         else 'Several workspaces match' }} '{{ kasm_session_workspace }}'.
+      Registered: {{ kasm_session_images.json.images
+                     | map(attribute='friendly_name') | list | join(' | ') }}.
+  when: kasm_session_matches | map(attribute='image_id') | unique | list | length != 1
+
+# Kasm returns the same UUIDs in different shapes depending on the endpoint
+# (get_users: 8-4-4-4-12 with dashes; get_images/get_kasms: 32 hex digits
+# without). Compare on the dashless lowercase form and send the canonical
+# dashed form in requests.
+- name: Normalise the user and workspace ids
+  ansible.builtin.set_fact:
+    kasm_session_user_hex: "{{ kasm_session_user_id | replace('-', '') | lower }}"
+    kasm_session_image_hex: "{{ (kasm_session_matches | first).image_id | replace('-', '') | lower }}"
+
+- name: Set the canonical (dashed) ids used in requests
+  ansible.builtin.set_fact:
+    kasm_session_user_id: >-
+      {{ kasm_session_user_hex[0:8] }}-{{ kasm_session_user_hex[8:12] }}-{{ kasm_session_user_hex[12:16] }}-{{ kasm_session_user_hex[16:20] }}-{{ kasm_session_user_hex[20:32] }}
+    kasm_session_image_id: >-
+      {{ kasm_session_image_hex[0:8] }}-{{ kasm_session_image_hex[8:12] }}-{{ kasm_session_image_hex[12:16] }}-{{ kasm_session_image_hex[16:20] }}-{{ kasm_session_image_hex[20:32] }}
+
+- name: List running sessions
+  ansible.builtin.uri:
+    url: "{{ kasm_url }}/api/public/get_kasms"
+    method: POST
+    body_format: json
+    body:
+      api_key: "{{ kasm_session_api_key }}"
+      api_key_secret: "{{ kasm_session_api_key_secret }}"
+    validate_certs: false
+    status_code: 200
+  register: kasm_session_kasms
+  changed_when: false
+  no_log: true
+
+- name: Find this user's session of this workspace
+  ansible.builtin.set_fact:
+    kasm_session_existing: >-
+      {%- set ns = namespace(found={}) -%}
+      {%- for k in kasm_session_kasms.json.kasms -%}
+      {%- if (k.user_id | string | replace('-', '') | lower) == kasm_session_user_hex
+             and (k.image_id | string | replace('-', '') | lower) == kasm_session_image_hex -%}
+      {%- set ns.found = k -%}
+      {%- endif -%}
+      {%- endfor -%}
+      {{ ns.found | to_json }}
+
+- name: Parse the existing session
+  ansible.builtin.set_fact:
+    kasm_session_existing: "{{ kasm_session_existing | from_json if kasm_session_existing is string else kasm_session_existing }}"
+  no_log: true
+
+- name: Launch the session
+  ansible.builtin.uri:
+    url: "{{ kasm_url }}/api/public/request_kasm"
+    method: POST
+    body_format: json
+    body:
+      api_key: "{{ kasm_session_api_key }}"
+      api_key_secret: "{{ kasm_session_api_key_secret }}"
+      user_id: "{{ kasm_session_user_id }}"
+      image_id: "{{ kasm_session_image_id }}"
+    validate_certs: false
+    status_code: 200
+  register: kasm_session_request
+  # A 200 from request_kasm means a session was created (the idempotency
+  # check above already skipped this task when one existed).
+  changed_when: true
+  # The response carries a session token: never log it.
+  no_log: true
+  when:
+    - kasm_session_state == 'present'
+    - kasm_session_existing | length == 0
+
+- name: Fail if Kasm did not return a session id
+  ansible.builtin.fail:
+    msg: >-
+      request_kasm did not return a kasm_id (the user may have reached a
+      session limit, or the host has no free cores/memory for this workspace).
+  when:
+    - kasm_session_state == 'present'
+    - kasm_session_existing | length == 0
+    - (kasm_session_request.json.kasm_id | default('')) | length == 0
+
+- name: Remember the session id
+  ansible.builtin.set_fact:
+    kasm_session_id: >-
+      {{ kasm_session_existing.kasm_id
+         if kasm_session_existing | length > 0
+         else kasm_session_request.json.kasm_id }}
+  no_log: true
+  when: kasm_session_state == 'present'
+
+- name: Wait until the session is running
+  ansible.builtin.uri:
+    url: "{{ kasm_url }}/api/public/get_kasm_status"
+    method: POST
+    body_format: json
+    body:
+      api_key: "{{ kasm_session_api_key }}"
+      api_key_secret: "{{ kasm_session_api_key_secret }}"
+      user_id: "{{ kasm_session_user_id }}"
+      kasm_id: "{{ kasm_session_id }}"
+    validate_certs: false
+    status_code: 200
+  register: kasm_session_status_result
+  until: (kasm_session_status_result.json.kasm.operational_status | default('')) == 'running'
+  retries: "{{ (kasm_session_timeout_seconds | int / kasm_session_poll_seconds | int) | round(0, 'ceil') | int }}"
+  delay: "{{ kasm_session_poll_seconds }}"
+  changed_when: false
+  no_log: true
+  when: kasm_session_state == 'present'
+
+- name: Export the session facts
+  ansible.builtin.set_fact:
+    kasm_session_status: "{{ kasm_session_status_result.json.kasm.operational_status }}"
+    kasm_session_container_id: "{{ kasm_session_status_result.json.kasm.container_id | default('') }}"
+  no_log: true
+  when: kasm_session_state == 'present'
+
+- name: Report the session
+  ansible.builtin.debug:
+    msg: >-
+      {{ kasm_session_user }} has a {{ kasm_session_status }} session of
+      '{{ kasm_session_workspace }}' (kasm_id {{ kasm_session_id }}{{
+      ', launched now' if kasm_session_existing | length == 0 else ', already existed' }}).
+  when: kasm_session_state == 'present'
+
+- name: Destroy the session
+  ansible.builtin.uri:
+    url: "{{ kasm_url }}/api/public/destroy_kasm"
+    method: POST
+    body_format: json
+    body:
+      api_key: "{{ kasm_session_api_key }}"
+      api_key_secret: "{{ kasm_session_api_key_secret }}"
+      user_id: "{{ kasm_session_user_id }}"
+      kasm_id: "{{ kasm_session_existing.kasm_id }}"
+    validate_certs: false
+    status_code: 200
+  changed_when: true
+  no_log: true
+  when:
+    - kasm_session_state == 'absent'
+    - kasm_session_existing | length > 0

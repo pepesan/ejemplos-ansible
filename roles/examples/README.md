@@ -83,7 +83,7 @@ ansible-playbook -i $INV kasm-workspace.yml \
   -e kasm_workspace_privileged=true \
   2>&1 | tee /tmp/kasm-workspace.log
 
-# 3. Credentials are in ./datos-acceso-<date>.csv
+# 3. Credentials are in ./datos-acceso-<inventory file name>.csv
 ```
 
 > Always send playbook output to a log with `tee` (as above) so you can
@@ -99,6 +99,7 @@ ansible-playbook -i $INV kasm-workspace.yml \
 | `site-kasm.yml` | Full install: `docker` → `student` → `kasm_credentials` → `kasm` → `kasm_group` |
 | `kasm-workspace.yml` | Create or delete **one** workspace (`kasm_docker_image` → `kasm_workspace`, reversed for deletion) |
 | `kasm-uninstall.yml` | Remove an existing Kasm install (`kasm_uninstall`) so the next `site-kasm.yml` is a genuine fresh install |
+| `kasm-session.yml` | Start or destroy a running session of an already registered workspace for a user (`kasm_session`; default `user@kasm.local`). Names with spaces go as JSON |
 
 ### Scripts (thin wrappers around the playbooks)
 
