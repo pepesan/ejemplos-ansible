@@ -14,6 +14,25 @@ __pycache__/
 # Plan de trabajo local de los roles (no se versiona)
 roles/PLAN.md
 
+# Ficheros de bloqueo, swap, autoguardado y temporales de editores/ofimática:
+# aparecen al tener un fichero abierto (p. ej. un CSV de credenciales en
+# LibreOffice) y no deben colarse en un commit.
+.~lock.*#
+~$*
+.~*
+*.swp
+*.swo
+.*.swp
+*~
+.#*
+\#*#
+*.tmp
+.DS_Store
+
+# Estado vivo de cada nodo Kasm del despliegue (fases, notas, historial):
+# información operativa local, nunca va al repositorio.
+ESTADO-NODOS.md
+
 # Roles y collections de Galaxy instalados localmente (se regeneran con requirements.yml)
 .ansible/
 
