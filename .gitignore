@@ -41,3 +41,7 @@ roles/geerlingguy.*/
 
 # Logs de ejecuciones de ansible-playbook en roles/examples (navantia-*.log, etc.)
 roles/examples/*.log
+
+# Ficheros y directorios locales del agente y configuración MCP
+.agents/
+.mcp.json
