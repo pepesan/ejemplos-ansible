@@ -1,6 +1,6 @@
 services:
   kasm:
-    image: lscr.io/linuxserver/kasm:1.19.0-ls148
+    image: lscr.io/linuxserver/kasm:{{ kasm_image_tag }}
     container_name: kasm
     privileged: true
     environment:
@@ -20,7 +20,6 @@ services:
       - "443:443"
       - "3001:3000"
     restart: unless-stopped
-
 
 volumes:
   kasm_opt:

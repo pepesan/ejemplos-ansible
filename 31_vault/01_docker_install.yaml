@@ -13,7 +13,7 @@
       package:
         name: "{{item}}"
         state: absent
-      loop: ['docker', 'docker-engine', 'docker-doc', 'docker.io', 'containerd', 'runc', 'docker-compose-plugin', 'docker-compose', 'docker-compose-v2', 'podman-docker']
+      loop: ['docker', 'docker-engine', 'docker-doc', 'docker.io', 'containerd', 'runc', 'docker-compose', 'docker-compose-v2', 'podman-docker']
     - name: Install required system packages
       package:
         name: 

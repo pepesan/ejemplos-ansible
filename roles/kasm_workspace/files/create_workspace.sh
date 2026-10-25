@@ -267,6 +267,28 @@ PAYLOAD=$(PERSISTENT_PROFILE_PATH="${PERSISTENT_PROFILE_PATH}" \
   CATEGORY="${CATEGORY}" \
   python3 - <<PYEOF
 import json, os
+# A privileged container sees the host render node even when gpu_count is 0.
+# KasmVNC then selects that node and can block before starting the desktop.
+run_config = {
+    "privileged": ${PRIVILEGED},
+    "environment": {
+        "KASM_SVC_SEND_CUT_TEXT": "-SendCutText 0",
+        "KASM_SVC_ACCEPT_CUT_TEXT": "-AcceptCutText 0",
+        "KASM_SVC_PRINTER": "0"
+    }
+}
+if ${PRIVILEGED} and ${GPU_COUNT} == 0:
+    run_config["volumes"] = {
+        "/dev/null": {
+            "bind": "/dev/dri/renderD128",
+            "mode": "rw",
+            "uid": 1000,
+            "gid": 1000,
+            "required": True,
+            "skip_check": True
+        }
+    }
+
 payload = {
     "api_key": "${API_KEY}",
     "api_key_secret": "${API_KEY_SECRET}",
@@ -280,14 +302,7 @@ payload = {
         "gpu_count": ${GPU_COUNT},
         "enabled": ${ENABLED_PY},
         "docker_registry": "https://index.docker.io/v1/",
-        "run_config": json.dumps({
-            "privileged": ${PRIVILEGED},
-            "environment": {
-                "KASM_SVC_SEND_CUT_TEXT": "-SendCutText 0",
-                "KASM_SVC_ACCEPT_CUT_TEXT": "-AcceptCutText 0",
-                "KASM_SVC_PRINTER": "0"
-            }
-        }),
+        "run_config": json.dumps(run_config),
         "exec_config": json.dumps({
             "first_launch": {
                 "user": "root",

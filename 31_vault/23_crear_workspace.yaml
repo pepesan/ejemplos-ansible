@@ -18,7 +18,7 @@
     # Sobreescribir con -e (OJO: valores con espacios hay que pasarlos como JSON,
     # ej. -e '{"kasm_workspace_name": "Mi nombre con espacios"}', porque
     # "-e var=valor con espacios" en Ansible trunca en el primer espacio).
-    kasm_image: "pepesan/mi-ubuntu-resolute-kasm-java-spring-boot-web-dev-dind:1.3"
+    kasm_image: "pepesan/mi-ubuntu-resolute-kasm-java-spring-boot-web-dev-dind:1.7"
     kasm_workspace_name: "Ubuntu Resolute Java Spring Boot DinD"
     kasm_workspace_desc: "Ubuntu 26.04 con entorno Java Spring Boot web (SDKMAN, Maven, Gradle, JDKs LTS) y Docker-in-Docker"
     kasm_workspace_cores: 4
@@ -56,6 +56,8 @@
   tasks:
     - name: Descargar imagen en el DinD de Kasm
       command: docker exec kasm docker pull {{ kasm_image }}
+      register: kasm_pull
+      changed_when: "'Downloaded newer image' in kasm_pull.stdout"
       async: 1800
       poll: 30
 
@@ -86,6 +88,7 @@
         KASM_STAGING_ZONE_NAME: "{{ kasm_workspace_staging_zone_name }}"
       register: create_output
       failed_when: create_output.rc != 0
+      changed_when: "'creado correctamente' in create_output.stdout"
 
     - name: Mostrar resultado
       debug:

@@ -14,7 +14,7 @@
 # Orden de uso típico:
 #   ansible-playbook -i inventory 01_docker_install.yaml --ask-vault-pass
 #   ansible-playbook -i inventory 02_adduser_alumno.yaml --ask-vault-pass
-#   ansible-playbook -i inventory 25_instalar_solo_kask_usuarios.yaml --ask-vault-pass
+#   ansible-playbook -i inventory 25_instalar_solo_kasm_usuarios.yaml --ask-vault-pass
 #   ansible-playbook -i inventory 23_crear_workspace.yaml --ask-vault-pass \
 #     -e kasm_image=usuario/imagen:tag
 - name: Instalar Kasm Workspaces (sin crear ningún workspace)
@@ -24,6 +24,7 @@
     kasm_dir: /opt/kasm
     kasm_files_dir: "{{ playbook_dir }}/files/kasm"
     kasm_version: "1.19.0"
+    kasm_image_tag: "{{ kasm_version }}-ls154"
     # kasm_base_domain se define en group_vars/all/vars.yml (por defecto
     # "kasm.cursosdedesarrollo.com"). Sobreescribir con: -e kasm_base_domain=miotrodominio.com
     kasm_domain: "{{ node_name }}.{{ kasm_base_domain }}"
@@ -78,6 +79,12 @@
         src: "{{ kasm_files_dir }}/"
         dest: "{{ kasm_dir }}/"
         mode: preserve
+
+    - name: Generar compose.yaml de Kasm
+      template:
+        src: compose.yaml.j2
+        dest: "{{ kasm_dir }}/compose.yaml"
+        mode: '0644'
     ## Para evitar el fallo de la swap en la instalación de Kasm, vamos a crear un swapfile de 4GB si no existe
     - name: Comprobar si existe swapfile
       stat:
@@ -127,6 +134,7 @@
           KASM_ADMIN_PASSWORD: "{{ kasm_admin_password }}"
           KASM_USER_PASSWORD: "{{ kasm_user_password }}"
       register: install_output
+      changed_when: "'Skipping installation' not in install_output.stdout"
 
     - name: Mostrar resultado de instalación
       debug:
@@ -135,6 +143,8 @@
     - name: Configurar tiempos de workspace y deshabilitar pruning agresivo
       command: bash /opt/kasm/09_configure_session_limits.sh
       register: session_output
+      # Reaplica el estado deseado (upserts en BD); no hay forma barata de saber si cambió algo.
+      changed_when: false
 
     - name: Mostrar resultado de configuración de sesión
       debug:
@@ -145,9 +155,11 @@
         src: "{{ kasm_files_dir }}/nginx/print_block.conf"
         dest: "{{ kasm_dir }}/data/opt/kasm/{{ kasm_version }}/conf/nginx/containers.d/print_block.conf"
         mode: '0644'
+      register: print_block
 
     - name: Recargar nginx de kasm_proxy
       command: docker exec kasm docker exec kasm_proxy nginx -s reload
+      when: print_block.changed
 
     # A partir de aquí, mismos pasos que 22_configure_letsencrypt.yaml (reutilizados,
     # ese fichero no se toca). Requiere DNS de kasm_domain ya apuntando a este host.
@@ -189,6 +201,7 @@
         dest: "{{ kasm_cert_dir }}/kasm_nginx.crt"
         remote_src: yes
         mode: '0644'
+      register: kasm_cert_copy
       when: kasm_letsencrypt_enabled
 
     - name: Copiar clave privada a Kasm
@@ -197,11 +210,12 @@
         dest: "{{ kasm_cert_dir }}/kasm_nginx.key"
         remote_src: yes
         mode: '0600'
+      register: kasm_key_copy
       when: kasm_letsencrypt_enabled
 
     - name: Reiniciar kasm_proxy para aplicar el certificado de Let's Encrypt
       command: docker exec kasm docker restart kasm_proxy
-      when: kasm_letsencrypt_enabled
+      when: kasm_letsencrypt_enabled and (kasm_cert_copy.changed or kasm_key_copy.changed)
 
     - name: Copiar script de renovación automática
       copy:
@@ -227,6 +241,7 @@
       retries: 6
       delay: 5
       until: kasm_check.stdout in ['200', '302']
+      changed_when: false
       when: kasm_letsencrypt_enabled
 
     - name: Resultado de verificación HTTPS
@@ -250,6 +265,7 @@
         KASM_ADMIN_PASSWORD: "{{ kasm_admin_password }}"
         KASM_USER_PASSWORD: "{{ kasm_user_password }}"
       no_log: true
+      changed_when: false
 
     - name: Localizar el fichero CSV de credenciales ya actualizado
       delegate_to: localhost

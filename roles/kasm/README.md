@@ -69,7 +69,7 @@ If you meet that state on a host, delete the marker and re-run.
 | Variable | Default | Purpose |
 |---|---|---|
 | `kasm_dir` | `/opt/kasm` | Install directory |
-| `kasm_version` / `kasm_image_tag` | `1.19.0` / `1.19.0-ls148` | Kasm version / container image tag |
+| `kasm_version` / `kasm_image_tag` | `1.19.0` / `1.19.0-ls154` | Kasm version / container image tag (latest published by linuxserver; no 1.20 server exists yet, the "1.20" workspace images run on top of it) |
 | `kasm_base_domain` | `example.com` (placeholder, no sane default outside this project) | Base domain; set explicitly per deployment |
 | `kasm_domain` | `{{ node_name }}.{{ kasm_base_domain }}` | Full per-node domain |
 | `kasm_letsencrypt_enabled` | `true` | Toggle real TLS on/off |

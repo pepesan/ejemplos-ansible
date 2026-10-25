@@ -1,0 +1,19 @@
+---
+# The geerlingguy/docker-ubuntu2404-ansible image ships without an apt package
+# cache, so geerlingguy.docker fails at "Ensure dependencies are installed"
+# (python3-debian "is not available"). Refresh the cache once before converge.
+# It also lacks kmod, whose modprobe binary the role's kernel-module task
+# needs (the modules themselves come from the shared host kernel; the host
+# running the scenario must have br_netfilter and overlay loaded).
+- name: Prepare
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Refresh the apt package cache
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: Install kmod (modprobe)
+      ansible.builtin.apt:
+        name: kmod
+        state: present

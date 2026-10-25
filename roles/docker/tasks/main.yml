@@ -1,8 +1,36 @@
 ---
-# geerlingguy.docker (see meta/main.yml) already installs Docker Engine, the
-# Compose plugin, manages the service and adds users to the docker group.
-# This role only adds what that role does not cover: the kernel modules and
-# sysctl values Kasm's container networking needs.
+# Order matters here, which is why geerlingguy.docker is included from this
+# file instead of being a meta dependency (dependencies always run BEFORE the
+# role's own tasks):
+#
+#   1. prefer IPv4 over IPv6 in glibc's address selection, so a broken IPv6
+#      route on the host cannot stall the apt installs of step 2;
+#   2. geerlingguy.docker installs Docker Engine and the Compose plugin,
+#      manages the service and adds users to the docker group;
+#   3. the kernel modules and sysctl values Kasm's container networking needs,
+#      which that role does not cover.
+
+# Makes getaddrinfo(3) rank IPv4-mapped addresses above native IPv6 when a
+# name resolves to both. It does NOT disable IPv6 (an IPv6-only destination
+# keeps working). Only programs that resolve through glibc are affected (apt,
+# curl, git, python...): Go binaries such as dockerd have their own resolver
+# and ignore gai.conf, and containers have their own /etc/gai.conf.
+- name: Prefer IPv4 over IPv6 in glibc address selection
+  ansible.builtin.lineinfile:
+    path: "{{ docker_prefer_ipv4_gai_conf }}"
+    # Anchored on the *uncommented* directive: the stock gai.conf ships it
+    # commented out with '#', so on a fresh host this appends one line and on
+    # later runs it matches (and rewrites in place) that same line.
+    regexp: '^\s*precedence\s+::ffff:0:0/96'
+    line: "precedence ::ffff:0:0/96  {{ docker_prefer_ipv4_precedence }}"
+    state: present
+    create: true
+    mode: "0644"
+  when: docker_prefer_ipv4 | bool
+
+- name: Install Docker Engine and the Compose plugin (geerlingguy.docker)
+  ansible.builtin.include_role:
+    name: geerlingguy.docker
 
 - name: Ensure required kernel modules are loaded
   community.general.modprobe:

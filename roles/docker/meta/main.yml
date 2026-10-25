@@ -10,8 +10,8 @@ galaxy_info:
       versions:
         - all
 
-dependencies:
-  # First on purpose: it must run before geerlingguy.docker starts installing
-  # packages through apt, so a broken IPv6 route cannot stall that install.
-  - role: ipv4_preference
-  - role: geerlingguy.docker
+# geerlingguy.docker is included from tasks/main.yml (include_role) rather
+# than declared here: a dependency always runs before the role's own tasks,
+# and the IPv4 preference has to be applied before it starts installing
+# packages. The role is still required, see roles/requirements.yml.
+dependencies: []

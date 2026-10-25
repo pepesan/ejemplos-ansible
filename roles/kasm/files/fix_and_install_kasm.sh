@@ -31,14 +31,18 @@ if [ -f "${MARKER_FILE}" ]; then
     exit 0
 fi
 
-echo -e "${YELLOW}>> Fixing a bug in install.sh...${NC}"
-sed -i "s/'install-depends',/'install-depends'/" /kasm_release/install.sh
-echo -e "${GREEN}OK Bug fixed${NC}"
+if [ -f "/kasm_release/install.sh" ]; then
+    echo -e "${YELLOW}>> Checking install.sh for known bugs...${NC}"
+    sed -i "s/'install-depends',/'install-depends'/" /kasm_release/install.sh 2>/dev/null || true
+    echo -e "${GREEN}OK install.sh prepared${NC}"
+fi
 
-echo -e "${YELLOW}>> Adding install-depends to the noninteractive profile...${NC}"
-grep -q "install-depends" /kasm_release/profiles/noninteractive.yaml || \
-    echo "install-depends: false" >> /kasm_release/profiles/noninteractive.yaml
-echo -e "${GREEN}OK Profile updated${NC}"
+if [ -f "/kasm_release/profiles/noninteractive.yaml" ]; then
+    echo -e "${YELLOW}>> Adding install-depends to the noninteractive profile...${NC}"
+    grep -q "install-depends" /kasm_release/profiles/noninteractive.yaml 2>/dev/null || \
+        echo "install-depends: false" >> /kasm_release/profiles/noninteractive.yaml
+    echo -e "${GREEN}OK Profile updated${NC}"
+fi
 
 # The core services Kasm cannot work without. Their absence after install.sh
 # means the install did NOT complete, whatever the exit code said: install.sh
@@ -51,6 +55,10 @@ core_services_up() {
   for c in kasm_db kasm_api kasm_manager; do
     docker ps --format '{{.Names}}' | grep -qx "$c" || return 1
   done
+  # In Kasm 1.20+, verify ClickHouse if the container exists
+  if docker ps -a --format '{{.Names}}' | grep -qx "kasm_clickhouse"; then
+    docker ps --format '{{.Names}}' | grep -qx "kasm_clickhouse" || return 1
+  fi
   return 0
 }
 

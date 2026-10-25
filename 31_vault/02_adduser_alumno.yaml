@@ -21,7 +21,9 @@
         groups: alumno,docker
         append: yes
         create_home: yes
-        password: "{{ alumno_password_plain | password_hash('sha512') }}"
+        # Sal fija por host: con una aleatoria el hash cambia en cada ejecución y
+        # update_password: always marcaría la tarea como "changed" siempre.
+        password: "{{ alumno_password_plain | password_hash('sha512', (inventory_hostname ~ '-alumno') | hash('sha256') | truncate(16, true, '')) }}"
         update_password: always
     - name: Añadir 'alumno' al grupo sudo
       ansible.builtin.user:

@@ -73,7 +73,7 @@ un host, borra el marcador y vuelve a ejecutar.
 | Variable | Valor por defecto | Propósito |
 |---|---|---|
 | `kasm_dir` | `/opt/kasm` | Directorio de instalación |
-| `kasm_version` / `kasm_image_tag` | `1.19.0` / `1.19.0-ls148` | Versión de Kasm / tag de la imagen del contenedor |
+| `kasm_version` / `kasm_image_tag` | `1.19.0` / `1.19.0-ls154` | Versión de Kasm / tag de la imagen del contenedor (último publicado por linuxserver; el servidor 1.20 aún no existe, las imágenes de workspace "1.20" funcionan sobre él) |
 | `kasm_base_domain` | `example.com` (placeholder, sin valor por defecto sensato fuera de este proyecto) | Dominio base; fijarlo explícitamente por despliegue |
 | `kasm_domain` | `{{ node_name }}.{{ kasm_base_domain }}` | Dominio completo por nodo |
 | `kasm_letsencrypt_enabled` | `true` | Activar/desactivar TLS real |

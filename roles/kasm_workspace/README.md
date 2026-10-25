@@ -26,6 +26,10 @@ Variables are grouped by what they configure, not just alphabetically:
 - **Workspace core**: `kasm_workspace_image`, `_name`, `_desc`, `_cores`,
   `_memory_gb`, `_privileged`, `_gpu_count`, `_session_time_limit`,
   `_category`, `_enabled`.
+  When `_privileged` is `true` and `_gpu_count` is `0`, the role masks
+  `/dev/dri/renderD128` with `/dev/null`: privileged containers see host devices
+  even when no GPU was requested, which can make KasmVNC block during startup.
+  The mask is not applied to workspaces that request a GPU.
 - **`_profile`** — the workspace's persistent home directory:
   `kasm_workspace_profile_path`. Must contain `{username}` or `{user_id}`;
   empty disables persistence.

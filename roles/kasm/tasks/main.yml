@@ -89,4 +89,4 @@
 
 - name: Configure real HTTPS (Let's Encrypt)
   ansible.builtin.include_tasks: letsencrypt.yml
-  when: kasm_letsencrypt_enabled
+  when: kasm_letsencrypt_enabled | bool

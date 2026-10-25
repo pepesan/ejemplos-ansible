@@ -9,6 +9,17 @@ docker_sysctl_values:
   - { key: net.ipv4.ip_forward, value: "1" }
   - { key: net.bridge.bridge-nf-call-iptables, value: "1" }
 
+# Prefer IPv4 over IPv6 in glibc's address selection (/etc/gai.conf) before
+# anything is installed. Useful on VPS providers that advertise an IPv6 route
+# that does not actually work: apt, curl or git then wait tens of seconds for
+# IPv6 to time out before falling back to IPv4. Set docker_prefer_ipv4 to
+# false to keep the distribution default.
+docker_prefer_ipv4: true
+docker_prefer_ipv4_gai_conf: /etc/gai.conf
+# glibc's default precedence for IPv4-mapped addresses is 35, below native
+# IPv6 (40); anything above 40 flips the preference.
+docker_prefer_ipv4_precedence: 100
+
 # geerlingguy.docker variables set here so this role is a self-contained,
 # opinionated entry point (override with -e if a caller needs something else).
 docker_edition: "ce"

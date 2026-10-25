@@ -1,7 +1,7 @@
 ---
 kasm_dir: /opt/kasm
 kasm_version: "1.19.0"
-kasm_image_tag: "1.19.0-ls148"
+kasm_image_tag: "1.19.0-ls154"
 
 # Base domain this node hangs off: <node_name>.<kasm_base_domain>. No sane
 # default outside this project's own deployments on purpose — set it
@@ -23,13 +23,11 @@ kasm_letsencrypt_enabled: true
 letsencrypt_email: "admin@{{ kasm_base_domain }}"
 
 # geerlingguy.certbot variables, same kasm_ prefix and same reason as swap above.
-kasm_certbot_create_if_missing: true
+kasm_certbot_create_if_missing: "{{ kasm_letsencrypt_enabled | bool }}"
 kasm_certbot_create_method: standalone
 kasm_certbot_admin_email: "{{ letsencrypt_email }}"
-kasm_certbot_certs:
-  - domains:
-      - "{{ kasm_domain }}"
-kasm_certbot_auto_renew: true
+kasm_certbot_certs: "{{ [{'domains': [kasm_domain]}] if (kasm_letsencrypt_enabled | bool) else [] }}"
+kasm_certbot_auto_renew: "{{ kasm_letsencrypt_enabled | bool }}"
 
 # geerlingguy.certbot's own default is [nginx] (stop/start a host nginx
 # around the cert request). We don't need it: Kasm's nginx runs inside its

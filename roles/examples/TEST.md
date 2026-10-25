@@ -1,5 +1,10 @@
 # E2E test plan — real Contabo machine
 
+> The current resumable test checkpoint (roles, `31_vault` playbooks and
+> Kasm 1.20 images) is maintained in Spanish in
+> [`TEST.es.md`](TEST.es.md#punto-de-reanudación--lxc-local-24-de-octubre-de-2026).
+
+
 Validates the roles in this directory against the existing, real production
 machine already serving students via `31_vault`, instead of only against
 disposable VMs/containers. This is a live host with public DNS pointing at

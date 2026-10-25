@@ -110,9 +110,10 @@ disponibles como alternativa.
 
 | Imagen | Descripción |
 |--------|-------------|
-| `pepesan/mi-ubuntu-resolute-kasm-python-dind:1.0` *(por defecto)* | Ubuntu 26.04 con PyCharm, MariaDB, DinD |
+| `pepesan/mi-ubuntu-resolute-kasm-python-dind:1.4` *(por defecto)* | Ubuntu 26.04 con PyCharm, MariaDB, DinD (Kasm 1.20) |
+| `pepesan/mi-ubuntu-resolute-kasm-python-dind:1.3` | Ubuntu 26.04 con PyCharm, MariaDB, DinD (Kasm 1.19) |
 | `pepesan/mi-ubuntu-resolute-kasm:1.0` | Ubuntu 26.04 con IntelliJ, ZAP y Firefox |
-| `pepesan/mi-ubuntu-resolute-kasm-go:1.0` | Ubuntu 26.04 con entorno de desarrollo Go |
+| `pepesan/mi-ubuntu-resolute-kasm-go:1.2` | Ubuntu 26.04 con entorno de desarrollo Go |
 | `pepesan/mi-ubuntu-noble-kasm:1.0` | Ubuntu 24.04 con IntelliJ, ZAP y Firefox |
 | `pepesan/mi-ubuntu-noble-kasm-go:1.0` | Ubuntu 24.04 con entorno de desarrollo Go |
 | `pepesan/mi-ubuntu-noble-kasm-python:1.0` | Ubuntu 24.04 con entorno de desarrollo Python |
@@ -323,6 +324,12 @@ kasm_privileged (Ansible)
          └─> run_config.privileged (BD de Kasm, tabla images)
                └─> HostConfig.Privileged (contenedor de la sesión)
 ```
+
+Cuando `privileged=true` y el workspace no solicita GPU, el script también monta
+`/dev/null` sobre `/dev/dri/renderD128`. Un contenedor privilegiado ve los dispositivos
+del host aunque `gpu_count=0`; KasmVNC puede intentar usar ese render node y bloquearse
+antes de iniciar el escritorio. El enmascarado conserva DinD y fuerza renderizado por
+software. Los workspaces que solicitan GPU no aplican este montaje.
 
 Valores aceptados por `KASM_PRIVILEGED`: `true`/`True`/`TRUE`/`yes`/`1` y `false`/`False`/`FALSE`/`no`/`0`.
 Cualquier otro valor aborta el script con error en lugar de asumir un default silencioso.
