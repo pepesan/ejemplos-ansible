@@ -32,6 +32,7 @@ roles/PLAN.md
 # Estado vivo de cada nodo Kasm del despliegue (fases, notas, historial):
 # información operativa local, nunca va al repositorio.
 ESTADO-NODOS.md
+roles/examples/DESPLIEGUE-MULTINODO.md
 
 # Roles y collections de Galaxy instalados localmente (se regeneran con requirements.yml)
 .ansible/
