@@ -117,3 +117,12 @@ ansible-playbook -i <inventario> kasm-session.yml --check ...     # sesiones
 4. No volcar `kasm_deploy.log` sin filtrar: contiene las contraseñas de admin y
    de usuario.
 5. Probar antes de commitear; los inventarios con IPs reales no se versionan.
+6. **Visibilidad en fallos de descarga/instalación (`kasm`)**: `tasks/main.yml`
+   ejecuta `fix_and_install_kasm.sh` con `no_log: true` para evitar filtrar
+   credenciales. Si la descarga interna de imágenes o plugins falla (ej. resets
+   de red o problemas de enrutamiento IPv6), el log de Ansible queda censurado
+   sin mostrar la causa. *(Mejora pendiente)*: Añadir `block/rescue` en el rol
+   para capturar y mostrar las últimas líneas de `/opt/kasm/data/opt/kasm_deploy.log`
+   (filtrando líneas de contraseñas) directamente en el fallo de Ansible.
+7. **Workspaces DinD**: Requieren siempre `kasm_workspace_privileged: true` para
+   que el daemon interno `dockerd` pueda montar `/sys/kernel/security`.
