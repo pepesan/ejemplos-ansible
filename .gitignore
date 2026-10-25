@@ -38,3 +38,6 @@ ESTADO-NODOS.md
 
 # Roles de Galaxy instalados dentro de roles/ (se regeneran con roles/requirements.yml)
 roles/geerlingguy.*/
+
+# Logs de ejecuciones de ansible-playbook en roles/examples (navantia-*.log, etc.)
+roles/examples/*.log

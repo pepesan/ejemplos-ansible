@@ -30,6 +30,10 @@ Variables are grouped by what they configure, not just alphabetically:
   `/dev/dri/renderD128` with `/dev/null`: privileged containers see host devices
   even when no GPU was requested, which can make KasmVNC block during startup.
   The mask is not applied to workspaces that request a GPU.
+  **Important for DinD (Docker-in-Docker) images:** If the image runs its own
+  internal Docker daemon (`dockerd`), you MUST set `kasm_workspace_privileged: true`.
+  Without this parameter, mounting `/sys/kernel/security` and starting `dockerd`
+  will fail with `permission denied`.
 - **`_profile`** — the workspace's persistent home directory:
   `kasm_workspace_profile_path`. Must contain `{username}` or `{user_id}`;
   empty disables persistence.
@@ -80,6 +84,18 @@ reinstalling a workspace but keeping users' home directories).
         kasm_workspace_image: "user/my-image:1.0"
         kasm_workspace_name: "My workspace"
         kasm_workspace_profile_path: "/opt/kasm_profiles/{user_id}/{image_id}"
+```
+
+```yaml
+# DinD image example (requires privileged: true for internal dockerd)
+- hosts: ubuntu
+  roles:
+    - role: kasm_workspace
+      vars:
+        kasm_workspace_state: present
+        kasm_workspace_image: "pepesan/mi-ubuntu-resolute-kasm-go-dind:1.4"
+        kasm_workspace_name: "Go DinD"
+        kasm_workspace_privileged: true
 ```
 
 ```yaml

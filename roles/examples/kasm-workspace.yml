@@ -9,6 +9,14 @@
 #     -e kasm_workspace_image=user/image:tag \
 #     -e '{"kasm_workspace_name": "My workspace"}'
 #
+# Usage (create DinD / Docker-in-Docker workspace):
+#   ansible-playbook -i <inventory> kasm-workspace.yml \
+#     -e kasm_workspace_state=present \
+#     -e kasm_docker_image_name=pepesan/mi-ubuntu-resolute-kasm-go-dind:1.4 \
+#     -e kasm_workspace_image=pepesan/mi-ubuntu-resolute-kasm-go-dind:1.4 \
+#     -e '{"kasm_workspace_name": "Go DinD"}' \
+#     -e kasm_workspace_privileged=true
+#
 # Usage (delete):
 #   ansible-playbook -i <inventory> kasm-workspace.yml \
 #     -e kasm_workspace_state=absent \

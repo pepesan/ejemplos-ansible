@@ -43,6 +43,11 @@
     files:
       - compose.yaml
     state: present
+  # The image pull can fail transiently (registry reset, flaky route).
+  register: kasm_compose_up
+  retries: 3
+  delay: 15
+  until: kasm_compose_up is succeeded
 
 - name: Tip — follow the install log in real time
   ansible.builtin.debug:
