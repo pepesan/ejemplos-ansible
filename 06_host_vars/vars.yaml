@@ -1,7 +1,8 @@
 mariadb_socket: /run/mysqld/mysqld.sock
 mysql_root_password: test
+# sino comentamos estas variables no se aplican los host_vars y group_vars
 #database_name: test
-database_user: test
-database_password: test
+#database_user: test
+#database_password: test
 mysql:
   privileges: "ALL"

@@ -1,0 +1,61 @@
+---
+- name: Uninstall Databases
+  hosts: ubuntu
+  vars:
+    key_dest: /etc/apt/keyrings/mariadb-keyring.asc
+    linux_distribution: Ubuntu
+    distribution_release: resolute
+    mariadb_packages:
+      - mariadb-server
+      - mariadb-common
+      - mysql-common
+      - python3-pymysql
+  vars_files: # importación de variables desde fichero
+    - vars.yaml
+
+  tasks:
+    - name: Servicio parado y quitado de arranque
+      ansible.builtin.service:
+        name: mariadb
+        state: stopped
+        enabled: false
+      failed_when: false
+    - name: Cerrar el firewall para 3306
+      community.general.ufw:
+        rule: deny
+        port: "3306"
+        proto: tcp
+    - name: Uninstall Mariadb server for {{ linux_distribution }} {{ distribution_release }}
+      ansible.builtin.apt:
+        name: "{{ mariadb_packages }}"
+        state: absent
+        purge: true
+        autoremove: true
+    # El purge deja /var/lib/mysql con restos (aria_log*): con el directorio no vacío la
+    # siguiente instalación no inicializa las tablas del sistema y el servicio no arranca.
+    - name: Remove MariaDB data directory
+      ansible.builtin.file:
+        path: /var/lib/mysql
+        state: absent
+    # El mariadb-server de Ubuntu (11.8.x) deja cargado en el kernel un perfil AppArmor
+    # "mariadbd" que sobrevive al purge y rompe la instalación posterior del repo oficial.
+    - name: Unload orphan AppArmor profiles
+      ansible.builtin.command: aa-remove-unknown
+      changed_when: false
+      failed_when: false
+    - name: Reset failed state of mariadb unit
+      ansible.builtin.command: systemctl reset-failed mariadb
+      changed_when: false
+      failed_when: false
+    - name: Remove MariaDB Repository for {{ linux_distribution }} {{ distribution_release }}
+      ansible.builtin.deb822_repository:
+        name: mariadb
+        state: absent
+    - name: Remove MariaDB Repository Key for {{ linux_distribution }} {{ distribution_release }}
+      ansible.builtin.file:
+        path: "{{ key_dest }}"
+        state: absent
+    - name: Update repositories
+      ansible.builtin.apt:
+        update_cache: true
+...
