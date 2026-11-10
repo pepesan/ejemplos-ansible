@@ -1,0 +1,16 @@
+mariadb_version: "13.0"
+mariadb_packages:
+  - mariadb-server
+  - mariadb-common
+  - python3-pymysql
+
+# Parámetros de los ficheros de configuración (plantillas mariadb-*.cnf.j2)
+mariadb_max_connections: 100
+mariadb_slow_query_log: 0        # 0 = desactivado, 1 = activado
+mariadb_long_query_time: 2
+
+# Un elemento por fichero de configuración: include_tasks procesa tasks/mariadb/config_file.yaml
+# una vez por cada uno
+mariadb_config_files:
+  - { src: mariadb-conexiones.cnf.j2, dest: 99-handlers-conexiones.cnf }
+  - { src: mariadb-logs.cnf.j2,       dest: 99-handlers-logs.cnf }

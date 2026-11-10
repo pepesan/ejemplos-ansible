@@ -1,0 +1,23 @@
+---
+# Desinstalación de MariaDB dividida con import_tasks e include_tasks.
+- name: Uninstall MariaDB (split in imported and included files)
+  hosts: databases
+  vars_files:
+    - vars/mariadb.yaml
+  vars:
+    ficheros_a_borrar:
+      - /etc/mysql/mariadb.conf.d/99-handlers-conexiones.cnf
+      - /etc/mysql/mariadb.conf.d/99-handlers-logs.cnf
+      - /var/lib/mysql
+      - /etc/apt/keyrings/mariadb-keyring.asc
+
+  tasks:
+    - name: Paso 1 - servicio y paquetes
+      ansible.builtin.import_tasks: tasks/mariadb/uninstall_packages.yaml
+    # include_tasks + loop: el mismo fichero de tareas, una vez por cada ruta
+    - name: Paso 2 - configuración, datos y clave
+      ansible.builtin.include_tasks: tasks/mariadb/remove_file.yaml
+      loop: "{{ ficheros_a_borrar }}"
+    - name: Paso 3 - AppArmor, repositorio y caché de apt
+      ansible.builtin.import_tasks: tasks/mariadb/uninstall_cleanup.yaml
+...

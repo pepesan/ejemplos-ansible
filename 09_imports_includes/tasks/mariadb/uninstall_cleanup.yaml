@@ -1,0 +1,19 @@
+---
+- name: Descargar perfiles AppArmor huérfanos
+  ansible.builtin.command: aa-remove-unknown
+  changed_when: false
+  failed_when: false
+- name: Quitar el estado fallido de la unidad
+  ansible.builtin.command: systemctl reset-failed mariadb
+  changed_when: false
+  failed_when: false
+- name: Quitar el repositorio de MariaDB
+  ansible.builtin.deb822_repository:
+    name: mariadb
+    state: absent
+  register: repo_quitado
+- name: Actualizar repositorios (solo si se ha quitado el repositorio)
+  ansible.builtin.apt:
+    update_cache: true
+  when: repo_quitado is changed
+...

@@ -1,0 +1,10 @@
+---
+# Fichero de tareas que se procesa UNA VEZ POR ELEMENTO de mariadb_config_files (include_tasks
+# con loop): "item" es el elemento actual. Avisa al tema "mariadb config changed".
+- name: Configuración {{ item.dest }}
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "/etc/mysql/mariadb.conf.d/{{ item.dest }}"
+    mode: '0644'
+  notify: mariadb config changed
+...

@@ -1,0 +1,40 @@
+---
+# Instalación de MariaDB dividida en ficheros con import_tasks e include_tasks.
+#
+#   ansible-playbook mariadb.yaml                                   # 1ª vez: handlers 1 vez
+#   ansible-playbook mariadb.yaml                                   # 2ª vez: nada cambia
+#   ansible-playbook mariadb.yaml -e mariadb_max_connections=300    # cambia 1 fichero: handlers 1 vez
+#   ansible-playbook mariadb_uninstall.yaml                         # lo deshace
+#
+# OJO: no lo mezcles con main.yaml sin desinstalar antes; main.yaml pone contraseña a root y la
+# comprobación final de este playbook entra como root por socket, sin contraseña.
+- name: Install MariaDB (split in imported and included files)
+  hosts: databases
+  vars_files:
+    - vars/mariadb.yaml
+
+  # import_tasks también vale dentro de "handlers:": los handlers viven en su propio fichero
+  handlers:
+    - ansible.builtin.import_tasks: handlers/mariadb.yaml
+
+  tasks:
+    # 1. Repositorio: fichero fijo, ya usado por tasks/databases.yaml (se reutiliza)
+    - name: Paso 1 - repositorio de MariaDB
+      ansible.builtin.import_tasks: tasks/mariadb_repo.yaml
+
+    # 2. Paquetes y servicio: fichero fijo
+    - name: Paso 2 - paquetes y servicio
+      ansible.builtin.import_tasks: tasks/mariadb/install.yaml
+
+    # 3. Configuración: UN fichero de tareas que se procesa una vez por elemento de la lista.
+    #    Solo include_tasks admite loop.
+    - name: Paso 3 - ficheros de configuración
+      ansible.builtin.include_tasks: tasks/mariadb/config_file.yaml
+      loop: "{{ mariadb_config_files }}"
+      loop_control:
+        label: "{{ item.dest }}"
+
+    # 4. flush_handlers + comprobación: fichero fijo, así que import_tasks
+    - name: Paso 4 - aplicar la configuración y comprobarla
+      ansible.builtin.import_tasks: tasks/mariadb/verify.yaml
+...

@@ -1,0 +1,13 @@
+---
+# Paso 4: aplicar ya los handlers pendientes y comprobar la configuración real de MariaDB.
+- name: Ejecutar los handlers pendientes AHORA
+  ansible.builtin.meta: flush_handlers
+- name: Leer la configuración con la que corre MariaDB
+  ansible.builtin.command: >
+    mariadb -N -e "select @@max_connections, @@slow_query_log, @@long_query_time"
+  register: running
+  changed_when: false
+- name: Resultado de la comprobación
+  ansible.builtin.debug:
+    msg: "max_connections / slow_query_log / long_query_time = {{ running.stdout }}"
+...

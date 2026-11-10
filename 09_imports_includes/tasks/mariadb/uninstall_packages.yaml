@@ -1,0 +1,14 @@
+---
+- name: Servicio parado y quitado de arranque
+  ansible.builtin.service:
+    name: mariadb
+    state: stopped
+    enabled: false
+  failed_when: false
+- name: Desinstalar MariaDB
+  ansible.builtin.apt:
+    name: "{{ mariadb_packages + ['mysql-common'] }}"
+    state: absent
+    purge: true
+    autoremove: true
+...

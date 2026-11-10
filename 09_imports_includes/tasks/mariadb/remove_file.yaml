@@ -1,0 +1,7 @@
+---
+# Se procesa una vez por elemento de la lista de ficheros a borrar (include_tasks con loop).
+- name: Quitar {{ item }}
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+...

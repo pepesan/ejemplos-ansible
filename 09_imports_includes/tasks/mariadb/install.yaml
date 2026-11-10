@@ -1,0 +1,13 @@
+---
+# Paso 2 de la instalación: paquetes y servicio.
+- name: Instalando MariaDB
+  ansible.builtin.apt:
+    name: "{{ mariadb_packages }}"
+    state: present
+    update_cache: true
+- name: Servicio arrancado
+  ansible.builtin.service:
+    name: mariadb
+    state: started
+    enabled: true
+...
