@@ -1,12 +1,20 @@
 ---
-- hosts: databases
+- hosts: ubuntu
   tasks:
     - name: Debug vars
       debug : msg="{{database_name}}"
     - name: Debug vars
-      debug : msg="{{ansible_facts.kernel_version}}"
+      debug: msg="{{ansible_facts}}"
     - name: Debug vars
-      debug : msg="{{ansible_distribution}}"
+      debug: msg="{{ansible_facts.kernel}}"
     - name: Debug vars
-      debug : msg="{{ansible_all_ipv4_addresses}}"
+      debug : msg="{{ansible_facts['kernel']}}"
+    - name: Debug vars
+      debug : msg="{{ansible_facts.distribution_release}}"
+    - name: Debug vars
+      debug : msg="{{ansible_facts.all_ipv4_addresses}}"
+    - name: Debug vars
+      debug: msg="{{ansible_facts.all_ipv6_addresses}}"
+    - name: Debug vars
+      debug: msg="{{ansible_facts.all_ipv6_addresses[0]}}"
 ...
