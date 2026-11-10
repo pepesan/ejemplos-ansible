@@ -49,24 +49,24 @@
         group: www-data
         mode: '0644'
 
-    # ---------- IP estática (netplan) ----------
-    - name: Evitar que cloud-init sobrescriba la configuración de red
-      ansible.builtin.copy:
-        content: "network: {config: disabled}\n"
-        dest: /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg
-        owner: root
-        group: root
-        mode: '0644'
-    - name: Copia el fichero de configuración de netplan
-      ansible.builtin.template:
-        src: 50-cloud-init.yaml.j2
-        dest: /etc/netplan/50-cloud-init.yaml
-        owner: root
-        group: root
-        mode: '0600'
-      notify: Apply netplan
-
-  handlers:
-    - name: Apply netplan
-      ansible.builtin.command: netplan apply
+#    # ---------- IP estática (netplan) ----------
+#    - name: Evitar que cloud-init sobrescriba la configuración de red
+#      ansible.builtin.copy:
+#        content: "network: {config: disabled}\n"
+#        dest: /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg
+#        owner: root
+#        group: root
+#        mode: '0644'
+#    - name: Copia el fichero de configuración de netplan
+#      ansible.builtin.template:
+#        src: 50-cloud-init.yaml.j2
+#        dest: /etc/netplan/50-cloud-init.yaml
+#        owner: root
+#        group: root
+#        mode: '0600'
+#      notify: Apply netplan
+#
+#  handlers:
+#    - name: Apply netplan
+#      ansible.builtin.command: netplan apply
 ...

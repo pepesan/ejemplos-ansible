@@ -11,7 +11,7 @@
       - mariadb-common
       - python3-pymysql
       - python3-openssl
-
+  # El resto de variables vienen por host_vars y group_vars
   tasks:
     - name: Install MariaDB requirements
       ansible.builtin.package:
