@@ -1,134 +1,97 @@
 ---
-- hosts: databases
-  vars:
-    - repo_software_packages:
-        - software-properties-common
-        - dirmngr
-        - apt-transport-https
-    - key_url: "https://mariadb.org/mariadb_release_signing_key.asc"
-    - repo_deb: "deb [arch=amd64] https://dlm.mariadb.com/repo/mariadb-server/10.9/repo/ubuntu"
-    - repo_deb_debug: "deb [arch=amd64,arm64] https://dlm.mariadb.com/repo/mariadb-server/10.9/repo/ubuntu"
-    - repo_deb_max_scale: "deb [arch=amd64,arm64] https://dlm.mariadb.com/repo/maxscale/latest/apt"
-    - repo_deb_tools: "deb [arch=amd64] http://downloads.mariadb.com/Tools/ubuntu"
-    - linux_distribution: Ubuntu
-    - distribution_release: jammy
-    - mariadb_packages:
-      - mariadb-server
-      - mariadb-common
-      - python3-mysqldb
-      - python3-openssl
-  vars_files: # importación de variables desde fichero
+# HANDLERS: tareas que solo se ejecutan cuando otra tarea las avisa con "notify" Y esa tarea
+# ha CAMBIADO algo (changed). Reglas que demuestra este ejemplo:
+#
+#   1. Si la tarea no cambia nada (changed=false), el handler NO se ejecuta.
+#   2. Se ejecutan UNA sola vez por host, al FINAL del play, aunque los avisen varias tareas.
+#   3. Se ejecutan en el orden en que están DEFINIDOS en "handlers:", no en el orden de aviso.
+#   4. "listen" permite que varios handlers respondan a un mismo aviso (un "tema").
+#   5. "meta: flush_handlers" fuerza ejecutarlos en ese punto, sin esperar al final del play.
+#
+# Cómo probarlo (observa las líneas "RUNNING HANDLER" de la salida):
+#   ansible-playbook tasks.yaml                          # 1ª vez: todo cambia, handlers 1 vez
+#   ansible-playbook tasks.yaml                          # 2ª vez: nada cambia, NO hay handlers
+#   ansible-playbook tasks.yaml -e nginx_keepalive=30    # solo cambia 1 fichero: handlers 1 vez
+#   ansible-playbook tasks.yaml -e nginx_port=8081       # cambia el sitio: el flush recarga ya
+#   ansible-playbook tasks_force_handlers.yaml           # una tarea falla: el handler se pierde
+#   ansible-playbook tasks_force_handlers.yaml -e force=true   # ...salvo con force_handlers
+#   ansible-playbook tasks_uninstall.yaml                # limpia lo creado
+# (Mismo ejemplo con MariaDB en vez de nginx: tasks_mariadb.yaml)
+- name: Handlers demo
+  hosts: webservers
+  vars_files:
     - vars.yaml
-  handlers:
-    - name: Flush Priviliges
-      command: mysql -u root -p{{ mysql_root_password }} -e "FLUSH PRIVILEGES"
+
   tasks:
-    - name: Update repositories
-      apt: update_cache=yes
-      ignore_errors: yes
-    - name: Install Mariadb Requirements for {{ linux_distribution }} {{ distribution_release }}
-      package:
-        name: "{{ repo_software_packages }}"
+    # Esta tarea NO avisa a ningún handler: solo instala.
+    - name: Instalando nginx
+      ansible.builtin.package:
+        name: nginx
         state: present
-    - name: Add MariaDB Repository Key for {{ linux_distribution }} {{ distribution_release }}
-      apt_key:
-        url: "{{ key_url }}"
-        state: present
-    - name: Add MariaDB Repository for {{ linux_distribution }} {{ distribution_release }}
-      apt_repository:
-        repo: "{{ repo_deb }} {{ distribution_release }}  main"
-        state: present
-        filename: mariadb
-        #register: addmariadbrepo
-        #notify: Update repo cache
-    - name: Add MariaDB Repository debug for {{ linux_distribution }} {{ distribution_release }}
-      apt_repository:
-        repo: "{{ repo_deb_debug }} {{ distribution_release }}  main/debug"
-        state: present
-        filename: mariadb
-        #register: addmariadbrepo
-        #notify: Update repo cache
-    #- name: Add MariaDB Repository MaxScale for {{ linux_distribution }} {{ distribution_release }}
-    #  apt_repository:
-    #    repo: "{{ repo_deb_max_scale }} {{ distribution_release }}  main"
-    #    state: present
-    #    filename: mariadb
-        #register: addmariadbrepo
-        #notify: Update repo cache
-    #- name: Add MariaDB Repository Tools for {{ linux_distribution }} {{ distribution_release }}
-    #  apt_repository:
-    #    repo: "{{ repo_deb_tools }} {{ distribution_release }}  main"
-    #    state: present
-    #    filename: mariadb
-    #    #register: addmariadbrepo
-    #    #notify: Update repo cache   
-    - name: Update repositories
-      apt: update_cache=yes
-      ignore_errors: yes
-    - name: Install Mariadb server for {{ linux_distribution }} {{ distribution_release }}
-      apt:
-        name: "{{ mariadb_packages }}"
-        state: present
+        update_cache: true
     - name: Servicio arrancado
-      service:
-        name: mariadb
+      ansible.builtin.service:
+        name: nginx
         state: started
         enabled: true
-    - name: Habilitar UFW
-      ufw:
-        state: enabled
-        policy: deny
-    - name: Habilitar el log
-      ufw:
-        logging: 'on'
-    - name: abrir el firewall para 22
-      ufw:
-        rule: allow
-        port: "22"
-        proto: tcp
-    - name: abrir el firewall para 3306
-      ufw:
-        rule: allow
-        port: "3306"
-        proto: tcp
-    - name: Set MariaDB root password for 127.0.0.1, localhost
-      mysql_user:
-        name: root
-        password: "{{ mysql_root_password }}"
-        host: "{{ item }}"
-        login_user: root
-        login_password: "{{ mysql_root_password }}"
-        #login_unix_socket: "{{ mariadb_socket }}"
-        state: present
-      with_items:
-        - 127.0.0.1
-        - localhost
-      #when: check_passwd_root.rc == 0
-      notify: Flush Priviliges
-    
-    - name: Remove all anonymous user
-      mysql_user:
-        login_user: root
-        login_password: "{{ mysql_root_password }}"
-        name: 'test'
-        host_all: yes
-        state: absent
-      notify:
-      - Flush Priviliges
-    - name: Create Database
-      mysql_db:
-        name: "{{ database_name }}"
-        login_user: root
-        login_password: "{{ mysql_root_password }}"
-        state: present
-    - name: Create mysql User defined database
-      mysql_user:
-        name: "{{ database_user }}"
-        password: "{{ database_password }}"
-        priv: '{{ database_name }}.*:{{ mysql.privileges }}'
-        login_user: root
-        login_password: "{{ mysql_root_password }}"
-        state: present
-      notify:
-      - Flush Priviliges
+    - name: Directorio del sitio
+      ansible.builtin.file:
+        path: /var/www/handlers-demo
+        state: directory
+        mode: '0755'
+
+    # Estas DOS tareas avisan al mismo tema: si cambian las dos, los handlers se ejecutan una vez.
+    - name: Configuración del sitio (puerto)
+      ansible.builtin.template:
+        src: nginx-site.conf.j2
+        dest: /etc/nginx/conf.d/handlers-demo.conf
+        mode: '0644'
+      notify: nginx config changed
+    - name: Configuración de afinado (keepalive)
+      ansible.builtin.template:
+        src: nginx-tuning.conf.j2
+        dest: /etc/nginx/conf.d/handlers-tuning.conf
+        mode: '0644'
+      notify: nginx config changed
+
+    # El contenido web no necesita recargar nginx: no avisa a ningún handler.
+    - name: Página web
+      ansible.builtin.template:
+        src: index.html.j2
+        dest: /var/www/handlers-demo/index.html
+        mode: '0644'
+
+    # Sin esto, los handlers no se ejecutarían hasta el final del play y la comprobación
+    # de abajo vería todavía la configuración antigua.
+    - name: Ejecutar los handlers pendientes AHORA
+      ansible.builtin.meta: flush_handlers
+
+    - name: Comprobar que nginx responde en el puerto configurado
+      ansible.builtin.uri:
+        url: "http://localhost:{{ nginx_port }}/"
+        return_content: true
+      register: web
+      retries: 5
+      delay: 1
+      until: web.status == 200
+      changed_when: false
+    - name: Resultado de la comprobación
+      ansible.builtin.debug:
+        msg: "nginx responde en el puerto {{ nginx_port }} (keepalive {{ nginx_keepalive }}s)"
+
+  # Se ejecutan en este ORDEN: primero validar, luego recargar. Ambos "escuchan" el mismo tema.
+  handlers:
+    - name: Validate nginx config
+      ansible.builtin.command: nginx -t
+      listen: nginx config changed
+      changed_when: false
+    - name: Reload nginx
+      ansible.builtin.service:
+        name: nginx
+        state: reloaded
+      listen: nginx config changed
+    - name: Announce handlers ran
+      ansible.builtin.debug:
+        msg: "HANDLERS EJECUTADOS: nginx validado y recargado"
+      listen: nginx config changed
 ...

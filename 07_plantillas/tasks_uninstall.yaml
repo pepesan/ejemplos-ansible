@@ -1,0 +1,72 @@
+---
+# Hace lo contrario de tasks.yaml, en orden inverso: quita la IP estática (vuelve a DHCP),
+# la página, el firewall y nginx.
+- name: Undo the web server with templates
+  hosts: webservers
+
+  tasks:
+    # ---------- IP estática (netplan) -> vuelta a DHCP ----------
+    - name: Volver a DHCP en netplan
+      ansible.builtin.copy:
+        content: |
+          # Gestionado con Ansible (tasks_uninstall.yaml): vuelta a DHCP
+          network:
+            version: 2
+            ethernets:
+              {{ ansible_facts['default_ipv4']['interface'] }}:
+                dhcp4: true
+        dest: /etc/netplan/50-cloud-init.yaml
+        owner: root
+        group: root
+        mode: '0600'
+      notify: Apply netplan
+    - name: Dejar que cloud-init vuelva a gestionar la red
+      ansible.builtin.file:
+        path: /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg
+        state: absent
+
+    # ---------- Página y nginx ----------
+    - name: Quitar la página index.html
+      ansible.builtin.file:
+        path: /var/www/html/index.html
+        state: absent
+    - name: Servicio parado y quitado de arranque
+      ansible.builtin.service:
+        name: nginx
+        state: stopped
+        enabled: false
+      failed_when: false
+    - name: Desinstalar nginx
+      ansible.builtin.apt:
+        name: nginx
+        state: absent
+        purge: true
+        autoremove: true
+
+    # ---------- Firewall ----------
+    # El 22 se quita el último y con UFW ya deshabilitado, para no cortar el acceso SSH.
+    # El paquete ufw no se desinstala: viene de serie en Ubuntu.
+    - name: Cerrar el firewall para web (80 y 443)
+      community.general.ufw:
+        rule: allow
+        port: "{{ item }}"
+        proto: tcp
+        delete: true
+      loop: ["80", "443"]
+    - name: Deshabilitar UFW
+      community.general.ufw:
+        state: disabled
+    - name: Desactivar el log de UFW
+      community.general.ufw:
+        logging: 'off'
+    - name: Cerrar el firewall para 22
+      community.general.ufw:
+        rule: allow
+        port: "22"
+        proto: tcp
+        delete: true
+
+  handlers:
+    - name: Apply netplan
+      ansible.builtin.command: netplan apply
+...

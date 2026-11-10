@@ -1,0 +1,4 @@
+# {{ ansible_managed }}
+[mysqld]
+slow_query_log  = {{ mariadb_slow_query_log }}
+long_query_time = {{ mariadb_long_query_time }}

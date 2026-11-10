@@ -1,7 +1,9 @@
-mariadb_socket: /run/mysqld/mysqld.sock
-mysql_root_password: test
-database_name: test
-database_user: test
-database_password: test
-mysql:
-  privileges: "ALL"
+app: Mi App
+nginx_port: 8080          # puerto de nuestro sitio (no choca con el sitio por defecto, que usa el 80)
+nginx_keepalive: 65       # segundos de keepalive en la configuración "de afinado"
+
+# --- Ejemplo de MariaDB (tasks_mariadb.yaml) ---
+mariadb_version: "13.0"
+mariadb_max_connections: 100     # fichero 99-handlers-conexiones.cnf
+mariadb_slow_query_log: 0        # fichero 99-handlers-logs.cnf (0 = desactivado, 1 = activado)
+mariadb_long_query_time: 2

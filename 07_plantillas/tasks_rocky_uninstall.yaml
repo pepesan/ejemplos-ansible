@@ -1,0 +1,20 @@
+---
+# Hace lo contrario de tasks_rocky.yaml: quita el perfil estático de NetworkManager y la
+# interfaz vuelve al perfil por DHCP que ya existía (Wired connection 1).
+- name: Undo static IP with NetworkManager (Rocky)
+  hosts: rocky
+  tasks:
+    - name: Quitar el perfil de NetworkManager
+      ansible.builtin.file:
+        path: "/etc/NetworkManager/system-connections/{{ ansible_facts['default_ipv4']['interface'] }}.nmconnection"
+        state: absent
+      notify:
+        - Reload NetworkManager connections
+        - Reconnect device
+
+  handlers:
+    - name: Reload NetworkManager connections
+      ansible.builtin.command: nmcli connection reload
+    - name: Reconnect device
+      ansible.builtin.command: "nmcli device connect {{ ansible_facts['default_ipv4']['interface'] }}"
+...

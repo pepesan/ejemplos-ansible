@@ -1,0 +1,7 @@
+# {{ ansible_managed }}
+server {
+    listen {{ nginx_port }};
+    server_name _;
+    root /var/www/handlers-demo;
+    index index.html;
+}

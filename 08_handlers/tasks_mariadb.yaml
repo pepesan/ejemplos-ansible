@@ -1,0 +1,103 @@
+---
+# HANDLERS con MariaDB. Mismas reglas que tasks.yaml (nginx):
+#
+#   1. Si la tarea no cambia nada (changed=false), el handler NO se ejecuta.
+#   2. Se ejecutan UNA sola vez por host, al FINAL del play, aunque los avisen varias tareas.
+#   3. Se ejecutan en el orden en que están DEFINIDOS en "handlers:".
+#   4. "listen" permite que varios handlers respondan a un mismo aviso (un "tema").
+#   5. "meta: flush_handlers" fuerza ejecutarlos en ese punto, sin esperar al final del play.
+#
+# Cómo probarlo (observa las líneas "RUNNING HANDLER" de la salida):
+#   ansible-playbook tasks_mariadb.yaml                              # 1ª vez: handlers 1 vez
+#   ansible-playbook tasks_mariadb.yaml                              # 2ª vez: NO hay handlers
+#   ansible-playbook tasks_mariadb.yaml -e mariadb_max_connections=300   # cambia 1 fichero
+#   ansible-playbook tasks_mariadb.yaml -e mariadb_slow_query_log=1      # cambia otro fichero
+#   ansible-playbook tasks_force_handlers.yaml [-e force=true]       # handler y fallo posterior
+#   ansible-playbook tasks_mariadb_uninstall.yaml                    # limpia lo creado
+- name: Handlers demo with MariaDB
+  hosts: ubuntu
+  vars_files:
+    - vars.yaml
+  vars:
+    key_dest: /etc/apt/keyrings/mariadb-keyring.asc
+
+  tasks:
+    # Estas tareas NO avisan a ningún handler: solo instalan.
+    - name: Requisitos de MariaDB
+      ansible.builtin.package:
+        name: [ca-certificates, python3-apt, python3-debian]
+        state: present
+        update_cache: true
+    - name: Clave del repositorio de MariaDB
+      ansible.builtin.get_url:
+        url: https://mariadb.org/mariadb_release_signing_key.asc
+        dest: "{{ key_dest }}"
+        mode: '0644'
+    - name: Repositorio de MariaDB
+      ansible.builtin.deb822_repository:
+        name: mariadb
+        types: [deb]
+        uris: "https://dlm.mariadb.com/repo/mariadb-server/{{ mariadb_version }}/repo/{{ ansible_facts['distribution'] | lower }}"
+        suites: "{{ ansible_facts['distribution_release'] }}"
+        components: [main]
+        architectures: [amd64]
+        signed_by: "{{ key_dest }}"
+        state: present
+    - name: Instalando MariaDB
+      ansible.builtin.apt:
+        name: [mariadb-server, mariadb-common]
+        state: present
+        update_cache: true
+    - name: Servicio arrancado
+      ansible.builtin.service:
+        name: mariadb
+        state: started
+        enabled: true
+
+    # Estas DOS tareas avisan al mismo tema: si cambian las dos, los handlers se ejecutan una vez.
+    - name: Configuración de conexiones
+      ansible.builtin.template:
+        src: mariadb-conexiones.cnf.j2
+        dest: /etc/mysql/mariadb.conf.d/99-handlers-conexiones.cnf
+        mode: '0644'
+      notify: mariadb config changed
+    - name: Configuración de logs
+      ansible.builtin.template:
+        src: mariadb-logs.cnf.j2
+        dest: /etc/mysql/mariadb.conf.d/99-handlers-logs.cnf
+        mode: '0644'
+      notify: mariadb config changed
+
+    # Sin esto, los handlers no se ejecutarían hasta el final del play y la consulta de
+    # abajo vería todavía la configuración antigua de MariaDB.
+    - name: Ejecutar los handlers pendientes AHORA
+      ansible.builtin.meta: flush_handlers
+
+    - name: Leer la configuración con la que corre MariaDB
+      ansible.builtin.command: >
+        mariadb -N -e "select @@max_connections, @@slow_query_log, @@long_query_time"
+      register: running
+      changed_when: false
+    - name: Resultado de la comprobación
+      ansible.builtin.debug:
+        msg: "max_connections / slow_query_log / long_query_time = {{ running.stdout }}"
+
+  # Se ejecutan en este ORDEN: primero validar, luego reiniciar. Ambos "escuchan" el mismo tema.
+  handlers:
+    - name: Validate mariadb config
+      # --help --verbose lee la configuración y sale (rc != 0 si hay valores u opciones inválidos);
+      # --user=mysql porque mariadbd se niega a ejecutarse como root. OJO: --validate-config
+      # no existe en MariaDB: arrancaría un segundo servidor.
+      ansible.builtin.command: mariadbd --user=mysql --help --verbose
+      listen: mariadb config changed
+      changed_when: false
+    - name: Restart mariadb
+      ansible.builtin.service:
+        name: mariadb
+        state: restarted
+      listen: mariadb config changed
+    - name: Announce handlers ran
+      ansible.builtin.debug:
+        msg: "HANDLERS EJECUTADOS: MariaDB validado y reiniciado"
+      listen: mariadb config changed
+...

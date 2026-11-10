@@ -1,0 +1,20 @@
+---
+- name: Remove the handlers demo
+  hosts: webservers
+  tasks:
+    - name: Remove nginx configuration, site and marker
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/nginx/conf.d/handlers-demo.conf
+        - /etc/nginx/conf.d/handlers-tuning.conf
+        - /var/www/handlers-demo
+        - /tmp/handlers-demo-marker
+    - name: Remove nginx
+      ansible.builtin.package:
+        name: nginx
+        state: absent
+        purge: true
+        autoremove: true
+...

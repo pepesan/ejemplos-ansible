@@ -1,0 +1,28 @@
+---
+# ¿Qué pasa con un handler ya avisado si una tarea POSTERIOR falla?
+# Por defecto, ese host deja de ejecutar el play y el handler pendiente se PIERDE.
+# Con "force_handlers: true" los handlers ya avisados se ejecutan igualmente.
+#
+#   ansible-playbook tasks_force_handlers.yaml              # el handler NO se ejecuta
+#   ansible-playbook tasks_force_handlers.yaml -e force=true   # el handler SÍ se ejecuta
+- name: Handlers when a task fails
+  hosts: webservers
+  force_handlers: "{{ force | default(false) | bool }}"
+
+  tasks:
+    # Cambia siempre (el contenido incluye la hora), así que siempre avisa al handler.
+    - name: Fichero que cambia en cada ejecución
+      ansible.builtin.copy:
+        content: "{{ lookup('pipe', 'date +%s%N') }}\n"
+        dest: /tmp/handlers-demo-marker
+        mode: '0644'
+      notify: Show that the handler ran
+    - name: Tarea que falla a propósito
+      ansible.builtin.command: /bin/false
+      changed_when: false
+
+  handlers:
+    - name: Show that the handler ran
+      ansible.builtin.debug:
+        msg: "El handler SE HA EJECUTADO aunque falló una tarea posterior (force_handlers)"
+...

@@ -1,0 +1,44 @@
+---
+- name: Remove the MariaDB handlers demo
+  hosts: ubuntu
+  vars:
+    key_dest: /etc/apt/keyrings/mariadb-keyring.asc
+  tasks:
+    - name: Servicio parado y quitado de arranque
+      ansible.builtin.service:
+        name: mariadb
+        state: stopped
+        enabled: false
+      failed_when: false
+    - name: Desinstalar MariaDB
+      ansible.builtin.apt:
+        name: [mariadb-server, mariadb-common, mysql-common]
+        state: absent
+        purge: true
+        autoremove: true
+    - name: Quitar configuración, datos, clave y marcador
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/mysql/mariadb.conf.d/99-handlers-conexiones.cnf
+        - /etc/mysql/mariadb.conf.d/99-handlers-logs.cnf
+        - /var/lib/mysql
+        - "{{ key_dest }}"
+        - /tmp/handlers-demo-marker
+    - name: Descargar perfiles AppArmor huérfanos
+      ansible.builtin.command: aa-remove-unknown
+      changed_when: false
+      failed_when: false
+    - name: Quitar el estado fallido de la unidad
+      ansible.builtin.command: systemctl reset-failed mariadb
+      changed_when: false
+      failed_when: false
+    - name: Quitar el repositorio de MariaDB
+      ansible.builtin.deb822_repository:
+        name: mariadb
+        state: absent
+    - name: Actualizar repositorios
+      ansible.builtin.apt:
+        update_cache: true
+...
