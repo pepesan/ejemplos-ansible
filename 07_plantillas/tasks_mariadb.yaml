@@ -1,0 +1,135 @@
+---
+# Despliegue de MariaDB (como en 06_host_vars) + fichero de configuración generado con una
+# plantilla Jinja2 a partir de variables. Si el fichero cambia, un handler reinicia el servicio.
+# Los valores por defecto están en group_vars/all.yaml y se sobrescriben en host_vars/<host>.
+- name: Install MariaDB with templated configuration
+  hosts: ubuntu
+  vars:
+    key_dest: /etc/apt/keyrings/mariadb-keyring.asc
+    mariadb_packages:
+      - mariadb-server
+      - mariadb-common
+      - python3-pymysql
+      - python3-openssl
+
+  tasks:
+    - name: Install MariaDB requirements
+      ansible.builtin.package:
+        name: [ca-certificates, python3-apt, python3-debian]
+        state: present
+        update_cache: true
+    - name: Download MariaDB repository key
+      ansible.builtin.get_url:
+        url: https://mariadb.org/mariadb_release_signing_key.asc
+        dest: "{{ key_dest }}"
+        mode: '0644'
+    - name: Add MariaDB repository
+      ansible.builtin.deb822_repository:
+        name: mariadb
+        types: [deb]
+        uris: "https://dlm.mariadb.com/repo/mariadb-server/{{ mariadb_version }}/repo/{{ ansible_facts['distribution'] | lower }}"
+        suites: "{{ ansible_facts['distribution_release'] }}"
+        components: [main]
+        architectures: [amd64]
+        signed_by: "{{ key_dest }}"
+        state: present
+    - name: Update repositories
+      ansible.builtin.apt:
+        update_cache: true
+    - name: Install MariaDB server
+      ansible.builtin.package:
+        name: "{{ mariadb_packages }}"
+        state: present
+
+    # ---------- Configuración a partir de la plantilla ----------
+    - name: Create the slow query log directory
+      ansible.builtin.file:
+        path: /var/log/mysql
+        state: directory
+        owner: mysql
+        group: mysql
+        mode: '0750'
+      when: mariadb_slow_query_log
+    - name: Deploy MariaDB configuration from template
+      ansible.builtin.template:
+        src: mariadb-custom.cnf.j2
+        dest: /etc/mysql/mariadb.conf.d/99-custom.cnf
+        owner: root
+        group: root
+        mode: '0644'
+      notify: Restart mariadb
+    - name: Servicio arrancado
+      ansible.builtin.service:
+        name: mariadb
+        state: started
+        enabled: true
+    # Aplicar ya la configuración si cambió, antes de configurar usuarios
+    - name: Flush handlers
+      ansible.builtin.meta: flush_handlers
+
+    # ---------- Firewall ----------
+    - name: Install UFW
+      ansible.builtin.package:
+        name: ufw
+        state: present
+    - name: abrir el firewall para 22
+      community.general.ufw:
+        rule: allow
+        port: "22"
+        proto: tcp
+    - name: Habilitar UFW
+      community.general.ufw:
+        state: enabled
+        policy: deny
+    - name: abrir el firewall para MariaDB (solo si escucha fuera de localhost)
+      community.general.ufw:
+        rule: allow
+        port: "{{ mariadb_port }}"
+        proto: tcp
+      when: mariadb_bind_address != '127.0.0.1'
+
+    # ---------- Base de datos ----------
+    - name: Set MariaDB root password for 127.0.0.1, localhost
+      ansible.mariadb.mariadb_user:
+        name: root
+        password: "{{ mysql_root_password }}"
+        host: "{{ item }}"
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
+        login_unix_socket: "{{ mariadb_socket }}"
+        state: present
+      with_items:
+        - 127.0.0.1
+        - localhost
+    - name: Create Database
+      ansible.mariadb.mariadb_db:
+        name: "{{ database_name }}"
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
+        state: present
+    - name: Create mysql User defined database
+      ansible.mariadb.mariadb_user:
+        name: "{{ database_user }}"
+        password: "{{ database_password }}"
+        priv: '{{ database_name }}.*:{{ mysql.privileges }}'
+        update_password: on_create
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
+        state: present
+
+    # ---------- Comprobación de que la plantilla se aplicó ----------
+    - name: Read the values MariaDB is really running with
+      ansible.builtin.command: >
+        mariadb -uroot -p{{ mysql_root_password }} -N -e
+        "select @@max_connections, @@character_set_server, @@slow_query_log, @@innodb_buffer_pool_size div 1048576"
+      register: mariadb_running
+      changed_when: false
+    - name: Show running configuration
+      ansible.builtin.debug:
+        msg: "max_connections / charset / slow_log / buffer_pool_MB = {{ mariadb_running.stdout }}"
+
+  handlers:
+    - name: Restart mariadb
+      ansible.builtin.service:
+        name: mariadb
+        state: restarted

@@ -1,0 +1,44 @@
+---
+- name: Uninstall MariaDB and its templated configuration
+  hosts: ubuntu
+  vars:
+    key_dest: /etc/apt/keyrings/mariadb-keyring.asc
+    mariadb_packages: [mariadb-server, mariadb-common, mysql-common, python3-pymysql]
+  tasks:
+    - name: Servicio parado y quitado de arranque
+      ansible.builtin.service:
+        name: mariadb
+        state: stopped
+        enabled: false
+      failed_when: false
+    - name: Uninstall MariaDB
+      ansible.builtin.apt:
+        name: "{{ mariadb_packages }}"
+        state: absent
+        purge: true
+        autoremove: true
+    - name: Remove generated configuration, data and logs
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/mysql/mariadb.conf.d/99-custom.cnf
+        - /var/lib/mysql
+        - /var/log/mysql
+        - "{{ key_dest }}"
+    - name: Unload orphan AppArmor profiles
+      ansible.builtin.command: aa-remove-unknown
+      changed_when: false
+      failed_when: false
+    - name: Reset failed state of mariadb unit
+      ansible.builtin.command: systemctl reset-failed mariadb
+      changed_when: false
+      failed_when: false
+    - name: Remove MariaDB repository
+      ansible.builtin.deb822_repository:
+        name: mariadb
+        state: absent
+    - name: Update repositories
+      ansible.builtin.apt:
+        update_cache: true
+...

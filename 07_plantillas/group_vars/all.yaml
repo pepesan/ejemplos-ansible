@@ -1,0 +1,19 @@
+# Valores por defecto (group_vars/all tiene menos precedencia que host_vars/, que los sobrescribe por host)
+mariadb_version: "13.0"
+mariadb_socket: /run/mysqld/mysqld.sock
+mysql_root_password: test
+database_name: test
+database_user: test
+database_password: test
+mysql:
+  privileges: "ALL"
+
+# Parámetros que se vuelcan en el fichero de configuración mariadb-custom.cnf.j2
+mariadb_bind_address: 127.0.0.1
+mariadb_port: 3306
+mariadb_max_connections: 100
+mariadb_charset: utf8mb4
+mariadb_collation: utf8mb4_unicode_ci
+mariadb_buffer_pool_percent: 10     # % de la RAM del host para innodb_buffer_pool_size
+mariadb_slow_query_log: false
+mariadb_long_query_time: 2

@@ -1,0 +1,4 @@
+# Este host tiene un perfil distinto al valor por defecto de vars_mariadb.yaml
+mariadb_max_connections: 250
+mariadb_slow_query_log: true
+mariadb_long_query_time: 1

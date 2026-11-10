@@ -1,0 +1,17 @@
+# {{ ansible_managed }}
+# Configuración de MariaDB generada con Ansible para {{ ansible_facts['hostname'] }}
+[mysqld]
+bind-address            = {{ mariadb_bind_address }}
+port                    = {{ mariadb_port }}
+max_connections         = {{ mariadb_max_connections }}
+character-set-server    = {{ mariadb_charset }}
+collation-server        = {{ mariadb_collation }}
+# {{ mariadb_buffer_pool_percent }}% de {{ ansible_facts['memtotal_mb'] }} MB de RAM
+innodb_buffer_pool_size = {{ (ansible_facts['memtotal_mb'] * mariadb_buffer_pool_percent / 100) | int }}M
+{% if mariadb_slow_query_log %}
+
+# Log de consultas lentas (más de {{ mariadb_long_query_time }} s)
+slow_query_log          = 1
+slow_query_log_file     = /var/log/mysql/mariadb-slow.log
+long_query_time         = {{ mariadb_long_query_time }}
+{% endif %}
