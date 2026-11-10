@@ -6,8 +6,8 @@
     - name: Aviso
       ansible.builtin.debug:
         msg: "Empieza el despliegue en {{ inventory_hostname }}"
-- name: Deploy webservers
-  import_playbook: tasks/webservers.yaml
+#- name: Deploy webservers
+#  import_playbook: tasks/webservers.yaml
 - name: Deploy Databases
   import_playbook: tasks/databases.yaml
 ...
