@@ -1,19 +1,23 @@
 ---
-- hosts: localhost
+# Condicional básico: se ejecuta en el propio equipo (localhost), sin tocar ningún servidor.
+- name: Condicional básico
+  hosts: localhost
   connection: local
   tasks:
     - name: debug ansible_facts.os_family
-      debug:
-        msg: "OS Family: {{ ansible_facts.os_family }}"
-    - name: ejecuta comando condicialmente
-      shell: echo cosa >> fichero.txt
+      ansible.builtin.debug:
+        msg: "OS Family: {{ ansible_facts['os_family'] }}"
+    - name: ejecuta comando condicionalmente (solo en la familia Debian)
+      ansible.builtin.shell: echo cosa >> /tmp/condicionales-fichero.txt
       when: ansible_facts['os_family'] == "Debian"
       register: result
+      changed_when: true
     - name: debug result
-      debug:
+      ansible.builtin.debug:
         var: result
         verbosity: 2
-    #- name: debug ansible_facts.os_family
-    #  debug:
-    #    msg: "{{ ansible_facts }}"
+    - name: borrar el fichero de prueba
+      ansible.builtin.file:
+        path: /tmp/condicionales-fichero.txt
+        state: absent
 ...

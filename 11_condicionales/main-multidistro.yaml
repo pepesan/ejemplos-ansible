@@ -1,0 +1,115 @@
+---
+# Condicionales variados. Se ejecuta en Ubuntu (familia Debian) y Rocky (familia RedHat),
+# así que cada tarea "salta" (skipping) en una de las dos. Solo lee y escribe en /tmp.
+#
+#   ansible-playbook main-multidistro.yaml
+#   ansible-playbook main-multidistro.yaml -e mi_variable=hola       # activa la tarea 7
+#   ansible-playbook main-multidistro.yaml -e forzar_error=true      # la tarea 11 falla y se recupera
+- name: Condicionales
+  hosts: todas
+  vars:
+    paquetes_ssh:
+      Debian: openssh-server
+      RedHat: openssh-server
+    puertos: [22, 80, 443, 3306]
+  tasks:
+    - name: 1. condición simple - solo la familia Debian
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }} es de la familia Debian"
+      when: ansible_facts['os_family'] == 'Debian'
+
+    - name: 2. condición simple - solo la familia RedHat
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }} es de la familia RedHat"
+      when: ansible_facts['os_family'] == 'RedHat'
+
+    - name: 3. and - Debian y versión mayor de 24
+      ansible.builtin.debug:
+        msg: "Ubuntu moderno ({{ ansible_facts['distribution_version'] }})"
+      when:
+        - ansible_facts['os_family'] == 'Debian'
+        - ansible_facts['distribution_major_version'] | int >= 24     # una lista de condiciones equivale a "and"
+
+    - name: 4. or - Ubuntu o Rocky
+      ansible.builtin.debug:
+        msg: "distribución conocida: {{ ansible_facts['distribution'] }}"
+      when: ansible_facts['distribution'] == 'Ubuntu' or ansible_facts['distribution'] == 'Rocky'
+
+    - name: 5. in - pertenencia a una lista
+      ansible.builtin.debug:
+        msg: "{{ ansible_facts['distribution'] }} está en la lista"
+      when: ansible_facts['distribution'] in ['Ubuntu', 'Debian', 'Rocky', 'AlmaLinux']
+
+    - name: 6. not y comparación de versiones con el test "version"
+      ansible.builtin.debug:
+        msg: "kernel {{ ansible_facts['kernel'] }} es anterior a la 6.0 (¡raro!)"
+      when: ansible_facts['kernel'] is version('6.0', '<')
+
+    - name: 7. is defined - solo si se pasó -e mi_variable=...
+      ansible.builtin.debug:
+        msg: "mi_variable vale {{ mi_variable }}"
+      when: mi_variable is defined
+
+    - name: 8. is not defined - con un valor por defecto
+      ansible.builtin.debug:
+        msg: "mi_variable no se definió; se usaría 'por defecto'"
+      when: mi_variable is not defined
+
+    - name: 9. variable calculada según la familia (diccionario + condición)
+      ansible.builtin.debug:
+        msg: "paquete SSH de esta familia: {{ paquetes_ssh[ansible_facts['os_family']] }}"
+
+    - name: 10. when dentro de un loop - filtra elementos
+      ansible.builtin.debug:
+        msg: "puerto privilegiado: {{ item }}"
+      loop: "{{ puertos }}"
+      when: item < 1024
+
+    - name: 11. block / rescue / always con condición
+      when: ansible_facts['os_family'] == 'Debian'
+      block:
+        - name: 11a. tarea que puede fallar (solo falla con -e forzar_error=true)
+          ansible.builtin.command: "{{ '/bin/false' if forzar_error | default(false) | bool else '/bin/true' }}"
+          changed_when: false
+      rescue:
+        - name: 11b. recuperación
+          ansible.builtin.debug:
+            msg: "la tarea falló y se recuperó en el bloque rescue"
+      always:
+        - name: 11c. siempre se ejecuta
+          ansible.builtin.debug:
+            msg: "fin del bloque"
+
+    - name: 12. condiciones sobre un resultado registrado
+      ansible.builtin.command: grep -q '^ID=' /etc/os-release
+      register: resultado
+      changed_when: false
+      failed_when: resultado.rc not in [0, 1]       # rc 1 (no encontrado) no se considera error
+    - name: 12b. actuar según el resultado
+      ansible.builtin.debug:
+        msg: "grep rc={{ resultado.rc }}: {{ 'encontrado' if resultado.rc == 0 else 'no encontrado' }}"
+
+    - name: 13. changed_when - un comando que informa de si cambió algo
+      ansible.builtin.shell: |
+        test -e /tmp/condicionales-marca || { touch /tmp/condicionales-marca; echo creado; }
+      register: marca
+      changed_when: "'creado' in marca.stdout"
+    - name: 13b. se ejecuta solo si la tarea anterior cambió algo
+      ansible.builtin.debug:
+        msg: "la marca se acaba de crear"
+      when: marca is changed
+
+    - name: 14. assert - detener el playbook si no se cumple una condición
+      ansible.builtin.assert:
+        that:
+          - ansible_facts['memtotal_mb'] > 512
+          - ansible_facts['os_family'] in ['Debian', 'RedHat']
+        success_msg: "memoria y familia de SO correctas"
+        fail_msg: "la máquina no cumple los requisitos"
+
+    - name: 15. limpiar
+      ansible.builtin.file:
+        path: /tmp/condicionales-marca
+        state: absent
+      tags: [limpieza]
+...
