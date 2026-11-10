@@ -1,13 +1,16 @@
 ---
-- hosts: databases
+- hosts: ubuntu
   tasks:
     - name: Debug vars
-      debug : msg="{{ansible_facts.kernel_version}}"
+      ansible.builtin.debug:
+        msg: "{{ ansible_facts['kernel_version'] }}"
     - name: Debug vars
-      debug : msg="{{ansible_distribution}}"
+      ansible.builtin.debug:
+        msg: "{{ ansible_facts['distribution'] }}"
     - name: Debug vars
-      debug : msg="{{ansible_all_ipv4_addresses}}"
+      ansible.builtin.debug:
+        msg: "{{ ansible_facts['all_ipv4_addresses'] }}"
     - name: Debug vars
-      debug : msg="{{ansible_default_ipv4}}"
-
+      ansible.builtin.debug:
+        msg: "{{ ansible_facts['default_ipv4'] }}"
 ...

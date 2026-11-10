@@ -1,15 +1,16 @@
-# This file is generated from information provided by the datasource.  Changes
-# to it will not persist across an instance reboot.  To disable cloud-init's
-# network configuration capabilities, write a file
-# /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg with the following:
-# network: {config: disabled}
+# {{ ansible_managed }}
+# IP estática generada a partir de los facts del host (interfaz, IP, prefijo y puerta de enlace).
+# Para que cloud-init no sobrescriba este fichero en el próximo arranque, el playbook crea
+# /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg con: network: {config: disabled}
 network:
   version: 2
   ethernets:
-    eth0:
+    {{ ansible_facts['default_ipv4']['interface'] }}:
       dhcp4: false
       dhcp6: false
-      addresses: [{{ansible_default_ipv4['address']}}/{{ansible_default_ipv4['prefix']}}]
-      gateway4: {{ansible_default_ipv4['gateway']}}
+      addresses: [{{ ansible_facts['default_ipv4']['address'] }}/{{ ansible_facts['default_ipv4']['prefix'] }}]
+      routes:
+        - to: default
+          via: {{ ansible_facts['default_ipv4']['gateway'] }}
       nameservers:
-        addresses: [8.8.8.8,8.8.4.4]
+        addresses: [{{ dns_servers | join(', ') }}]

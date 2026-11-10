@@ -1,17 +1,25 @@
 ---
-- hosts: rocky
+# Rocky/RHEL 9+ ya no usan network-scripts (ifcfg) ni el servicio "network": la red la
+# gestiona NetworkManager, con perfiles en /etc/NetworkManager/system-connections/.
+- name: Static IP with NetworkManager (Rocky)
+  hosts: rocky
   vars_files: # importación de variables desde fichero
     - vars.yaml
   tasks:
-    - name: Copia el fichero de configuración
-      template:
-        src: ifcfg-eth0.j2
-        dest: /etc/sysconfig/network-scripts/ifcfg-eth0
+    - name: Copia el perfil de NetworkManager
+      ansible.builtin.template:
+        src: eth0.nmconnection.j2
+        dest: "/etc/NetworkManager/system-connections/{{ ansible_facts['default_ipv4']['interface'] }}.nmconnection"
         owner: root
         group: root
-        mode: '0644'
-    - name: Restart network service
-      service:
-        name: network
-        state: restarted
+        mode: '0600'
+      notify:
+        - Reload NetworkManager connections
+        - Activate connection
+
+  handlers:
+    - name: Reload NetworkManager connections
+      ansible.builtin.command: nmcli connection reload
+    - name: Activate connection
+      ansible.builtin.command: "nmcli connection up {{ ansible_facts['default_ipv4']['interface'] }}"
 ...

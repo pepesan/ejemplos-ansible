@@ -1,0 +1,16 @@
+# {{ ansible_managed }}
+# Perfil de NetworkManager (Rocky/RHEL 9+ ya no usan network-scripts/ifcfg)
+[connection]
+id={{ ansible_facts['default_ipv4']['interface'] }}
+type=ethernet
+interface-name={{ ansible_facts['default_ipv4']['interface'] }}
+autoconnect=true
+autoconnect-priority=100
+
+[ipv4]
+method=manual
+address1={{ ansible_facts['default_ipv4']['address'] }}/{{ ansible_facts['default_ipv4']['prefix'] }},{{ ansible_facts['default_ipv4']['gateway'] }}
+dns={{ dns_servers | join(';') }};
+
+[ipv6]
+method=auto

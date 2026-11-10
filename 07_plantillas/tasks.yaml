@@ -1,57 +1,72 @@
 ---
-- hosts: webservers
+# Plantillas Jinja2: página web con nginx + IP estática con netplan, ambas a partir de facts.
+- name: Web server with templates
+  hosts: webservers
   vars_files: # importación de variables desde fichero
     - vars.yaml
+
   tasks:
     - name: Instalando nginx
-      apt:
+      ansible.builtin.package:
         name: nginx
-        state: latest
+        state: present
+        update_cache: true
     - name: Servicio arrancado
-      service:
+      ansible.builtin.service:
         name: nginx
         state: started
         enabled: true
-    #- name: Instalando elinks
-    #  apt:
-    #    name: elinks
-    #    state: latest
-    - name: Habilitar UFW
-      ufw:
-        state: enabled
-        policy: deny
-    - name: Habilitar el log
-      ufw:
-        logging: 'on'
+
+    # Primero el puerto 22 y después habilitar UFW, para no quedarnos sin acceso SSH
+    - name: Install UFW
+      ansible.builtin.package:
+        name: ufw
+        state: present
     - name: abrir el firewall para 22
-      ufw:
+      community.general.ufw:
         rule: allow
         port: "22"
         proto: tcp
-    - name: abrir el firewall para 80
-      ufw:
+    - name: Habilitar UFW
+      community.general.ufw:
+        state: enabled
+        policy: deny
+    - name: Habilitar el log
+      community.general.ufw:
+        logging: 'on'
+    - name: abrir el firewall para web (80 y 443)
+      community.general.ufw:
         rule: allow
-        port: "80"
+        port: "{{ item }}"
         proto: tcp
-    - name: abrir el firewall para 443
-      ufw:
-        rule: allow
-        port: "443"
-        proto: tcp
+      loop: ["80", "443"]
+
     - name: Copia el fichero index.html modificado con variables
-      template:
+      ansible.builtin.template:
         src: index.html.j2
         dest: /var/www/html/index.html
         owner: www-data
         group: www-data
         mode: '0644'
-    - name: Copia el fichero de configuración
-      template:
+
+    # ---------- IP estática (netplan) ----------
+    - name: Evitar que cloud-init sobrescriba la configuración de red
+      ansible.builtin.copy:
+        content: "network: {config: disabled}\n"
+        dest: /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg
+        owner: root
+        group: root
+        mode: '0644'
+    - name: Copia el fichero de configuración de netplan
+      ansible.builtin.template:
         src: 50-cloud-init.yaml.j2
         dest: /etc/netplan/50-cloud-init.yaml
         owner: root
         group: root
-        mode: '0644'
-    - name: start netplan
-      shell: netplan apply
+        mode: '0600'
+      notify: Apply netplan
+
+  handlers:
+    - name: Apply netplan
+      ansible.builtin.command: netplan apply
 ...
