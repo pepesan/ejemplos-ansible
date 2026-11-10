@@ -1,0 +1,83 @@
+---
+# Deshace el despliegue de main.yaml.
+- name: Undo databases
+  hosts: databases
+  tasks:
+    - name: Servicio parado y quitado de arranque
+      ansible.builtin.service:
+        name: mariadb
+        state: stopped
+        enabled: false
+      failed_when: false
+    - name: Desinstalar MariaDB
+      ansible.builtin.apt:
+        name: [mariadb-server, mariadb-common, mysql-common]
+        state: absent
+        purge: true
+        autoremove: true
+    - name: Quitar datos y clave del repositorio
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop: [/var/lib/mysql, /etc/apt/keyrings/mariadb-keyring.asc]
+    - name: Descargar perfiles AppArmor huérfanos
+      ansible.builtin.command: aa-remove-unknown
+      changed_when: false
+      failed_when: false
+    - name: Quitar el estado fallido de la unidad
+      ansible.builtin.command: systemctl reset-failed mariadb
+      changed_when: false
+      failed_when: false
+    - name: Quitar el repositorio de MariaDB
+      ansible.builtin.deb822_repository:
+        name: mariadb
+        state: absent
+    - name: Quitar el mensaje del día
+      ansible.builtin.file:
+        path: /etc/motd-databases
+        state: absent
+    - name: Cerrar el firewall para 3306
+      community.general.ufw:
+        rule: allow
+        port: "3306"
+        proto: tcp
+        delete: true
+
+- name: Undo webservers
+  hosts: webservers
+  tasks:
+    - name: Servicio parado y quitado de arranque
+      ansible.builtin.service:
+        name: nginx
+        state: stopped
+        enabled: false
+      failed_when: false
+    - name: Desinstalar nginx
+      ansible.builtin.apt:
+        name: nginx
+        state: absent
+        purge: true
+        autoremove: true
+    - name: Quitar la página y el mensaje del día
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop: [/var/www/html/index.html, /etc/motd-webservers]
+    # El 22 se quita el último y con UFW ya deshabilitado, para no cortar el acceso SSH.
+    - name: Cerrar el firewall para web (80 y 443)
+      community.general.ufw:
+        rule: allow
+        port: "{{ item }}"
+        proto: tcp
+        delete: true
+      loop: ["80", "443"]
+    - name: Deshabilitar UFW
+      community.general.ufw:
+        state: disabled
+    - name: Cerrar el firewall para 22
+      community.general.ufw:
+        rule: allow
+        port: "22"
+        proto: tcp
+        delete: true
+...

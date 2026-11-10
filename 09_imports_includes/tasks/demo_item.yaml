@@ -1,0 +1,9 @@
+---
+# Fichero de tareas de la demostración import vs include: dos tareas sencillas.
+- name: Primera tarea del fichero ({{ item | default('sin item') }})
+  ansible.builtin.debug:
+    msg: "primera tarea, item = {{ item | default('sin item') }}"
+- name: Segunda tarea del fichero ({{ item | default('sin item') }})
+  ansible.builtin.debug:
+    msg: "segunda tarea, item = {{ item | default('sin item') }}"
+...

@@ -1,0 +1,2 @@
+motd_message: "Servidor gestionado con Ansible"
+motd_file: /etc/motd

@@ -1,0 +1,28 @@
+---
+# Fichero de tareas REUTILIZABLE: deja configurado el repositorio oficial de MariaDB.
+- name: Requisitos del repositorio de MariaDB
+  ansible.builtin.package:
+    name: [ca-certificates, python3-apt, python3-debian]
+    state: present
+    update_cache: true
+- name: Clave del repositorio de MariaDB
+  ansible.builtin.get_url:
+    url: https://mariadb.org/mariadb_release_signing_key.asc
+    dest: /etc/apt/keyrings/mariadb-keyring.asc
+    mode: '0644'
+- name: Repositorio de MariaDB {{ mariadb_version }}
+  register: mariadb_repo
+  ansible.builtin.deb822_repository:
+    name: mariadb
+    types: [deb]
+    uris: "https://dlm.mariadb.com/repo/mariadb-server/{{ mariadb_version }}/repo/{{ ansible_facts['distribution'] | lower }}"
+    suites: "{{ ansible_facts['distribution_release'] }}"
+    components: [main]
+    architectures: [amd64]
+    signed_by: /etc/apt/keyrings/mariadb-keyring.asc
+    state: present
+- name: Actualizar repositorios (solo si el repositorio ha cambiado)
+  ansible.builtin.apt:
+    update_cache: true
+  when: mariadb_repo is changed
+...

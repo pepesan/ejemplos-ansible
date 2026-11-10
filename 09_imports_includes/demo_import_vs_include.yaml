@@ -1,0 +1,33 @@
+---
+# IMPORT (estático, se procesa al leer el playbook) frente a INCLUDE (dinámico, al ejecutar).
+#
+#   ansible-playbook demo_import_vs_include.yaml                 # mira qué tareas salen "skipping"
+#   ansible-playbook demo_import_vs_include.yaml -e ejecutar=true
+#   ansible-playbook demo_import_vs_include.yaml --list-tasks    # import_tasks se ve; include_tasks NO
+- name: Import vs include
+  hosts: webservers
+  gather_facts: false
+  vars:
+    ejecutar: false
+    tipo: item
+
+  tasks:
+    # El when se copia a CADA tarea del fichero: salen 2 tareas "skipping" (las del fichero).
+    - name: 1. import_tasks con when
+      ansible.builtin.import_tasks: tasks/demo_item.yaml
+      when: ejecutar | bool
+
+    # El when se evalúa UNA vez, en la propia tarea include: sale 1 "skipping" y el fichero ni se lee.
+    - name: 2. include_tasks con when
+      ansible.builtin.include_tasks: tasks/demo_item.yaml
+      when: ejecutar | bool
+
+    # Solo include_tasks admite loop: el fichero se procesa una vez por elemento.
+    - name: 3. include_tasks con loop
+      ansible.builtin.include_tasks: tasks/demo_item.yaml
+      loop: [uno, dos, tres]
+
+    # Solo include_tasks admite un nombre de fichero calculado con variables.
+    - name: 4. include_tasks con el nombre del fichero en una variable
+      ansible.builtin.include_tasks: "tasks/demo_{{ tipo }}.yaml"
+...

@@ -1,0 +1,19 @@
+---
+# Fichero de tareas REUTILIZABLE: abre los puertos de la variable "firewall_ports".
+# Lo usan los play de webservers y de databases, cada uno con su lista de puertos.
+- name: Install UFW
+  ansible.builtin.package:
+    name: ufw
+    state: present
+- name: Abrir el firewall para los puertos {{ firewall_ports }}
+  community.general.ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+  loop: "{{ firewall_ports }}"
+# Habilitar UFW al final, cuando el 22 ya está abierto, para no perder el acceso SSH
+- name: Habilitar UFW
+  community.general.ufw:
+    state: enabled
+    policy: deny
+...

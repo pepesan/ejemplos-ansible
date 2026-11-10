@@ -1,0 +1,9 @@
+---
+- name: Mensaje del día
+  ansible.builtin.template:
+    src: motd.j2
+    dest: "{{ motd_file }}"
+    owner: root
+    group: root
+    mode: '0644'
+...

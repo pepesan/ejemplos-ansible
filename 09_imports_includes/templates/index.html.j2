@@ -1,11 +1,11 @@
 <!doctype html>
-<html>
+<html lang="es">
 <head>
-    <title>Welcome to {{ app }} </title>
+    <title>Welcome to {{ app }}</title>
     <meta charset="utf-8">
 </head>
 <body>
-<h1>Anda!! un servidor montado con <strong>Ansible</strong> con la versión de kernel {{ ansible_facts.kernel_version }}</h1>
+<h1>Anda!! un servidor montado con <strong>Ansible</strong> con la versión de kernel {{ ansible_facts['kernel'] }}</h1>
 <h2>Cómo mola!!</h2>
 </body>
 </html>

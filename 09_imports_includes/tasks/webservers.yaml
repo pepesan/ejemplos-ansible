@@ -1,45 +1,34 @@
 ---
-- hosts: webservers
+- name: Deploy webservers
+  hosts: webservers
   vars_files: # importación de variables desde fichero
-      - ../vars/webservers.yaml
+    - ../vars/webservers.yaml
+
   tasks:
+    # import_role: el rol se resuelve ANTES de ejecutar (estático)
+    - name: Mensaje del día (rol importado)
+      ansible.builtin.import_role:
+        name: motd
+      vars:
+        motd_message: "Servidor WEB gestionado con Ansible"
+        motd_file: /etc/motd-webservers     # un fichero por play: en esta VM de pruebas web y bases de datos son el mismo host
     - name: Instalando nginx
-      apt:
+      ansible.builtin.package:
         name: nginx
-        state: latest
+        state: present
+        update_cache: true
     - name: Servicio arrancado
-      service:
+      ansible.builtin.service:
         name: nginx
         state: started
         enabled: true
-    - name: Instalando elinks
-      apt:
-        name: elinks
-        state: latest
-    - name: Habilitar UFW
-      ufw:
-        state: enabled
-        policy: deny
-    - name: Habilitar el log
-      ufw:
-        logging: 'on'
-    - name: abrir el firewall para 22
-      ufw:
-        rule: allow
-        port: "22"
-        proto: tcp
-    - name: abrir el firewall para 80
-      ufw:
-        rule: allow
-        port: "80"
-        proto: tcp
-    - name: abrir el firewall para 443
-      ufw:
-        rule: allow
-        port: "443"
-        proto: tcp
+    # import_tasks: las tareas del fichero se incorporan al play ANTES de ejecutar
+    - name: Firewall de los servidores web
+      ansible.builtin.import_tasks: firewall.yaml
+      vars:
+        firewall_ports: ["22", "80", "443"]
     - name: Copia el fichero index.html modificado con variables
-      template:
+      ansible.builtin.template:
         src: ../templates/index.html.j2
         dest: /var/www/html/index.html
         owner: www-data

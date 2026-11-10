@@ -1,3 +1,4 @@
+mariadb_version: "13.0"
 mariadb_socket: /run/mysqld/mysqld.sock
 mysql_root_password: test
 database_name: test
