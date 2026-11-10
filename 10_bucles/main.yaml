@@ -1,37 +1,38 @@
 ---
-- hosts: databases
+# Reintentos con until/retries/delay. El script cuenta cuántas veces se ejecuta y solo
+# "tiene éxito" a la tercera, así que Ansible lo repite hasta que se cumple la condición.
+- name: Retry a task until a condition is met
+  hosts: databases
+  vars:
+    script_path: /tmp/myscript.sh
+    count_file: /tmp/count.cnt
   tasks:
-    - debug:
-        msg: play1
-    - name: with_list
-      ansible.builtin.debug:
-        msg: "{{ item }}"
-      with_list:
-        - one
-        - two
-    - name: Using dict2items
-      ansible.builtin.debug:
-        msg: "{{ item.key }} - {{ item.value }}"
-      loop: "{{ tag_data | dict2items }}"
-      vars:
-        tag_data:
-          Environment: dev
-          Application: payment
+    - name: Remove the counter (empezar de cero)
+      ansible.builtin.file:
+        path: "{{ count_file }}"
+        state: absent
     - name: Copy file with owner and permissions
       ansible.builtin.copy:
         src: scripts/miscript.sh
-        dest: /home/alumno/myscript.sh
-        owner: alumno
-        group: alumno
+        dest: "{{ script_path }}"
+        owner: root
+        group: root
         mode: '0755'
     - name: Retry a task until a certain condition is met
-      shell: /home/alumno/myscript.sh
+      ansible.builtin.command: "{{ script_path }} {{ count_file }}"
+      register: result
       until: result.stdout.find("Loaded 3 times") != -1
       retries: 5
       delay: 1
-      register: result
-    - name: Remove file (delete file)
+      changed_when: true
+    - name: Cuántos intentos hicieron falta
+      ansible.builtin.debug:
+        msg: "Intentos: {{ result.attempts }} - salida: {{ result.stdout }}"
+    - name: Remove files (delete)
       ansible.builtin.file:
-        path: /home/alumno/count.cnt
+        path: "{{ item }}"
         state: absent
+      loop:
+        - "{{ count_file }}"
+        - "{{ script_path }}"
 ...

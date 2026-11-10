@@ -1,23 +1,34 @@
 ---
-- hosts: webservers
+# Bucles básicos: loop (recomendado) y su equivalente antiguo with_*.
+- name: Bucles simples
+  hosts: webservers
+  gather_facts: false
   tasks:
-    - debug:
-        msg: play1
-    - name: with_list
+    - name: loop sobre una lista
+      ansible.builtin.debug:
+        msg: "{{ item }}"
+      loop:
+        - one
+        - two
+
+    - name: with_list (estilo antiguo, equivale al loop anterior)
       ansible.builtin.debug:
         msg: "{{ item }}"
       with_list:
         - one
         - two
-    - name: with_list object
+
+    # Cada elemento es un diccionario con sus propias claves
+    - name: loop sobre una lista de diccionarios
       ansible.builtin.debug:
-        msg: "{{ item.dato }}"
-      with_list:
-        - one:
-          dato: "valor"
-        - two:
-          dato: "valor"
-    - name: Using dict2items
+        msg: "{{ item.nombre }} -> {{ item.dato }}"
+      loop:
+        - nombre: one
+          dato: valor1
+        - nombre: two
+          dato: valor2
+
+    - name: Using dict2items (recorrer un diccionario)
       ansible.builtin.debug:
         msg: "{{ item.key }} - {{ item.value }}"
       loop: "{{ tag_data | dict2items }}"

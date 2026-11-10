@@ -1,0 +1,83 @@
+---
+# Bucles avanzados. Todo ocurre en /tmp/ejemplo-bucles y se borra al final.
+- name: Bucles avanzados
+  hosts: databases
+  gather_facts: false
+  vars:
+    base: /tmp/ejemplo-bucles
+    usuarios:
+      - { nombre: ana,  aficiones: [lectura, ciclismo] }
+      - { nombre: luis, aficiones: [cine] }
+    ficheros:
+      - { nombre: uno.txt,  modo: '0644', contenido: hola }
+      - { nombre: dos.txt,  modo: '0600', contenido: adios }
+      - { nombre: tres.log, modo: '0644', contenido: log }
+
+  tasks:
+    - name: 1. loop sobre una lista - crear directorios
+      ansible.builtin.file:
+        path: "{{ base }}/{{ item }}"
+        state: directory
+        mode: '0755'
+      loop: [a, b, c]
+
+    - name: 2. loop sobre una lista de diccionarios - crear ficheros
+      ansible.builtin.copy:
+        dest: "{{ base }}/a/{{ item.nombre }}"
+        content: "{{ item.contenido }}\n"
+        mode: "{{ item.modo }}"
+      loop: "{{ ficheros }}"
+      loop_control:
+        label: "{{ item.nombre }}"          # en la salida solo se ve el nombre, no todo el diccionario
+
+    - name: 3. loop con when - solo los .txt
+      ansible.builtin.debug:
+        msg: "{{ item.nombre }} es un .txt"
+      loop: "{{ ficheros }}"
+      when: item.nombre is match('.*\.txt$')
+      loop_control:
+        label: "{{ item.nombre }}"
+
+    - name: 4. index_var - número de vuelta
+      ansible.builtin.debug:
+        msg: "vuelta {{ idx }}: {{ item }}"
+      loop: [a, b, c]
+      loop_control:
+        index_var: idx
+
+    - name: 5. bucle anidado (producto cartesiano)
+      ansible.builtin.debug:
+        msg: "{{ item.0 }}-{{ item.1 }}"
+      loop: "{{ ['x', 'y'] | product([1, 2]) | list }}"
+
+    - name: 6. subelements - recorrer listas dentro de una lista
+      ansible.builtin.debug:
+        msg: "{{ item.0.nombre }} tiene la afición {{ item.1 }}"
+      loop: "{{ usuarios | subelements('aficiones') }}"
+      loop_control:
+        label: "{{ item.0.nombre }}"
+
+    - name: 7. zip - recorrer dos listas a la vez
+      ansible.builtin.debug:
+        msg: "{{ item.0 }} <-> {{ item.1 }}"
+      loop: "{{ ['uno', 'dos', 'tres'] | zip([1, 2, 3]) | list }}"
+
+    - name: 8. register en un bucle - guardar el resultado de cada vuelta
+      ansible.builtin.command: "cat {{ base }}/a/{{ item.nombre }}"
+      loop: "{{ ficheros }}"
+      register: contenidos
+      changed_when: false
+      loop_control:
+        label: "{{ item.nombre }}"
+    - name: 8b. recorrer los resultados guardados
+      ansible.builtin.debug:
+        msg: "{{ item.item.nombre }} contiene {{ item.stdout }}"
+      loop: "{{ contenidos.results }}"
+      loop_control:
+        label: "{{ item.item.nombre }}"
+
+    - name: 9. limpiar
+      ansible.builtin.file:
+        path: "{{ base }}"
+        state: absent
+...
