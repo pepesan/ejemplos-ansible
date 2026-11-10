@@ -1,18 +1,14 @@
 ---
-repo_software_packages:
-  - software-properties-common
-  - dirmngr
-  - apt-transport-https
+# Válido para RedHat family (AlmaLinux, Rocky, RHEL...): la versión mayor sale de los facts.
+mariadb_version: "13.0"
 mariadb_packages:
   - mariadb-server
-  - galera-4
   - mariadb-backup
-  - mariadb-common
 key_url: https://supplychain.mariadb.com/MariaDB-Server-GPG-KEY
-repo_url: http://yum.mariadb.org/10.5/centos8-amd64
-linux_distribution: RedHat
-distribution_release: 8
-mariadb_socket: /run/mysqld/mysqld.sock
+repo_url: "https://dlm.mariadb.com/repo/mariadb-server/{{ mariadb_version }}/yum/rhel/{{ ansible_facts['distribution_major_version'] }}/x86_64"
+linux_distribution: "{{ ansible_facts['distribution'] }}"
+distribution_release: "{{ ansible_facts['distribution_major_version'] }}"
+mariadb_socket: /var/lib/mysql/mysql.sock
 mysql_root_password: test
 database_name: test
 database_user: test

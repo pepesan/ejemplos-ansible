@@ -3,159 +3,173 @@
   hosts: databases
   tasks:
     - name: Debug Distribution
-      debug: msg="{{ ansible_distribution }}"
+      ansible.builtin.debug:
+        msg: "{{ ansible_facts['distribution'] }}"
     - name: Debug Distro Family
-      debug: msg="{{ ansible_os_family }}"
+      ansible.builtin.debug:
+        msg: "{{ ansible_facts['os_family'] }}"
     - name: gather os specific variables
-      include_vars: "{{ item }}"
+      ansible.builtin.include_vars: "{{ item }}"
       with_first_found:
-        - "vars-{{ ansible_os_family }}-{{ ansible_distribution }}-{{ ansible_distribution_major_version }}.yaml"
-        - "vars-{{ ansible_os_family }}-{{ ansible_distribution }}.yaml"
-        - "vars-{{ ansible_os_family }}.yaml"
+        - "vars-{{ ansible_facts['os_family'] }}-{{ ansible_facts['distribution'] }}-{{ ansible_facts['distribution_major_version'] }}.yaml"
+        - "vars-{{ ansible_facts['os_family'] }}-{{ ansible_facts['distribution'] }}.yaml"
+        - "vars-{{ ansible_facts['os_family'] }}.yaml"
         - vars.yaml
       tags: vars
 
+    # ---------- Debian / Ubuntu ----------
     - name: Update Repositories
-      package: update_cache=yes
-      ignore_errors: yes
-      when: ansible_os_family == 'Debian'
-    - name: Install Mariadb Requirements for {{ ansible_distribution }} ({{ ansible_os_family }})
-      package:
+      ansible.builtin.apt:
+        update_cache: true
+      when: ansible_facts['os_family'] == 'Debian'
+    - name: Install Mariadb Requirements for {{ ansible_facts['distribution'] }} ({{ ansible_facts['os_family'] }})
+      ansible.builtin.package:
         name: "{{ repo_software_packages }}"
         state: present
-      when: ansible_os_family == 'Debian'
-    - name: Import a key from a url
-      ansible.builtin.rpm_key:
-        state: present
-        key: https://supplychain.mariadb.com/MariaDB-Server-GPG-KEY
-      when: ansible_os_family == 'RedHat'
-    - name: Add YUM Repository for Mariadb
-      yum_repository:
-        name: MariaDB
-        file: external_repos
-        description: MariaDB YUM repo
-        baseurl: "{{repo_url}}"
-        gpgcakey: "{{key_url}}"
-        gpgcheck: true
-      when: ansible_os_family == 'RedHat'
-    # Tarea quitada en favor de get_url
-    #- name: Add MariaDB Repository Key for {{ linux_distribution }} {{ distribution_release }}
-    #  apt_key:
-    #    url: "{{ key_url }}"
-    #    state: present
-    #  when: ansible_os_family == 'Debian'
+      when: ansible_facts['os_family'] == 'Debian'
+    - name: Remove legacy MariaDB repo files (apt_repository / trusted.gpg.d)
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/apt/sources.list.d/mariadb.list
+        - /etc/apt/trusted.gpg.d/mariadb.asc
+      when: ansible_facts['os_family'] == 'Debian'
     - name: Add mariadb apt repository key.
       ansible.builtin.get_url:
         url: "{{ key_url }}"
-        dest: /etc/apt/trusted.gpg.d/mariadb.asc
+        dest: "{{ key_dest }}"
         mode: '0644'
-        force: true
-      when: ansible_os_family == 'Debian'
+      when: ansible_facts['os_family'] == 'Debian'
     - name: Add MariaDB Repository for {{ linux_distribution }} {{ distribution_release }}
-      apt_repository:
-        repo: "{{ repo_deb }} {{ distribution_release }}  main"
+      ansible.builtin.deb822_repository:
+        name: mariadb
+        types: [deb]
+        uris: "{{ repo_uri }}"
+        suites: "{{ distribution_release }}"
+        components: [main]
+        architectures: [amd64]
+        signed_by: "{{ key_dest }}"
         state: present
-        filename: mariadb
-      ignore_errors: yes
-      when: ansible_os_family == 'Debian'
-
+      when: ansible_facts['os_family'] == 'Debian'
     - name: Update repositories for Debian Distros
-      apt: update_cache=yes
-      ignore_errors: yes
-      when: ansible_os_family == 'Debian'
+      ansible.builtin.apt:
+        update_cache: true
+      when: ansible_facts['os_family'] == 'Debian'
+
+    # ---------- RedHat family ----------
+    - name: Import a key from a url
+      ansible.builtin.rpm_key:
+        state: present
+        key: "{{ key_url }}"
+      when: ansible_facts['os_family'] == 'RedHat'
+    - name: Add YUM Repository for Mariadb
+      ansible.builtin.yum_repository:
+        name: MariaDB
+        file: external_repos
+        description: MariaDB YUM repo
+        baseurl: "{{ repo_url }}"
+        gpgkey: "{{ key_url }}"
+        gpgcheck: true
+      when: ansible_facts['os_family'] == 'RedHat'
+
+    # ---------- Instalación ----------
     - name: Install Mariadb server for {{ linux_distribution }} {{ distribution_release }}
-      package:
+      ansible.builtin.package:
         name: "{{ mariadb_packages }}"
         state: present
     - name: Servicio arrancado
-      service:
+      ansible.builtin.service:
         name: mariadb
         state: started
         enabled: true
+
+    # ---------- Firewall ----------
+    - name: Install UFW
+      ansible.builtin.package:
+        name: ufw
+        state: present
+      when: ansible_facts['os_family'] == 'Debian'
     - name: Habilitar UFW
-      ufw:
+      community.general.ufw:
         state: enabled
         policy: deny
-      when: ansible_os_family == 'Debian'
+      when: ansible_facts['os_family'] == 'Debian'
     - name: Habilitar el log
-      ufw:
+      community.general.ufw:
         logging: 'on'
-      when: ansible_os_family == 'Debian'
+      when: ansible_facts['os_family'] == 'Debian'
     - name: abrir el firewall para 22
-      ufw:
+      community.general.ufw:
         rule: allow
         port: "22"
         proto: tcp
-      when: ansible_os_family == 'Debian'
+      when: ansible_facts['os_family'] == 'Debian'
     - name: abrir el firewall para 3306
-      ufw:
+      community.general.ufw:
         rule: allow
         port: "3306"
         proto: tcp
-      when: ansible_os_family == 'Debian'
+      when: ansible_facts['os_family'] == 'Debian'
     - name: Install pip package
       ansible.builtin.package:
         name: python3-pip
         state: latest
-      when: ansible_os_family == 'RedHat'
-    - name: Install python firewall package
-      ansible.builtin.pip:
-        name: firewall
-      when: ansible_os_family == 'RedHat'
+      when: ansible_facts['os_family'] == 'RedHat'
     - name: Install python firewall package rpm
       ansible.builtin.package:
         name: python3-firewall
         state: latest
-      when: ansible_os_family == 'RedHat'
+      when: ansible_facts['os_family'] == 'RedHat'
     - name: Install Firewalld
-      package:
+      ansible.builtin.package:
         name: firewalld
         state: present
-      when: ansible_os_family == 'RedHat'
-    - name: Install Firewalld
-      service:
+      when: ansible_facts['os_family'] == 'RedHat'
+    - name: Start Firewalld
+      ansible.builtin.service:
         name: firewalld
         state: started
         enabled: true
-      when: ansible_os_family == 'RedHat'
+      when: ansible_facts['os_family'] == 'RedHat'
     - name: open SSH Port
-      firewalld:
+      ansible.posix.firewalld:
         port: 22/tcp
-        permanent: yes
+        permanent: true
         state: enabled
-      when: ansible_os_family == 'RedHat'
+      when: ansible_facts['os_family'] == 'RedHat'
     - name: open Mariadb Port
-      firewalld:
+      ansible.posix.firewalld:
         port: 3306/tcp
-        permanent: yes
+        permanent: true
         state: enabled
-      when: ansible_os_family == 'RedHat'
-    - name: Install Required pip modules
-      pip:
-        name:
-          - PyMySQL
+      when: ansible_facts['os_family'] == 'RedHat'
+    - name: Install PyMySQL (RedHat)
+      ansible.builtin.package:
+        name: python3-PyMySQL
         state: present
-        executable: pip3
-      when: ansible_os_family == 'RedHat'
+      when: ansible_facts['os_family'] == 'RedHat'
+
+    # ---------- Base de datos (colección ansible.mariadb) ----------
     - name: Set MariaDB root password for 127.0.0.1, localhost
-      mysql_user:
+      ansible.mariadb.mariadb_user:
         name: root
         password: "{{ mysql_root_password }}"
         host: "{{ item }}"
         login_user: root
         login_password: "{{ mysql_root_password }}"
-        #login_unix_socket: "{{ mariadb_socket }}"
+        login_unix_socket: "{{ mariadb_socket }}"
         state: present
       with_items:
         - 127.0.0.1
         - localhost
-      #when: check_passwd_root.rc == 0
-      #notify: Flush Priviliges
-      when: ansible_os_family == 'Debian'
+      when: ansible_facts['os_family'] == 'Debian'
     - name: Ensure root user can only login from localhost
-      mysql_user:
+      ansible.mariadb.mariadb_user:
+        login_user: root
         login_password: "{{ mysql_root_password }}"
-        check_implicit_admin: yes
+        login_unix_socket: "{{ mariadb_socket }}"
+        check_implicit_admin: true
         name: root
         host: "{{ item }}"
         password: "{{ mysql_root_password }}"
@@ -164,26 +178,25 @@
         - localhost
         - 127.0.0.1
         - ::1
-      when: ansible_os_family == 'RedHat'
+      when: ansible_facts['os_family'] == 'RedHat'
     - name: Remove all anonymous user
-      mysql_user:
+      ansible.mariadb.mariadb_user:
         login_user: root
         login_password: "{{ mysql_root_password }}"
         name: 'test'
-        host_all: yes
+        host_all: true
         state: absent
-      #notify: Flush Priviliges
     - name: Flush Priviliges
-      command: mysql -u root -p{{ mysql_root_password }} -e "FLUSH PRIVILEGES"
+      ansible.builtin.command: mysql -u root -p{{ mysql_root_password }} -e "FLUSH PRIVILEGES"
+      changed_when: false
     - name: Create Database
-      mysql_db:
+      ansible.mariadb.mariadb_db:
         name: "{{ database_name }}"
         login_user: root
         login_password: "{{ mysql_root_password }}"
         state: present
-
     - name: Create mysql User defined database
-      mysql_user:
+      ansible.mariadb.mariadb_user:
         name: "{{ database_user }}"
         password: "{{ database_password }}"
         priv: '{{ database_name }}.*:{{ mysql.privileges }}'

@@ -1,0 +1,103 @@
+---
+- name: Uninstall Databases
+  hosts: databases
+  tasks:
+    - name: gather os specific variables
+      ansible.builtin.include_vars: "{{ item }}"
+      with_first_found:
+        - "vars-{{ ansible_facts['os_family'] }}-{{ ansible_facts['distribution'] }}-{{ ansible_facts['distribution_major_version'] }}.yaml"
+        - "vars-{{ ansible_facts['os_family'] }}-{{ ansible_facts['distribution'] }}.yaml"
+        - "vars-{{ ansible_facts['os_family'] }}.yaml"
+        - vars.yaml
+      tags: vars
+
+    - name: Servicio parado y quitado de arranque
+      ansible.builtin.service:
+        name: mariadb
+        state: stopped
+        enabled: false
+      failed_when: false
+
+    - name: Reset failed state of mariadb unit
+      ansible.builtin.command: systemctl reset-failed mariadb
+      changed_when: false
+      failed_when: false
+
+    # ---------- Firewall ----------
+    - name: Cerrar el firewall para 3306 (UFW)
+      community.general.ufw:
+        rule: deny
+        port: "3306"
+        proto: tcp
+      failed_when: false
+      when: ansible_facts['os_family'] == 'Debian'
+    - name: Cerrar el firewall para 3306 (firewalld)
+      ansible.posix.firewalld:
+        port: 3306/tcp
+        permanent: true
+        immediate: true
+        state: disabled
+      failed_when: false
+      when: ansible_facts['os_family'] == 'RedHat'
+
+    # ---------- Debian / Ubuntu ----------
+    - name: Uninstall Mariadb server (Debian family)
+      ansible.builtin.apt:
+        name: "{{ mariadb_packages + ['mysql-common'] }}"
+        state: absent
+        purge: true
+        autoremove: true
+      when: ansible_facts['os_family'] == 'Debian'
+    # El purge deja /var/lib/mysql con restos (aria_log*): con el directorio no vacío la
+    # siguiente instalación no inicializa las tablas del sistema y el servicio no arranca.
+    - name: Remove MariaDB data directory (Debian family)
+      ansible.builtin.file:
+        path: /var/lib/mysql
+        state: absent
+      when: ansible_facts['os_family'] == 'Debian'
+    - name: Remove MariaDB Repository (deb822)
+      ansible.builtin.deb822_repository:
+        name: mariadb
+        state: absent
+      when: ansible_facts['os_family'] == 'Debian'
+    - name: Remove MariaDB key and legacy repo files
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ key_dest }}"
+        - /etc/apt/sources.list.d/mariadb.list
+        - /etc/apt/trusted.gpg.d/mariadb.asc
+      when: ansible_facts['os_family'] == 'Debian'
+    - name: Update repositories
+      ansible.builtin.apt:
+        update_cache: true
+      when: ansible_facts['os_family'] == 'Debian'
+
+    # ---------- RedHat family ----------
+    - name: Uninstall Mariadb server (RedHat family)
+      ansible.builtin.dnf:
+        # El repo oficial publica los RPM como MariaDB-server, MariaDB-client... (con
+        # mayúsculas), y dnf no los casa con "mariadb-server" al desinstalar.
+        name: "MariaDB-*"
+        state: absent
+        autoremove: true
+      when: ansible_facts['os_family'] == 'RedHat'
+    - name: Remove MariaDB data directory (RedHat family)
+      ansible.builtin.file:
+        path: /var/lib/mysql
+        state: absent
+      when: ansible_facts['os_family'] == 'RedHat'
+    - name: Remove MariaDB YUM Repository
+      ansible.builtin.yum_repository:
+        name: MariaDB
+        file: external_repos
+        state: absent
+      when: ansible_facts['os_family'] == 'RedHat'
+    - name: Remove MariaDB Repository Key
+      ansible.builtin.rpm_key:
+        state: absent
+        key: "{{ key_url }}"
+      failed_when: false
+      when: ansible_facts['os_family'] == 'RedHat'
+...
