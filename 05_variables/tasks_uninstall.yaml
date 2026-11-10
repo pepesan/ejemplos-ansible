@@ -31,6 +31,22 @@
         state: absent
         purge: true
         autoremove: true
+    # El purge deja /var/lib/mysql con restos (aria_log*): con el directorio no vacío la
+    # siguiente instalación no inicializa las tablas del sistema y el servicio no arranca.
+    - name: Remove MariaDB data directory
+      ansible.builtin.file:
+        path: /var/lib/mysql
+        state: absent
+    # El mariadb-server de Ubuntu (11.8.x) deja cargado en el kernel un perfil AppArmor
+    # "mariadbd" que sobrevive al purge y rompe la instalación posterior del repo oficial.
+    - name: Unload orphan AppArmor profiles
+      ansible.builtin.command: aa-remove-unknown
+      changed_when: false
+      failed_when: false
+    - name: Reset failed state of mariadb unit
+      ansible.builtin.command: systemctl reset-failed mariadb
+      changed_when: false
+      failed_when: false
     - name: Remove MariaDB Repository for {{ linux_distribution }} {{ distribution_release }}
       ansible.builtin.deb822_repository:
         name: mariadb

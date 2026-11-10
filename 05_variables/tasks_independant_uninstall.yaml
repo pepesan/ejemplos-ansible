@@ -55,6 +55,15 @@
         path: /var/lib/mysql
         state: absent
       when: ansible_facts['os_family'] == 'Debian'
+    # El paquete mariadb-server de Ubuntu (11.8.x) carga en el kernel un perfil AppArmor
+    # "mariadbd" en modo enforce que sobrevive al purge. Si luego se instala la versión del
+    # repo oficial (que trae el perfil vacío), el perfil huérfano deniega setgid/dac_override
+    # y mariadb-install-db falla con "Cannot change uid/gid (errno: 1)".
+    - name: Unload orphan AppArmor profiles (Debian family)
+      ansible.builtin.command: aa-remove-unknown
+      changed_when: false
+      failed_when: false
+      when: ansible_facts['os_family'] == 'Debian'
     - name: Remove MariaDB Repository (deb822)
       ansible.builtin.deb822_repository:
         name: mariadb
