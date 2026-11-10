@@ -53,12 +53,21 @@
         proto: tcp
         delete: true
       loop: ["80", "443"]
-    - name: Deshabilitar UFW
-      community.general.ufw:
-        state: disabled
+    # El módulo ufw lee el estado del log de "ufw status verbose", que con UFW desactivado no
+    # lo incluye: entonces siempre lo da por cambiado. Por eso se desactiva el log ANTES de
+    # deshabilitar UFW y solo si está activo; en las siguientes ejecuciones se salta.
+    - name: Comprobar si UFW está activo
+      ansible.builtin.command: ufw status
+      register: ufw_estado
+      changed_when: false
+      failed_when: false
     - name: Desactivar el log de UFW
       community.general.ufw:
         logging: 'off'
+      when: "'Status: active' in ufw_estado.stdout"
+    - name: Deshabilitar UFW
+      community.general.ufw:
+        state: disabled
     - name: Cerrar el firewall para 22
       community.general.ufw:
         rule: allow
