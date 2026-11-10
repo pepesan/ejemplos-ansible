@@ -1,0 +1,14 @@
+---
+- name: Instalación de Nano y Vim
+  hosts: ubuntu
+  #remote_user: root
+  tasks:
+    - name: Instalando los paquetes nano y vim
+      package:
+        name:
+          - nano
+          - vim
+        state: latest
+        update_cache: true
+
+...
