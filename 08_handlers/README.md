@@ -87,6 +87,19 @@ La clave está en **qué ejecución dispara handlers**:
 | Cambiando solo `mariadb_max_connections` | Un fichero | 1 vez |
 | Cambiando además `mariadb_slow_query_log` | Otro fichero | 1 vez |
 
+Con nginx pasa igual. Probado en una VM Ubuntu 26.04:
+
+| Ejecución | Qué cambia | Resultado |
+|-----------|------------|-----------|
+| `tasks.yaml` (1ª vez) | Todos los ficheros | Handlers 1 vez; nginx responde en el 8080 con `keepalive_timeout 65` |
+| `-e nginx_keepalive=30` | Solo el fichero de afinado | Handlers 1 vez; `keepalive_timeout 30` |
+| `-e nginx_port=8081` | El fichero del sitio **y** el de afinado | Handlers 1 vez; responde en el 8081 y el 8080 ya no |
+
+> **Los `-e` valen solo para su ejecución.** En la tercera fila, el `keepalive` vuelve a 65
+> (el valor de `vars.yaml`) porque esa ejecución ya no lleva `-e nginx_keepalive=30`. Por eso
+> cambian **dos** ficheros y no uno. Para conservar un valor hay que repetir el `-e` o
+> cambiarlo en `vars.yaml`.
+
 ## Requisitos
 
 - Inventario con la máquina de destino en `mi-inventario` (acceso por SSH como `root`, según
