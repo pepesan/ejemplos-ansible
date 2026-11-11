@@ -1,0 +1,34 @@
+---
+- name: Deploy MariaDB stack with Docker Compose
+  hosts: docker
+  tasks:
+    # Directorio en el servidor para el despliegue de MariaDB con Compose
+    - name: Create deployment directory for MariaDB compose
+      ansible.builtin.file:
+        path: /home/alumno/deploy-mariadb
+        state: directory
+        owner: alumno
+        group: alumno
+        mode: '0755'
+
+    # Copia el fichero compose.mariadb.yaml desde ../files
+    - name: Copy MariaDB Docker Compose file
+      ansible.builtin.copy:
+        src: ../files/compose.mariadb.yaml
+        dest: /home/alumno/deploy-mariadb/compose.mariadb.yaml
+        owner: alumno
+        group: alumno
+        mode: '0644'
+
+    # Levanta la pila MariaDB (+ Adminer) con Docker Compose v2
+    - name: Deploy MariaDB stack with Docker Compose
+      community.docker.docker_compose_v2:
+        project_src: /home/alumno/deploy-mariadb
+        files:
+          - compose.mariadb.yaml
+        state: present
+      register: output
+
+    - name: Show Docker Compose deployment result
+      ansible.builtin.debug:
+        var: output

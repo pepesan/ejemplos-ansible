@@ -1,0 +1,26 @@
+services:
+  mariadb:
+    image: mariadb:latest
+    container_name: mariadb-compose
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: rootpassword
+      MARIADB_DATABASE: ejemplo_db
+      MARIADB_USER: dbuser
+      MARIADB_PASSWORD: dbpassword
+    ports:
+      - "3306:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+
+  adminer:
+    image: adminer:latest
+    container_name: adminer-compose
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mariadb
+
+volumes:
+  mariadb_data: {}

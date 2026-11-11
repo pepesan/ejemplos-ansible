@@ -1,0 +1,35 @@
+---
+- name: Undeploy MariaDB stack with Docker Compose
+  hosts: docker
+  tasks:
+    # Asegura que el directorio del despliegue existe
+    - name: Ensure deployment directory exists
+      ansible.builtin.file:
+        path: /home/alumno/deploy-mariadb
+        state: directory
+        owner: alumno
+        group: alumno
+        mode: '0755'
+
+    # Asegura que el fichero de compose esté presente para gestionar la parada
+    - name: Copy MariaDB Docker Compose file
+      ansible.builtin.copy:
+        src: ../files/compose.mariadb.yaml
+        dest: /home/alumno/deploy-mariadb/compose.mariadb.yaml
+        owner: alumno
+        group: alumno
+        mode: '0644'
+
+    # Para los servicios del compose de MariaDB (docker compose stop)
+    # Cambiar a state: absent si se desea eliminar contenedores y redes (docker compose down)
+    - name: Stop MariaDB Docker Compose services
+      community.docker.docker_compose_v2:
+        project_src: /home/alumno/deploy-mariadb
+        files:
+          - compose.mariadb.yaml
+        state: stopped
+      register: output
+
+    - name: Show Docker Compose stop result
+      ansible.builtin.debug:
+        var: output

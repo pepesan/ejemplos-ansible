@@ -1,0 +1,21 @@
+---
+- name: Undeploy MariaDB docker container
+  hosts: docker
+  tasks:
+    # state: absent para y elimina el contenedor.
+    - name: Destroy MariaDB docker container
+      community.docker.docker_container:
+        name: mariadb
+        state: absent
+
+    # Elimina el volumen persistente (se pierden los datos).
+    - name: Destroy MariaDB volume
+      community.docker.docker_volume:
+        name: mariadb-data-volume
+        state: absent
+
+    # Elimina la imagen descargada de MariaDB.
+    - name: Destroy MariaDB image
+      community.docker.docker_image:
+        name: mariadb:latest
+        state: absent

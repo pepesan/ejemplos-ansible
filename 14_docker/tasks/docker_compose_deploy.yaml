@@ -1,9 +1,10 @@
 ---
-- hosts: docker
+- name: Deploy WordPress stack with Docker Compose
+  hosts: docker
   tasks:
-    # Directorio del servidor donde se dejará el docker-compose.yaml.
+    # Directorio del servidor donde se dejará el compose.yaml.
     - name: Create a directory if it does not exist
-      file:
+      ansible.builtin.file:
         path: /home/alumno/deploy
         state: directory
         owner: alumno
@@ -11,23 +12,24 @@
         mode: '0755'
     # Copia el fichero de compose desde ../files. Con loop se podrían copiar más ficheros añadiéndolos a la lista.
     - name: copy Docker Compose files
-      copy:
+      ansible.builtin.copy:
         src: ../files/{{ item }}
         dest: /home/alumno/deploy/{{ item }}
         owner: alumno
         group: alumno
         mode: '0744'
       loop:
-        - docker-compose.yaml
+        - compose.yaml
     # Levanta los servicios definidos en el compose (equivalente a docker compose up -d). docker_compose_v2 usa el plugin 'docker compose';
     # el antiguo módulo docker_compose (docker-compose v1) ya no existe.
     - name: deploy Docker Compose stack
       community.docker.docker_compose_v2:
         project_src: /home/alumno/deploy
+        files:
+          - compose.yaml
         state: present
       register: output
     # Muestra el resultado completo de la tarea anterior.
     - name: show debug
       ansible.builtin.debug:
         var: output
-...

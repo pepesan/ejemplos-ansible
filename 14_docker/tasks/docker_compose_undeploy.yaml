@@ -1,9 +1,10 @@
 ---
-- hosts: docker
+- name: Undeploy WordPress stack with Docker Compose
+  hosts: docker
   tasks:
     # Se asegura de que existe el directorio del despliegue.
     - name: Create a directory if it does not exist
-      file:
+      ansible.builtin.file:
         path: /home/alumno/deploy
         state: directory
         owner: alumno
@@ -11,22 +12,24 @@
         mode: '0755'
     # Deja el compose en el servidor para poder pararlo.
     - name: copy Docker Compose files
-      copy:
+      ansible.builtin.copy:
         src: ../files/{{ item }}
         dest: /home/alumno/deploy/{{ item }}
         owner: alumno
         group: alumno
         mode: '0744'
       loop:
-        - docker-compose.yaml
+        - compose.yaml
     # state: stopped para los contenedores sin eliminarlos (docker compose stop).
+    # Cambiar a state: absent si se desea eliminar contenedores y redes (docker compose down).
     - name: Stop all services
       community.docker.docker_compose_v2:
         project_src: /home/alumno/deploy
+        files:
+          - compose.yaml
         state: stopped
       register: output
     # Muestra el resultado de la tarea anterior.
     - name: show debug
       ansible.builtin.debug:
         var: output
-...

@@ -1,0 +1,32 @@
+---
+- name: Deploy MariaDB docker container
+  hosts: docker
+  tasks:
+    # source: pull descarga la imagen de MariaDB del registro oficial.
+    - name: Pull MariaDB image
+      community.docker.docker_image:
+        name: mariadb:latest
+        source: pull
+
+    # Volumen persistente para los datos de la base de datos (/var/lib/mysql).
+    - name: Create a volume for MariaDB data
+      community.docker.docker_volume:
+        name: mariadb-data-volume
+        state: present
+
+    # Crea y arranca el contenedor de MariaDB con volumen persistente y puerto 3306.
+    - name: Deploy MariaDB docker container with volume and ports
+      community.docker.docker_container:
+        name: mariadb
+        image: mariadb:latest
+        state: started
+        restart_policy: unless-stopped
+        ports:
+          - "3306:3306"
+        volumes:
+          - "mariadb-data-volume:/var/lib/mysql:rw"
+        env:
+          MARIADB_ROOT_PASSWORD: "rootpassword"
+          MARIADB_DATABASE: "ejemplo_db"
+          MARIADB_USER: "dbuser"
+          MARIADB_PASSWORD: "dbpassword"
