@@ -1,102 +1,91 @@
 ---
-- name: Instalación desde cero de Docker
+- name: Install Docker Engine from Docker's Ubuntu repository
   hosts: ubuntu
-  #hosts: localhost # ejecución en local
-  #connection: local
+  become: true
   vars:
-    docker_ubuntu_codename: "{{ ansible_lsb.codename }}"
+    docker_ubuntu_codename: "{{ ansible_facts['distribution_release'] }}"
+    docker_apt_keyring: /etc/apt/keyrings/docker-13-example.asc
+    docker_apt_source_file: /etc/apt/sources.list.d/docker-13-example.sources
+    docker_packages:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
   tasks:
-    - name: Remove Docker packages
-      package:
-        name: "{{item}}"
-        state: absent
-      loop: ['docker', 'docker-engine', 'docker-doc', 'docker.io', 'containerd', 'runc', 'docker-compose-plugin', 'docker-compose', 'docker-compose-v2', 'podman-docker']
-    - name: Install required system packages
-      package:
-        name: 
-          - 'apt-transport-https'
-          - 'ca-certificates'
-          - 'curl'
-          - 'software-properties-common'
-          - 'python3-pip'
-          - 'virtualenv'
-          - 'python3-setuptools'
-          - 'gnupg'
-          - 'lsb-release'
-        state: present
-        update_cache: yes
-      #loop: [ 'apt-transport-https', 'ca-certificates', 'curl', 'software-properties-common',
-      #'python3-pip', 'virtualenv', 'python3-setuptools', 'gnupg', 'lsb-release']
-    - name: Asegurar módulos de kernel necesarios
-      modprobe:
-        name: "{{ item }}"
-        state: present
-      loop:
-        - overlay
-        - br_netfilter
+    # assert corta el playbook pronto si el sistema no es el esperado (Ubuntu 26.04), antes de tocar nada.
+    - name: Require supported Ubuntu release
+      ansible.builtin.assert:
+        that:
+          - ansible_facts['distribution'] == 'Ubuntu'
+          - docker_ubuntu_codename == 'resolute'
+        fail_msg: This example supports Ubuntu 26.04 Resolute only.
 
-    - name: Configurar sysctl para Docker
-      sysctl:
-        name: "{{ item.key }}"
-        value: "{{ item.value }}"
-        sysctl_set: yes
+    # update_cache actualiza el índice de paquetes. changed_when: false porque refrescar no es un cambio real.
+    - name: Refresh Ubuntu APT metadata
+      ansible.builtin.apt:
+        update_cache: true
+      changed_when: false
+
+    # ca-certificates y curl hacen falta para descargar la clave del repositorio por HTTPS.
+    - name: Install Docker repository prerequisites
+      ansible.builtin.apt:
+        name:
+          - ca-certificates
+          - curl
         state: present
-        reload: yes
-      loop:
-        - { key: net.ipv4.ip_forward, value: 1 }
-        - { key: net.bridge.bridge-nf-call-iptables, value: 1 }
-    - name: Add Docker GPG apt Key
+
+    # Directorio estándar de APT para guardar claves de repositorios.
+    - name: Create APT keyrings directory
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    # get_url descarga la clave GPG con la que APT verificará los paquetes de Docker.
+    - name: Install Docker repository signing key
       ansible.builtin.get_url:
         url: https://download.docker.com/linux/ubuntu/gpg
-        dest: /etc/apt/trusted.gpg.d/docker.asc
+        dest: "{{ docker_apt_keyring }}"
         mode: '0644'
-        force: true
-    - name: Add Docker Repository
-      apt_repository:
-        repo: "deb [arch=amd64 signed-by=/etc/apt/trusted.gpg.d/docker.asc] https://download.docker.com/linux/ubuntu {{ docker_ubuntu_codename }} stable"
-        state: present
-    - name: Install Docker packages
-      apt:
-        name: "{{ item }}"
-        state: present
-        update_cache: yes
-      loop: [ 'docker-ce', 'docker-ce-cli', 'containerd.io','docker-compose-plugin', 'docker-buildx-plugin']
-    - name: Ensure docker service is started and enabled
-      service:
-        name: docker
-        enabled: yes
-        state: started
-    - name: Ensure containerd service is started and enabled
-      service:
-        name: containerd
-        enabled: yes
-        state: started
-    - name: Install Docker Module for Python
-      package:
-        name: python3-docker
-        state: present
-        # update_cache: yes
 
-    - name: Ensure docker group exists
-      ansible.builtin.group:
+    # Define el repositorio oficial de Docker en formato deb822 (.sources). Signed-By enlaza el repositorio con su clave.
+    - name: Configure Docker APT repository
+      ansible.builtin.copy:
+        dest: "{{ docker_apt_source_file }}"
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          Types: deb
+          URIs: https://download.docker.com/linux/ubuntu
+          Suites: {{ docker_ubuntu_codename }}
+          Components: stable
+          Architectures: amd64
+          Signed-By: {{ docker_apt_keyring }}
+
+    # Hay que actualizar de nuevo el índice para que APT conozca los paquetes del repositorio recién añadido.
+    - name: Refresh APT metadata for the Docker repository
+      ansible.builtin.apt:
+        update_cache: true
+      changed_when: false
+
+    # Instala la lista docker_packages (motor, CLI, containerd, buildx y compose) en una sola llamada a apt.
+    - name: Install Docker Engine and supported plugins
+      ansible.builtin.apt:
+        name: "{{ docker_packages }}"
+        state: present
+
+    # enabled: arranca al iniciar el sistema; state: started lo arranca ahora si no lo estaba.
+    - name: Ensure Docker service is enabled and running
+      ansible.builtin.service:
         name: docker
-        state: present
-    - name: Asegurar que existe el grupo 'alumno'
-      ansible.builtin.group:
-        name: alumno
-        state: present
-    - name: Ensure the user 'alumno' with a bash shell, appending the group 'docker' and 'alumno' to the user's groups
-      ansible.builtin.user:
-        name: alumno
-        shell: /bin/bash
-        state: present
-        groups: alumno,docker
-        append: yes
-        create_home: yes
-        password: '$6$GtOo2iAaz.UZjFbm$H5CeKE3JAKUhh4WaW0ALGEKFRmqI5SgKBsFqrpBOHyEALdARH1a/ynmj9Tdz6KIBhh11GLH2Om4H1xH1bLQMm1'
-    - name: Comprobar versión de Docker
-      command: docker --version
-      register: docker_version
-    - debug:
-        var: docker_version.stdout
-...
+        enabled: true
+        state: started
+
+    # Lo mismo para containerd, el runtime sobre el que funciona Docker.
+    - name: Ensure containerd service is enabled and running
+      ansible.builtin.service:
+        name: containerd
+        enabled: true
+        state: started

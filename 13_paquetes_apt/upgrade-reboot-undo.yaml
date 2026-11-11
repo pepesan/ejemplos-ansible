@@ -1,0 +1,20 @@
+---
+# Restores the exact pre-upgrade LXD VM snapshot created by upgrade-reboot.yaml.
+# This replaces all VM state since that snapshot; run only when rollback is intended.
+- name: Restore the VM to its pre-upgrade state
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    lxd_instance_name: lxd-vm-auto
+    lxd_upgrade_snapshot: ansible-13-before-upgrade
+  tasks:
+    # lxc restore devuelve la VM exactamente al estado de la snapshot. changed_when: true porque command no informa de cambios.
+    - name: Restore the VM snapshot
+      ansible.builtin.command:
+        argv:
+          - lxc
+          - restore
+          - "{{ lxd_instance_name }}"
+          - "{{ lxd_upgrade_snapshot }}"
+      changed_when: true

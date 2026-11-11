@@ -1,27 +1,116 @@
 ---
-- name: Instalación desde cero de Docker
-  hosts: localhost  # ejecución en local
-  connection: local
-  become: yes  # ← esto activa sudo
-  # deberás ejecutar el playbook con --ask-become-pass para que te pida la contraseña de sudo
+- name: Crear cuenta de ejemplo en Ubuntu
+  hosts: ubuntu
+  remote_user: root
   vars:
     nombre_usuario: "juan"
     contrasena_clara: "mipassword"
+    grupo_administrador: "sudo"
+    clave_privada: "{{ lookup('env', 'HOME') }}/.ssh/id_ed25519_13_paquetes_apt"
+    estado_dir: /var/lib/ansible-example-account-juan
+    directorio_ssh_control: "{{ lookup('env', 'HOME') }}/.ssh"
+  pre_tasks:
+    # Guarda en el servidor, con permisos 0700, lo que hace falta para poder deshacer el ejemplo después.
+    - name: Crear directorio de estado para la reversión
+      ansible.builtin.file:
+        path: "{{ estado_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+    # getent consulta el grupo sin modificar nada. failed_when: false evita que falle si no existe (rc distinto de 0).
+    # El resultado se usa para saber si el grupo es nuestro o ya estaba antes.
+    - name: Comprobar si ya existía el grupo primario juan
+      ansible.builtin.command:
+        argv: [getent, group, "{{ nombre_usuario }}"]
+      register: grupo_preexistente
+      changed_when: false
+      failed_when: false
+    # force: false escribe el fichero solo la primera vez: así una segunda ejecución no sobrescribe el estado original.
+    - name: Registrar si el grupo primario lo creó este ejemplo
+      ansible.builtin.copy:
+        content: "{{ 'preexisting' if grupo_preexistente.rc == 0 else 'owned' }}\n"
+        dest: "{{ estado_dir }}/primary-group"
+        force: false
+        mode: "0600"
+    # delegate_to: localhost ejecuta la tarea en el equipo de control, no en el servidor. become: false evita usar sudo ahí.
+    - name: Crear directorio SSH del controlador
+      ansible.builtin.file:
+        path: "{{ directorio_ssh_control }}"
+        state: directory
+        mode: "0700"
+      delegate_to: localhost
+      become: false
+    # creates: la tarea se salta si la clave ya existe, así que no se regenera (idempotencia en command).
+    # -N "" crea la clave sin contraseña.
+    - name: Generar clave Ed25519 en el controlador
+      ansible.builtin.command:
+        argv:
+          - ssh-keygen
+          - -q
+          - -t
+          - ed25519
+          - -N
+          - ""
+          - -f
+          - "{{ clave_privada }}"
+      args:
+        creates: "{{ clave_privada }}"
+      delegate_to: localhost
+      become: false
+    # ssh rechaza claves privadas legibles por otros usuarios: 0600.
+    - name: Ajustar permisos de la clave privada
+      ansible.builtin.file:
+        path: "{{ clave_privada }}"
+        mode: "0600"
+      delegate_to: localhost
+      become: false
+    # La clave pública sí puede ser legible: 0644.
+    - name: Ajustar permisos de la clave pública
+      ansible.builtin.file:
+        path: "{{ clave_privada }}.pub"
+        mode: "0644"
+      delegate_to: localhost
+      become: false
   tasks:
-    # para que funcione esto debes tener instalado el paquete python3-passlib con apt en el host de control
-    - name: Generar hash de la contraseña
-      ansible.builtin.set_fact:
-        contrasena_hash: "{{ contrasena_clara | password_hash('sha512') }}"
-
+    # user crea el usuario. append: true añade el grupo sudo sin quitarle los que ya tuviera.
+    # password_hash genera el hash sha512 (nunca se guarda la contraseña en claro en el servidor).
+    # no_log: true oculta la tarea en la salida para que no se filtre el hash.
     - name: Crear el usuario y añadirlo al grupo sudo
       ansible.builtin.user:
         name: "{{ nombre_usuario }}"
-        groups: sudo
-        append: yes
+        groups: "{{ grupo_administrador }}"
+        append: true
         shell: /bin/bash
-        password: "{{ contrasena_hash }}"
+        password: "{{ contrasena_clara | password_hash('sha512', 'demosalt13') }}"
         state: present
-        create_home: yes
-
+        create_home: true
+      no_log: true
+    # authorized_key añade la clave a ~/.ssh/authorized_keys del usuario. lookup('file') lee la clave
+    # pública en el equipo de control.
+    - name: Autorizar la clave pública del controlador para el usuario
+      ansible.posix.authorized_key:
+        user: "{{ nombre_usuario }}"
+        state: present
+        key: "{{ lookup('file', clave_privada + '.pub') }}"
+    # Prueba real: entra por SSH como juan con la clave y ejecuta id. BatchMode=yes evita preguntar contraseña;
+    # changed_when: false porque solo comprueba y no cambia nada.
+    - name: Verificar acceso SSH del controlador como el usuario
+      ansible.builtin.command:
+        argv:
+          - ssh
+          - -i
+          - "{{ clave_privada }}"
+          - -o
+          - BatchMode=yes
+          - -o
+          - IdentitiesOnly=yes
+          - -o
+          - StrictHostKeyChecking=accept-new
+          - "{{ nombre_usuario }}@{{ hostvars[inventory_hostname].ansible_host | default(inventory_hostname) }}"
+          - id
+      delegate_to: localhost
+      become: false
+      changed_when: false
 
 ...

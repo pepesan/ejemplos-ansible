@@ -1,0 +1,125 @@
+---
+- name: Revertir la instalación de escritorio XRDP de este ejemplo
+  hosts: ubuntu
+  vars:
+    xrdp_state_dir: /var/lib/ansible-xrdp-example
+  tasks:
+    # loop sobre xrdp y desktop: comprueba si existen los marcadores de propiedad. Con register en un loop se guarda
+    # una lista 'results' (results[0] es xrdp, results[1] es desktop).
+    - name: Comprobar marcadores de propiedad de paquetes
+      ansible.builtin.stat:
+        path: "{{ xrdp_state_dir }}/{{ item }}"
+      loop: [xrdp, desktop]
+      register: package_markers
+    # Lee el contenido de los dos marcadores (owned o preexisting); solo si existen ambos.
+    - name: Leer marcadores de propiedad
+      ansible.builtin.slurp:
+        src: "{{ xrdp_state_dir }}/{{ item }}"
+      loop: [xrdp, desktop]
+      register: package_marker_contents
+      when: package_markers.results[0].stat.exists and package_markers.results[1].stat.exists
+    # Solo si el paquete era 'owned' (lo instaló el ejemplo). b64decode | trim limpia el texto leído con slurp.
+    - name: Detener y deshabilitar el servicio XRDP si lo instaló este playbook
+      ansible.builtin.service:
+        name: xrdp
+        state: stopped
+        enabled: false
+      when: >-
+        package_markers.results[0].stat.exists and
+        (package_marker_contents.results[0].content | b64decode | trim) == 'owned'
+    # purge: true elimina también su configuración.
+    - name: Eliminar paquete XRDP solo si lo instaló este playbook
+      ansible.builtin.apt:
+        name: xrdp
+        purge: true
+      when: >-
+        package_markers.results[0].stat.exists and
+        (package_marker_contents.results[0].content | b64decode | trim) == 'owned'
+    # Igual con ubuntu-desktop: un escritorio preexistente nunca se toca.
+    - name: Eliminar escritorio solo si lo instaló este playbook
+      ansible.builtin.apt:
+        name: ubuntu-desktop
+        state: absent
+      when: >-
+        package_markers.results[1].stat.exists and
+        (package_marker_contents.results[1].content | b64decode | trim) == 'owned'
+    # Solo se modifica el cortafuegos si está activo.
+    - name: Comprobar estado de UFW
+      ansible.builtin.command: ufw status
+      register: ufw_status
+      changed_when: false
+      failed_when: false
+    # Marcador creado en la instalación.
+    - name: Comprobar si esta instalación añadió la regla de RDP
+      ansible.builtin.stat:
+        path: "{{ xrdp_state_dir }}/ufw-rule-owned"
+      register: ufw_rule_owned
+    # Se borra la regla solo si la añadió el ejemplo y UFW está activo. --force evita la pregunta interactiva.
+    - name: Cerrar únicamente la regla RDP añadida por este ejemplo
+      ansible.builtin.command: ufw --force delete allow 3389/tcp
+      when:
+        - ufw_rule_owned.stat.exists
+        - "'Status: active' in ufw_status.stdout"
+      changed_when: true
+    # Recupera si el servicio estaba activo y habilitado antes de instalar.
+    - name: Leer estado previo del servicio XRDP
+      ansible.builtin.slurp:
+        src: "{{ xrdp_state_dir }}/{{ item }}"
+      loop: [service-active, service-enabled]
+      register: service_marker_contents
+      when: package_markers.results[0].stat.exists
+    # Si xrdp ya estaba instalado, se deja como estaba (habilitado o no).
+    - name: Restaurar habilitación previa de XRDP si el paquete ya existía
+      ansible.builtin.service:
+        name: xrdp
+        enabled: "{{ (service_marker_contents.results[1].content | b64decode | trim) == 'enabled' }}"
+      when:
+        - package_markers.results[0].stat.exists
+        - (package_marker_contents.results[0].content | b64decode | trim) == 'preexisting'
+    # Igual con el estado de ejecución (started o stopped).
+    - name: Restaurar estado previo de ejecución de XRDP si el paquete ya existía
+      ansible.builtin.service:
+        name: xrdp
+        state: "{{ 'started' if (service_marker_contents.results[0].content | b64decode | trim) == 'active' else 'stopped' }}"
+      when:
+        - package_markers.results[0].stat.exists
+        - (package_marker_contents.results[0].content | b64decode | trim) == 'preexisting'
+    # Determina si startwm.sh existía antes de la instalación.
+    - name: Comprobar el marcador del archivo startwm previo
+      ansible.builtin.stat:
+        path: "{{ xrdp_state_dir }}/startwm"
+      register: startwm_marcador
+    # Lee 'present' o 'absent'.
+    - name: Leer el marcador del archivo startwm previo
+      ansible.builtin.slurp:
+        src: "{{ xrdp_state_dir }}/startwm"
+      register: startwm_marcador_contenido
+      when: startwm_marcador.stat.exists
+    # ¿Se guardó una copia del original?
+    - name: Consultar si hay copia previa de startwm
+      ansible.builtin.stat:
+        path: "{{ xrdp_state_dir }}/startwm.original"
+      register: startwm_backup
+    # Si hay copia, se devuelve el startwm original.
+    - name: Restaurar startwm previo
+      ansible.builtin.copy:
+        src: "{{ xrdp_state_dir }}/startwm.original"
+        dest: /etc/xrdp/startwm.sh
+        remote_src: true
+        owner: root
+        group: root
+        mode: preserve
+      when: startwm_backup.stat.exists
+    # Si no existía antes, se borra el nuestro.
+    - name: Eliminar startwm personalizado si no había archivo anterior
+      ansible.builtin.file:
+        path: /etc/xrdp/startwm.sh
+        state: absent
+      when:
+        - startwm_marcador.stat.exists
+        - (startwm_marcador_contenido.content | b64decode | trim) == 'absent'
+    # Limpia los datos de reversión.
+    - name: Eliminar estado de reversión de este ejemplo
+      ansible.builtin.file:
+        path: "{{ xrdp_state_dir }}"
+        state: absent

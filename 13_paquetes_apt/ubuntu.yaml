@@ -1,83 +1,85 @@
 ---
-- hosts: ubuntu
+- name: Configure Ubuntu 26.04 Resolute APT repositories
+  hosts: ubuntu
+  become: true
+  vars:
+    ubuntu_codename: "{{ ansible_facts['distribution_release'] }}"
+    ubuntu_components: main restricted universe multiverse
+    ubuntu_sources_file: /etc/apt/sources.list.d/ubuntu.sources
+    ubuntu_example_sources_file: /etc/apt/sources.list.d/ubuntu-resolute-example.sources
+    ubuntu_example_sources: /var/lib/ansible-ubuntu-resolute-example
   tasks:
-    - name: Add specified repository into sources list
-      ansible.builtin.apt_repository:
-        repo: deb http://archive.ubuntu.com/ubuntu focal main restricted
-        state: present
-    - name: Remove specified repository from sources list
-      ansible.builtin.apt_repository:
-        repo: deb-src http://archive.ubuntu.com/ubuntu focal main restricted
+    # Verifica distribución y versión antes de reescribir los repositorios.
+    - name: Require Ubuntu 26.04 Resolute
+      ansible.builtin.assert:
+        that:
+          - ansible_facts['distribution'] == 'Ubuntu'
+          - ubuntu_codename == 'resolute'
+        fail_msg: This example configures Ubuntu 26.04 Resolute only.
+
+    # Directorio 0700 donde se guarda el original para poder restaurarlo exactamente.
+    - name: Create private state directory for exact rollback
+      ansible.builtin.file:
+        path: "{{ ubuntu_example_sources }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0700'
+
+    # stat: se anota si el fichero estándar de repositorios existe.
+    - name: Check whether the stock deb822 source file exists
+      ansible.builtin.stat:
+        path: "{{ ubuntu_sources_file }}"
+      register: ubuntu_sources_before
+
+    # Copia remota (remote_src) del original. force: false: solo se guarda la primera vez.
+    - name: Back up the original deb822 source file once
+      ansible.builtin.copy:
+        src: "{{ ubuntu_sources_file }}"
+        dest: "{{ ubuntu_example_sources }}/ubuntu.sources.original"
+        remote_src: true
+        force: false
+        mode: preserve
+      when: ubuntu_sources_before.stat.exists
+
+    # Se anota si existía, para decidir al deshacer si hay que restaurarlo.
+    - name: Record whether the stock source file existed
+      ansible.builtin.copy:
+        content: "{{ 'present' if ubuntu_sources_before.stat.exists else 'absent' }}\n"
+        dest: "{{ ubuntu_example_sources }}/ubuntu.sources.state"
+        force: false
+        mode: '0600'
+
+    # Se quita el fichero estándar para no duplicar repositorios con los del ejemplo.
+    - name: Remove stock deb822 sources while the example's sources are active
+      ansible.builtin.file:
+        path: "{{ ubuntu_sources_file }}"
         state: absent
-    - name: Add specified repository into sources list
-      ansible.builtin.apt_repository:
-        repo: deb http://archive.ubuntu.com/ubuntu focal-updates main restricted
-        state: present
-    - name: Remove specified repository from sources list
-      ansible.builtin.apt_repository:
-        repo: deb-src http://archive.ubuntu.com/ubuntu focal-updates main restricted
-        state: absent
-    - name: Add specified repository into sources list
-      ansible.builtin.apt_repository:
-        repo: deb http://archive.ubuntu.com/ubuntu focal universe
-        state: present
-    - name: Remove specified repository from sources list
-      ansible.builtin.apt_repository:
-        repo: deb-src http://archive.ubuntu.com/ubuntu focal universe
-        state: absent
-    - name: Add specified repository into sources list
-      ansible.builtin.apt_repository:
-        repo: deb http://archive.ubuntu.com/ubuntu focal multiverse
-        state: present
-    - name: Remove specified repository from sources list
-      ansible.builtin.apt_repository:
-        repo: deb-src http://archive.ubuntu.com/ubuntu focal multiverse
-        state: absent
-    - name: Add specified repository into sources list
-      ansible.builtin.apt_repository:
-        repo: deb http://archive.ubuntu.com/ubuntu focal-backports main restricted universe multiverse
-        state: present
-    - name: Remove specified repository from sources list
-      ansible.builtin.apt_repository:
-        repo: deb-src http://archive.ubuntu.com/ubuntu focal-backports main restricted universe multiverse
-        state: absent
-    - name: Add specified repository into sources list
-      ansible.builtin.apt_repository:
-        repo:  deb http://archive.canonical.com/ubuntu focal partner
-        state: absent
-    - name: Remove specified repository from sources list
-      ansible.builtin.apt_repository:
-        repo:  deb-src http://archive.canonical.com/ubuntu focal partner
-        state: absent
-    - name: Add specified repository into sources list
-      ansible.builtin.apt_repository:
-        repo: deb http://security.ubuntu.com/ubuntu focal-security main restricted
-        state: present
-    - name: Remove specified repository from sources list
-      ansible.builtin.apt_repository:
-        repo: deb-src http://security.ubuntu.com/ubuntu focal-security main restricted
-        state: absent
-    - name: Add specified repository into sources list
-      ansible.builtin.apt_repository:
-        repo: deb http://security.ubuntu.com/ubuntu focal-security universe
-        state: present
-    - name: Remove specified repository from sources list
-      ansible.builtin.apt_repository:
-        repo: deb-src http://security.ubuntu.com/ubuntu focal-security universe
-        state: absent
-    - name: Add specified repository into sources list
-      ansible.builtin.apt_repository:
-        repo: deb http://security.ubuntu.com/ubuntu focal-security multiverse
-        state: present
-    - name: Remove specified repository from sources list
-      ansible.builtin.apt_repository:
-        repo: deb-src http://security.ubuntu.com/ubuntu focal-security multiverse
-        state: absent
-    - name: Add nginx stable repository from PPA and install its signing key on Ubuntu target
-      ansible.builtin.apt_repository:
-        repo: ppa:nginx/stable
-    - name: Remove nginx stable repository from PPA and install its signing key on Ubuntu target
-      ansible.builtin.apt_repository:
-        repo: ppa:nginx/stable
-        state: absent
-...
+      when: ubuntu_sources_before.stat.exists
+
+    # Crea un fichero deb822 con repositorios principal y de seguridad. Las variables {{ }} se rellenan con
+    # el codename y los componentes definidos en vars.
+    - name: Configure Ubuntu 26.04 archive repositories
+      ansible.builtin.copy:
+        dest: "{{ ubuntu_example_sources_file }}"
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          Types: deb
+          URIs: http://archive.ubuntu.com/ubuntu
+          Suites: {{ ubuntu_codename }} {{ ubuntu_codename }}-updates {{ ubuntu_codename }}-backports
+          Components: {{ ubuntu_components }}
+          Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+
+          Types: deb
+          URIs: http://security.ubuntu.com/ubuntu
+          Suites: {{ ubuntu_codename }}-security
+          Components: {{ ubuntu_components }}
+          Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+
+    # Actualiza el índice con los nuevos repositorios (changed_when: false: no cuenta como cambio).
+    - name: Refresh APT cache from Ubuntu 26.04 repositories
+      ansible.builtin.apt:
+        update_cache: true
+      changed_when: false

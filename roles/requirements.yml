@@ -15,5 +15,7 @@ roles:
     version: "5.4.1"
 
 collections:
+  - name: ansible.posix
+    version: ">=1.5.0"
   - name: community.docker
     version: ">=3.10.0"

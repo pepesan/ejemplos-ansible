@@ -1,22 +1,56 @@
 ---
-- name: Instalación desde cero de Docker
-  hosts: ubuntu
-  #hosts: localhost # ejecución en local
-  #connection: local
+- name: Snapshot the LXD VM before the system upgrade
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    lxd_instance_name: lxd-vm-auto
+    lxd_upgrade_snapshot: ansible-13-before-upgrade
   tasks:
-    - name: Actualizar caché de paquetes APT
-      apt:
-        update_cache: yes
+    # Primero borra la snapshot de una ejecución anterior para poder volver a crearla con el mismo nombre.
+    # failed_when: false: si no existía, no es un error.
+    - name: Remove the previous snapshot owned by this example
+      ansible.builtin.command:
+        argv:
+          - lxc
+          - delete
+          - --force
+          - "{{ lxd_instance_name }}/{{ lxd_upgrade_snapshot }}"
+      register: old_snapshot
+      changed_when: old_snapshot.rc == 0
+      failed_when: false
+
+    # lxc snapshot crea un punto de restauración de la VM antes de actualizar (se ejecuta en localhost, no en la VM).
+    - name: Create a rollback snapshot of the VM
+      ansible.builtin.command:
+        argv:
+          - lxc
+          - snapshot
+          - "{{ lxd_instance_name }}"
+          - "{{ lxd_upgrade_snapshot }}"
+      changed_when: true
+
+- name: Update Ubuntu and reboot only when packages changed
+  hosts: ubuntu
+  become: true
+  tasks:
+    # Refresca el índice solo si tiene más de 1 hora (cache_valid_time).
+    - name: Update APT package cache
+      ansible.builtin.apt:
+        update_cache: true
         cache_valid_time: 3600
 
-    - name: Instalar actualizaciones de seguridad y de sistema
-      apt:
+    # upgrade: dist hace un dist-upgrade (puede instalar o quitar paquetes si hace falta). register guarda si cambió algo.
+    - name: Install available distribution upgrades
+      ansible.builtin.apt:
         upgrade: dist
       register: upgrade_result
 
-    - name: Reiniciar el servidor si se han instalado actualizaciones
-      reboot:
-        reboot_timeout: 600       # espera hasta 10 minutos para que arranque
-        pre_reboot_delay: 0       # sin espera antes del reinicio
-        post_reboot_delay: 60     # espera 30 s tras el reinicio
+    # El módulo reboot reinicia y espera a que la máquina vuelva. Solo se ejecuta si la actualización cambió algo
+    # (when: upgrade_result.changed): así no se reinicia sin necesidad.
+    - name: Reboot after a package upgrade
+      ansible.builtin.reboot:
+        reboot_timeout: 600
+        pre_reboot_delay: 0
+        post_reboot_delay: 30
       when: upgrade_result.changed

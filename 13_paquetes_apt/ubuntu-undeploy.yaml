@@ -1,0 +1,60 @@
+---
+- name: Restore the APT source state from before ubuntu.yaml
+  hosts: ubuntu
+  become: true
+  vars:
+    ubuntu_codename: "{{ ansible_facts['distribution_release'] }}"
+    ubuntu_sources_file: /etc/apt/sources.list.d/ubuntu.sources
+    ubuntu_example_sources_file: /etc/apt/sources.list.d/ubuntu-resolute-example.sources
+    ubuntu_example_sources: /var/lib/ansible-ubuntu-resolute-example
+  tasks:
+    # Solo restaura en Ubuntu 26.04.
+    - name: Require Ubuntu 26.04 Resolute
+      ansible.builtin.assert:
+        that:
+          - ansible_facts['distribution'] == 'Ubuntu'
+          - ubuntu_codename == 'resolute'
+        fail_msg: This example restores only Ubuntu 26.04 Resolute source state.
+
+    # Quita el fichero de repositorios creado por ubuntu.yaml.
+    - name: Remove the deb822 repository file created by the example
+      ansible.builtin.file:
+        path: "{{ ubuntu_example_sources_file }}"
+        state: absent
+
+    # Comprueba si hay estado guardado; si no, no hay nada que restaurar.
+    - name: Check whether the original source file was backed up
+      ansible.builtin.stat:
+        path: "{{ ubuntu_example_sources }}/ubuntu.sources.state"
+      register: source_state_marker
+
+    # slurp lee si el original existía ('present') o no ('absent').
+    - name: Read original source-file state
+      ansible.builtin.slurp:
+        src: "{{ ubuntu_example_sources }}/ubuntu.sources.state"
+      register: source_state
+      when: source_state_marker.stat.exists
+
+    # Solo se restaura si el original existía; b64decode decodifica lo que devolvió slurp.
+    - name: Restore the original deb822 source file
+      ansible.builtin.copy:
+        src: "{{ ubuntu_example_sources }}/ubuntu.sources.original"
+        dest: "{{ ubuntu_sources_file }}"
+        remote_src: true
+        mode: preserve
+      when:
+        - source_state_marker.stat.exists
+        - (source_state.content | b64decode | trim) == 'present'
+
+    # Borra los datos temporales de reversión.
+    - name: Remove the temporary source-state directory
+      ansible.builtin.file:
+        path: "{{ ubuntu_example_sources }}"
+        state: absent
+      when: source_state_marker.stat.exists
+
+    # Deja el índice de APT coherente con los repositorios restaurados.
+    - name: Refresh APT cache after restoring original repositories
+      ansible.builtin.apt:
+        update_cache: true
+      changed_when: false

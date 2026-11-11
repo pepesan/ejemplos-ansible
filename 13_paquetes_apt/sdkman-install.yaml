@@ -1,67 +1,146 @@
 ---
-- name: Instalación desde cero de sdkman
+- name: Instalar SDKMAN y herramientas Java para alumno
   hosts: ubuntu
+  vars:
+    sdkman_dir: /home/alumno/.sdkman
+    estado_dir: /var/lib/ansible-example-sdkman-alumno
   tasks:
-    - name: Ensure the user 'alumno' with a bash shell, appending the group 'sudo' and 'alumno' to the user's groups
-      ansible.builtin.user:
-        name: alumno
-        shell: /bin/bash
+    # getent falla si el usuario no existe: así se comprueba el requisito antes de empezar.
+    - name: Require the existing alumno account
+      ansible.builtin.getent:
+        database: passwd
+        key: alumno
+    # stat comprueba si SDKMAN ya está instalado en el home de alumno.
+    - name: Check whether SDKMAN already exists
+      ansible.builtin.stat:
+        path: "{{ sdkman_dir }}/bin/sdkman-init.sh"
+      register: sdkman_previo
+    # Un fichero marcador indica que esta instalación la hizo el propio ejemplo (no el usuario a mano).
+    - name: Check whether this example already owns SDKMAN
+      ansible.builtin.stat:
+        path: "{{ estado_dir }}/owned"
+      register: sdkman_marcador
+    # Si SDKMAN existe pero no es nuestro, el playbook se detiene para no estropear una instalación ajena.
+    - name: Refuse to overwrite a pre-existing SDKMAN installation
+      ansible.builtin.assert:
+        that:
+          - not sdkman_previo.stat.exists or sdkman_marcador.stat.exists
+        fail_msg: "SDKMAN ya existe fuera de este ejemplo; no se modificará."
+    # Se guarda si existía para poder restaurar el estado original al desinstalar.
+    - name: Check whether alumno already has .bashrc
+      ansible.builtin.stat:
+        path: /home/alumno/.bashrc
+      register: bashrc_previo
+    # Directorio con los datos necesarios para deshacer el ejemplo.
+    - name: Create SDKMAN rollback state directory
+      ansible.builtin.file:
+        path: "{{ estado_dir }}"
+        state: directory
+        mode: "0700"
+    # Copia de seguridad del .bashrc, solo la primera vez (force: false y when) para no sobrescribir la original.
+    - name: Back up alumno's original .bashrc
+      ansible.builtin.copy:
+        src: /home/alumno/.bashrc
+        dest: "{{ estado_dir }}/bashrc"
+        remote_src: true
+        force: false
+        mode: preserve
+      when:
+        - not sdkman_marcador.stat.exists
+        - bashrc_previo.stat.exists
+    # Si no existía .bashrc, lo deja anotado con un fichero vacío (state: touch).
+    - name: Record that alumno had no .bashrc
+      ansible.builtin.file:
+        path: "{{ estado_dir }}/bashrc-absent"
+        state: touch
+        mode: "0600"
+      when:
+        - not sdkman_marcador.stat.exists
+        - not bashrc_previo.stat.exists
+    # Marca que esta instalación pertenece al ejemplo.
+    - name: Record ownership of the SDKMAN installation
+      ansible.builtin.file:
+        path: "{{ estado_dir }}/owned"
+        state: touch
+        mode: "0600"
+      when: not sdkman_marcador.stat.exists
+    # curl, zip y unzip los necesita el instalador de SDKMAN. cache_valid_time evita refrescar APT si se hizo hace menos de 1 h.
+    - name: Install SDKMAN dependencies
+      ansible.builtin.apt:
+        name: [curl, zip, unzip]
         state: present
-        groups: alumno,sudo
-        append: yes
-        create_home: yes
-        password: '$6$GtOo2iAaz.UZjFbm$H5CeKE3JAKUhh4WaW0ALGEKFRmqI5SgKBsFqrpBOHyEALdARH1a/ynmj9Tdz6KIBhh11GLH2Om4H1xH1bLQMm1'
-        # password: alumno
-    - name: Instalar dependencias de SDKMAN! (curl, zip, unzip)
-      apt:
-        name:
-          - curl
-          - zip
-          - unzip
-        state: present
-    - name: Instalar SDKMAN! para el usuario alumno
-      become: yes
+        update_cache: true
+        cache_valid_time: 3600
+    # become_user: alumno ejecuta la tarea como ese usuario. creates: se salta si ya existe sdkman-init.sh
+    # (idempotencia en shell).
+    - name: Install SDKMAN only the first time
+      become: true
       become_user: alumno
-      shell: |
-        curl -s "https://get.sdkman.io" | bash
-        echo 'source "$HOME/.sdkman/bin/sdkman-init.sh"' >> ~/.bashrc
+      ansible.builtin.shell: curl -s "https://get.sdkman.io" | bash
       args:
         executable: /bin/bash
+        creates: "{{ sdkman_dir }}/bin/sdkman-init.sh"
       environment:
-        SDKMAN_DIR: "/home/alumno/.sdkman"
-    - name: Corregir permisos de ~/.sdkman
-      file:
-        path: /home/alumno/.sdkman
+        SDKMAN_DIR: "{{ sdkman_dir }}"
+    # recurse: true deja todo el árbol de SDKMAN con propietario alumno.
+    - name: Fix SDKMAN permissions
+      ansible.builtin.file:
+        path: "{{ sdkman_dir }}"
         state: directory
-        recurse: yes
+        recurse: true
         owner: alumno
         group: alumno
-    - name: Instalar Java 21 con SDKMAN!\
-      become: yes
+    # source carga SDKMAN en la shell. creates: solo instala si no existe ya esa versión de Java.
+    - name: Install Java 21 if missing
+      become: true
       become_user: alumno
-      shell: |
+      ansible.builtin.shell: |
         source "$HOME/.sdkman/bin/sdkman-init.sh"
         sdk install java 21.0.3-tem
-        sdk default java 21.0.3-tem
+      args:
+        executable: /bin/bash
+        creates: /home/alumno/.sdkman/candidates/java/21.0.3-tem
+      environment:
+        SDKMAN_DIR: "{{ sdkman_dir }}"
+    # Solo cambia el Java por defecto si no lo es ya. La salida imprime SDKMAN_DEFAULT_CHANGED cuando cambia
+    # algo y changed_when usa esa marca para informar del cambio con precisión.
+    - name: Select Java 21 by default when needed
+      become: true
+      become_user: alumno
+      ansible.builtin.shell: |
+        source "$HOME/.sdkman/bin/sdkman-init.sh"
+        if [ "$(readlink -f "$HOME/.sdkman/candidates/java/current" 2>/dev/null)" = "$(readlink -f "$HOME/.sdkman/candidates/java/21.0.3-tem")" ]; then
+          exit 0
+        fi
+        sdk default java 21.0.3-tem >/dev/null
+        echo SDKMAN_DEFAULT_CHANGED
       args:
         executable: /bin/bash
       environment:
-        SDKMAN_DIR: "/home/alumno/.sdkman"
-      register: java_install
-    - name: Instalar Gradle con SDKMAN!
-      shell: |
+        SDKMAN_DIR: "{{ sdkman_dir }}"
+      register: default_java
+      changed_when: "'SDKMAN_DEFAULT_CHANGED' in default_java.stdout"
+    # Igual que con Java: creates evita reinstalar si ya hay una versión actual.
+    - name: Install Gradle if missing
+      become: true
+      become_user: alumno
+      ansible.builtin.shell: |
         source "$HOME/.sdkman/bin/sdkman-init.sh"
         sdk install gradle
       args:
         executable: /bin/bash
-      become: yes
+        creates: /home/alumno/.sdkman/candidates/gradle/current
+      environment:
+        SDKMAN_DIR: "{{ sdkman_dir }}"
+    # Igual que Gradle.
+    - name: Install Maven if missing
+      become: true
       become_user: alumno
-    - name: Instalar Maven con SDKMAN!
-      shell: |
+      ansible.builtin.shell: |
         source "$HOME/.sdkman/bin/sdkman-init.sh"
         sdk install maven
       args:
         executable: /bin/bash
-      become: yes
-      become_user: alumno
-...
+        creates: /home/alumno/.sdkman/candidates/maven/current
+      environment:
+        SDKMAN_DIR: "{{ sdkman_dir }}"

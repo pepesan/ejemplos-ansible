@@ -1,0 +1,67 @@
+---
+- name: Desinstalar SDKMAN y sus herramientas de alumno
+  hosts: ubuntu
+  vars:
+    sdkman_dir: /home/alumno/.sdkman
+    estado_dir: /var/lib/ansible-example-sdkman-alumno
+  tasks:
+    # Solo se borra SDKMAN si lo instaló este ejemplo (marcador 'owned').
+    - name: Comprobar si este ejemplo es propietario de SDKMAN
+      ansible.builtin.stat:
+        path: "{{ estado_dir }}/owned"
+      register: sdkman_propio
+    # Mira qué se guardó durante la instalación para decidir cómo restaurar el .bashrc.
+    - name: Comprobar si existe una copia original de .bashrc
+      ansible.builtin.stat:
+        path: "{{ estado_dir }}/bashrc"
+      register: bashrc_copia
+    # Otro caso posible: el .bashrc no existía y lo creó el instalador.
+    - name: Comprobar si .bashrc no existía antes de la instalación
+      ansible.builtin.stat:
+        path: "{{ estado_dir }}/bashrc-absent"
+      register: bashrc_ausente
+    # Borra ~/.sdkman con todo lo instalado (Java, Gradle, Maven), solo si es nuestro.
+    - name: Eliminar SDKMAN y los SDK instalados por este ejemplo
+      ansible.builtin.file:
+        path: "{{ sdkman_dir }}"
+        state: absent
+      when: sdkman_propio.stat.exists
+    # Devuelve la copia guardada, con su propietario y permisos.
+    - name: Restaurar el .bashrc original
+      ansible.builtin.copy:
+        src: "{{ estado_dir }}/bashrc"
+        dest: /home/alumno/.bashrc
+        remote_src: true
+        owner: alumno
+        group: alumno
+        mode: preserve
+      when: bashrc_copia.stat.exists
+    # Si el fichero lo creó la instalación, se elimina para dejar el usuario como estaba.
+    - name: Eliminar .bashrc si no existía antes de instalar SDKMAN
+      ansible.builtin.file:
+        path: /home/alumno/.bashrc
+        state: absent
+      when: bashrc_ausente.stat.exists
+    # Caso de respaldo (sin copia ni marcador): lineinfile con state: absent quita la línea de SDKMAN.
+    - name: Retirar línea de inicialización de una instalación anterior del ejemplo
+      ansible.builtin.lineinfile:
+        path: /home/alumno/.bashrc
+        line: 'source "$HOME/.sdkman/bin/sdkman-init.sh"'
+        state: absent
+      when:
+        - not bashrc_copia.stat.exists
+        - not bashrc_ausente.stat.exists
+    # replace con una expresión regular quita el bloque de varias líneas que añade el instalador de SDKMAN.
+    - name: Retirar bloque creado por el instalador SDKMAN anterior
+      ansible.builtin.replace:
+        path: /home/alumno/.bashrc
+        regexp: '(?ms)^#THIS MUST BE AT THE END OF THE FILE FOR SDKMAN TO WORK!!!\nexport SDKMAN_DIR="[^"]+"\n\[\[ -s "[^"]+/bin/sdkman-init\.sh" \]\] && source "[^"]+/bin/sdkman-init\.sh"\n?'
+        replace: ""
+      when:
+        - not bashrc_copia.stat.exists
+        - not bashrc_ausente.stat.exists
+    # Limpia los datos de reversión: ya no hacen falta.
+    - name: Eliminar el estado temporal de SDKMAN
+      ansible.builtin.file:
+        path: "{{ estado_dir }}"
+        state: absent

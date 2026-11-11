@@ -1,55 +1,166 @@
 ---
-- name: Instalación desde cero de xrdp
+- name: Instalar escritorio y XRDP para Ubuntu
   hosts: ubuntu
   vars:
     escritorio: ubuntu-desktop
     xrdp_port: 3389
     startwm_src: files/startwm.sh
     startwm_dest: /etc/xrdp/startwm.sh
+    xrdp_state_dir: /var/lib/ansible-xrdp-example
   tasks:
-    - name: Ensure the user 'alumno' with a bash shell, appending the group 'sudo' and 'alumno' to the user's groups
-      ansible.builtin.user:
-        name: alumno
-        shell: /bin/bash
-        state: present
-        groups: alumno,sudo
-        append: yes
-        create_home: yes
-        password: '$6$GtOo2iAaz.UZjFbm$H5CeKE3JAKUhh4WaW0ALGEKFRmqI5SgKBsFqrpBOHyEALdARH1a/ynmj9Tdz6KIBhh11GLH2Om4H1xH1bLQMm1'
-        # password: alumno
+    # Falla si el usuario juan no existe: es el que usaremos para entrar por RDP.
+    - name: Require the existing juan account for RDP login
+      ansible.builtin.getent:
+        database: passwd
+        key: juan
+    # Guarda lo que había antes, para que xrdp-uninstall.yaml pueda dejarlo todo como estaba.
+    - name: Crear directorio de estado de esta instalación
+      ansible.builtin.file:
+        path: "{{ xrdp_state_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0700'
+    # dpkg-query consulta el estado del paquete sin cambiar nada (por eso changed_when y failed_when).
+    - name: Comprobar si el escritorio ya estaba instalado
+      ansible.builtin.command: dpkg-query -W -f='${Status}' "{{ escritorio }}"
+      register: desktop_before
+      changed_when: false
+      failed_when: false
+    # Anota si el escritorio ya existía ('preexisting') o lo instala este ejemplo ('owned'). force: false: solo la primera vez.
+    - name: Registrar propiedad del paquete de escritorio antes de instalar
+      ansible.builtin.copy:
+        content: "{{ 'preexisting' if desktop_before.rc == 0 and ' installed' in desktop_before.stdout else 'owned' }}\n"
+        dest: "{{ xrdp_state_dir }}/desktop"
+        force: false
+        mode: '0600'
+    # Misma comprobación para xrdp.
+    - name: Comprobar si xrdp ya estaba instalado
+      ansible.builtin.command: dpkg-query -W -f='${Status}' xrdp
+      register: xrdp_before
+      changed_when: false
+      failed_when: false
+    # systemctl is-active devuelve rc 0 si el servicio está en marcha.
+    - name: Consultar estado previo del servicio XRDP
+      ansible.builtin.command: systemctl is-active xrdp
+      register: xrdp_active_before
+      changed_when: false
+      failed_when: false
+    # Anota si estaba activo para restaurarlo al desinstalar.
+    - name: Registrar estado activo previo del servicio
+      ansible.builtin.copy:
+        content: "{{ 'active' if xrdp_active_before.rc == 0 else 'inactive' }}\n"
+        dest: "{{ xrdp_state_dir }}/service-active"
+        force: false
+        mode: '0600'
+    # systemctl is-enabled indica si arranca con el sistema.
+    - name: Consultar habilitación previa del servicio XRDP
+      ansible.builtin.command: systemctl is-enabled xrdp
+      register: xrdp_enabled_before
+      changed_when: false
+      failed_when: false
+    # Anota si estaba habilitado.
+    - name: Registrar habilitación previa del servicio
+      ansible.builtin.copy:
+        content: "{{ 'enabled' if xrdp_enabled_before.rc == 0 else 'disabled' }}\n"
+        dest: "{{ xrdp_state_dir }}/service-enabled"
+        force: false
+        mode: '0600'
+    # Anota si xrdp lo instala el ejemplo o ya estaba.
+    - name: Registrar propiedad del paquete xrdp antes de instalar
+      ansible.builtin.copy:
+        content: "{{ 'preexisting' if xrdp_before.rc == 0 and ' installed' in xrdp_before.stdout else 'owned' }}\n"
+        dest: "{{ xrdp_state_dir }}/xrdp"
+        force: false
+        mode: '0600'
+    # startwm.sh es el script que arranca la sesión gráfica; se mira si ya existía antes de sobrescribirlo.
+    - name: Comprobar archivo startwm previo
+      ansible.builtin.stat:
+        path: "{{ startwm_dest }}"
+      register: startwm_before
+    # Evita guardar como 'original' un fichero que ya es el nuestro si se ejecuta dos veces.
+    - name: Comprobar si startwm ya fue registrado por esta instalación
+      ansible.builtin.stat:
+        path: "{{ xrdp_state_dir }}/startwm"
+      register: startwm_marcador
+    # Copia de seguridad del startwm original, solo la primera vez.
+    - name: Guardar startwm anterior si existe y aún no hay copia
+      ansible.builtin.copy:
+        src: "{{ startwm_dest }}"
+        dest: "{{ xrdp_state_dir }}/startwm.original"
+        remote_src: true
+        force: false
+        mode: preserve
+      when:
+        - startwm_before.stat.exists
+        - not startwm_marcador.stat.exists
+    # Anota si existía (present) o no (absent).
+    - name: Registrar si startwm existía antes
+      ansible.builtin.copy:
+        content: "{{ 'present' if startwm_before.stat.exists else 'absent' }}\n"
+        dest: "{{ xrdp_state_dir }}/startwm"
+        force: false
+        mode: '0600'
+    # Refresca el índice de APT (no más de una vez por hora).
     - name: Actualizar lista de paquetes
-      apt:
-        update_cache: yes
+      ansible.builtin.apt:
+        update_cache: true
         cache_valid_time: 3600
-    - name: Instalar entorno de escritorio
-      apt:
+    # Instala el entorno de escritorio con apt (state: present: solo si falta).
+    - name: Instalar escritorio
+      ansible.builtin.apt:
         name: "{{ escritorio }}"
         state: present
+    # Instala el servidor de escritorio remoto.
     - name: Instalar XRDP
-      apt:
+      ansible.builtin.apt:
         name: xrdp
         state: present
-    - name: Copiar startwm.sh
-      copy:
+    # Solo se toca el cortafuegos si está activo.
+    - name: Comprobar estado de UFW
+      ansible.builtin.command: ufw status
+      register: ufw_status
+      changed_when: false
+      failed_when: false
+    # Evita duplicar la regla y permite saber si la añadimos nosotros.
+    - name: Comprobar si ya existía la regla RDP
+      ansible.builtin.shell: "ufw status | grep -Eq '^3389/tcp[[:space:]]+ALLOW'"
+      register: rdp_rule_before
+      changed_when: false
+      failed_when: false
+      when: "'Status: active' in ufw_status.stdout"
+    # Abre únicamente el puerto de RDP, y solo si el cortafuegos está activo y la regla no existía.
+    - name: Abrir solo RDP TCP 3389 en UFW activo
+      ansible.builtin.command: "ufw allow {{ xrdp_port }}/tcp"
+      when:
+        - "'Status: active' in ufw_status.stdout"
+        - rdp_rule_before.rc != 0
+    # Marcador para que la desinstalación cierre la regla solo si es nuestra.
+    - name: Registrar que esta instalación añadió la regla RDP
+      ansible.builtin.file:
+        path: "{{ xrdp_state_dir }}/ufw-rule-owned"
+        state: touch
+        mode: '0600'
+      when:
+        - "'Status: active' in ufw_status.stdout"
+        - rdp_rule_before.rc != 0
+    # copy sube nuestro startwm.sh. notify avisa al handler 'Reiniciar xrdp', que solo se ejecuta si esta tarea cambió algo.
+    - name: Instalar startwm personalizado
+      ansible.builtin.copy:
         src: "{{ startwm_src }}"
         dest: "{{ startwm_dest }}"
         owner: root
         group: root
         mode: '0755'
       notify: Reiniciar xrdp
-    - name: Permitir puerto {{ ssh_port }} en UFW
-      ufw:
-        rule: allow
-        port: "{{ ssh_port }}"
-        proto: tcp
-    - name: Permitir puerto {{ xrdp_port }} en UFW
-      ufw:
-        rule: allow
-        port: "{{ xrdp_port }}"
-        proto: tcp
+    # Deja el servicio arrancado y activado en cada arranque.
+    - name: Habilitar e iniciar xrdp
+      ansible.builtin.service:
+        name: xrdp
+        enabled: true
+        state: started
   handlers:
     - name: Reiniciar xrdp
-      service:
+      ansible.builtin.service:
         name: xrdp
         state: restarted
-...

@@ -1,14 +1,69 @@
 ---
-- name: Eliminación del usuario juan
-  hosts: localhost
-  connection: local
-  become: yes  # necesario para eliminar usuarios
-  # deberás ejecutar el playbook con --ask-become-pass para que te pida la contraseña de sudo
+- name: Eliminar cuenta de ejemplo en Ubuntu
+  hosts: ubuntu
+  remote_user: root
   vars:
     nombre_usuario: "juan"
+    estado_dir: /var/lib/ansible-example-account-juan
   tasks:
-    - name: Eliminar el usuario "{{ nombre_usuario }}"
+    # Lee el estado guardado por account-create.yaml para saber si el grupo primario era del ejemplo.
+    - name: Comprobar si existe el estado de reversión
+      ansible.builtin.stat:
+        path: "{{ estado_dir }}/primary-group"
+      register: estado_grupo
+    # slurp lee un fichero remoto y lo devuelve en base64 (por eso luego se usa b64decode).
+    - name: Leer la propiedad original del grupo primario
+      ansible.builtin.slurp:
+        src: "{{ estado_dir }}/primary-group"
+      register: propiedad_grupo
+      when: estado_grupo.stat.exists
+    # Cierra las sesiones abiertas del usuario; si no, no se puede borrar mientras tenga procesos en marcha.
+    # failed_when: false para que no falle si no había sesiones.
+    - name: Terminate juan's active login sessions before deleting the account
+      ansible.builtin.command:
+        argv:
+          - loginctl
+          - terminate-user
+          - "{{ nombre_usuario }}"
+      register: sesiones_terminadas
+      changed_when: false
+      failed_when: false
+    # state: absent + remove: true borra el usuario y su home.
+    - name: Eliminar el usuario y su directorio home
       ansible.builtin.user:
         name: "{{ nombre_usuario }}"
         state: absent
-        remove: yes  # ← elimina también /home/juan y su contenido
+        remove: true
+      # Esto borra /home/{{ nombre_usuario }} y su contenido.
+    # Solo se borra el grupo si es seguro: debe haberlo creado el ejemplo ('owned'), no tener miembros
+    # ni ser el grupo primario de ningún otro usuario. rc 0 = sin referencias.
+    - name: Comprobar que el grupo creado por el ejemplo no tenga referencias
+      ansible.builtin.shell: |
+        group_entry=$(getent group "{{ nombre_usuario }}") || exit 1
+        group_gid=$(printf '%s' "$group_entry" | cut -d: -f3)
+        members=$(printf '%s' "$group_entry" | cut -d: -f4)
+        [ -z "$members" ] || exit 1
+        if getent passwd | awk -F: -v gid="$group_gid" '$4 == gid { found=1 } END { exit !found }'; then
+          exit 1
+        fi
+      register: grupo_sin_referencias
+      changed_when: false
+      failed_when: false
+      when:
+        - estado_grupo.stat.exists
+        - (propiedad_grupo.content | b64decode | trim) == 'owned'
+    # Se borra únicamente cuando se cumplen las tres condiciones: era nuestro, había estado guardado y no tiene referencias.
+    - name: Eliminar el grupo privado creado por el ejemplo si quedó huérfano
+      ansible.builtin.group:
+        name: "{{ nombre_usuario }}"
+        state: absent
+      when:
+        - estado_grupo.stat.exists
+        - (propiedad_grupo.content | b64decode | trim) == 'owned'
+        - grupo_sin_referencias.rc == 0
+    # Último paso: borra el directorio de estado, ya que no hace falta más.
+    - name: Eliminar estado de reversión
+      ansible.builtin.file:
+        path: "{{ estado_dir }}"
+        state: absent
+...
