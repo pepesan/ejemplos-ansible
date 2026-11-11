@@ -14,6 +14,8 @@
       - { nombre: tres.log, modo: '0644', contenido: log }
 
   tasks:
+    # loop recorre una lista simple: la tarea se ejecuta una vez por elemento y el valor
+    # de cada vuelta está en {{ item }}. Aquí crea los directorios a, b y c.
     - name: 1. loop sobre una lista - crear directorios
       ansible.builtin.file:
         path: "{{ base }}/{{ item }}"
@@ -21,6 +23,8 @@
         mode: '0755'
       loop: [a, b, c]
 
+    # loop sobre una lista de diccionarios: cada item es un diccionario y se accede a sus
+    # campos con item.nombre, item.modo, etc. Crea un fichero por elemento de 'ficheros'.
     - name: 2. loop sobre una lista de diccionarios - crear ficheros
       ansible.builtin.copy:
         dest: "{{ base }}/a/{{ item.nombre }}"
@@ -30,6 +34,8 @@
       loop_control:
         label: "{{ item.nombre }}"          # en la salida solo se ve el nombre, no todo el diccionario
 
+    # when se evalúa en cada vuelta, con el item de esa vuelta: las que no cumplen la condición
+    # se saltan (skipped). Aquí solo pasan los ficheros cuyo nombre termina en .txt.
     - name: 3. loop con when - solo los .txt
       ansible.builtin.debug:
         msg: "{{ item.nombre }} es un .txt"
@@ -38,6 +44,7 @@
       loop_control:
         label: "{{ item.nombre }}"
 
+    # index_var guarda en la variable indicada (idx) el número de vuelta, empezando en 0.
     - name: 4. index_var - número de vuelta
       ansible.builtin.debug:
         msg: "vuelta {{ idx }}: {{ item }}"
@@ -45,11 +52,19 @@
       loop_control:
         index_var: idx
 
+    # Producto cartesiano: ['x','y'] | product([1, 2]) combina CADA elemento de la primera lista
+    # con CADA elemento de la segunda -> (x,1) (x,2) (y,1) (y,2): 2 x 2 = 4 vueltas.
+    # item.0 es el elemento de la primera lista e item.1 el de la segunda.
+    # | list es necesario porque product devuelve un generador, y loop necesita una lista.
+    # Es el equivalente moderno del antiguo with_nested.
     - name: 5. bucle anidado (producto cartesiano)
       ansible.builtin.debug:
         msg: "{{ item.0 }}-{{ item.1 }}"
       loop: "{{ ['x', 'y'] | product([1, 2]) | list }}"
 
+    # subelements recorre una lista dentro de cada elemento de otra lista: genera un par
+    # (usuario, afición) por cada afición de cada usuario -> ana-lectura, ana-ciclismo, luis-cine.
+    # item.0 es el usuario completo (diccionario) e item.1 la afición concreta.
     - name: 6. subelements - recorrer listas dentro de una lista
       ansible.builtin.debug:
         msg: "{{ item.0.nombre }} tiene la afición {{ item.1 }}"
@@ -57,11 +72,17 @@
       loop_control:
         label: "{{ item.0.nombre }}"
 
+    # zip empareja las listas posición a posición (uno-1, dos-2, tres-3): 3 vueltas, no 9.
+    # Diferencia con product: product cruza todas las combinaciones; zip une elemento a elemento.
+    # Si las listas tienen distinta longitud, zip se detiene en la más corta.
     - name: 7. zip - recorrer dos listas a la vez
       ansible.builtin.debug:
         msg: "{{ item.0 }} <-> {{ item.1 }}"
       loop: "{{ ['uno', 'dos', 'tres'] | zip([1, 2, 3]) | list }}"
 
+    # register dentro de un bucle guarda una lista en contenidos.results, con un elemento
+    # por vuelta (stdout, rc, y en .item el elemento original). changed_when: false porque cat
+    # solo lee y no debe marcarse como cambio.
     - name: 8. register en un bucle - guardar el resultado de cada vuelta
       ansible.builtin.command: "cat {{ base }}/a/{{ item.nombre }}"
       loop: "{{ ficheros }}"
@@ -69,6 +90,8 @@
       changed_when: false
       loop_control:
         label: "{{ item.nombre }}"
+    # Recorre contenidos.results de la tarea anterior: item.item es el elemento original del bucle
+    # (el fichero) e item.stdout lo que devolvió el comando para él.
     - name: 8b. recorrer los resultados guardados
       ansible.builtin.debug:
         msg: "{{ item.item.nombre }} contiene {{ item.stdout }}"
@@ -76,8 +99,8 @@
       loop_control:
         label: "{{ item.item.nombre }}"
 
-    - name: 9. limpiar
-      ansible.builtin.file:
-        path: "{{ base }}"
-        state: absent
+#    - name: 9. limpiar
+#      ansible.builtin.file:
+#        path: "{{ base }}"
+#        state: absent
 ...
