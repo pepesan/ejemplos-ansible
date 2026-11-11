@@ -99,8 +99,8 @@
       loop_control:
         label: "{{ item.item.nombre }}"
 
-#    - name: 9. limpiar
-#      ansible.builtin.file:
-#        path: "{{ base }}"
-#        state: absent
+    - name: 9. limpiar
+      ansible.builtin.file:
+        path: "{{ base }}"
+        state: absent
 ...
