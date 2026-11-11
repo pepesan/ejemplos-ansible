@@ -21,12 +21,14 @@
     # Cada elemento es un diccionario con sus propias claves
     - name: loop sobre una lista de diccionarios
       ansible.builtin.debug:
-        msg: "{{ item.nombre }} -> {{ item.dato }}"
+        msg: "{{ item.nombre }} -> {{ item.dato }} -> {{ item.apellido }}"
       loop:
         - nombre: one
           dato: valor1
+          apellido: Cuadrado
         - nombre: two
           dato: valor2
+          apellido: Matias
 
     - name: Using dict2items (recorrer un diccionario)
       ansible.builtin.debug:
