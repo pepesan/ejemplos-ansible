@@ -1,6 +1,10 @@
 ---
+# Construye: copia un fichero y crea directorios en el servidor web.
+# Para deshacerlo: ansible-playbook main_uninstall.yaml
 - hosts: webservers
   tasks:
+    # copy sube un fichero del equipo de control (src) al servidor (dest) y fija propietario, grupo y
+    # permisos. Es idempotente: solo copia si el contenido o los atributos son distintos.
     - name: Copy file with owner and permissions
       ansible.builtin.copy:
         src: ./data.html
@@ -8,17 +12,21 @@
         owner: www-data
         group: www-data
         mode: '0644'
+    # file con state: directory crea el directorio si no existe (y ajusta el modo si ya existe).
     - name: Create a directory if it does not exist
       ansible.builtin.file:
         path: /var/www/html/wordpress
         state: directory
         mode: '0755'
+    # state: file exige que el fichero ya exista (no lo crea). modification_time/access_time: now
+    # actualizan sus fechas, como un 'touch'. Esta tarea siempre sale como cambiada.
     - name: Update modification and access time of given file
       ansible.builtin.file:
         path: /var/www/html/data.html
         state: file
         modification_time: now
         access_time: now
+    # recurse: yes aplica propietario y grupo a todo el contenido del directorio, no solo a la carpeta.
     - name: Recursively change ownership of a directory
       ansible.builtin.file:
         path: /var/www/html
@@ -26,6 +34,7 @@
         recurse: yes
         owner: www-data
         group: www-data
+    # Segunda copia, ahora dentro del subdirectorio wordpress (que se creó antes).
     - name: Copy file with owner and permissions
       ansible.builtin.copy:
         src: ./data.html
@@ -33,17 +42,10 @@
         owner: www-data
         group: www-data
         mode: '0644'
-    - name: Remove file (delete file)
-      ansible.builtin.file:
-        path: /var/www/html/wordpress/data.html
-        state: absent
+    # Otro directorio, para practicar luego el borrado de directorios con state: absent.
     - name: Create a directory if it does not exist
       ansible.builtin.file:
         path: /var/www/html/drupal
         state: directory
         mode: '0755'
-    - name: Recursively remove directory
-      ansible.builtin.file:
-        path: /var/www/html/drupal
-        state: absent
 ...

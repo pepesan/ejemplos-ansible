@@ -1,0 +1,12 @@
+[ubuntu]
+10.207.154.161
+
+[webservers]
+10.207.154.161
+
+[rocky]
+10.207.154.116 ansible_user=alumno ansible_become=true
+
+[todas:children]
+ubuntu
+rocky

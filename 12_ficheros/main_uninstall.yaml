@@ -1,0 +1,35 @@
+---
+# Destruye lo que creó main.yaml. No puede restaurar el propietario recursivo ni las fechas
+# anteriores de /var/www/html, porque main.yaml no guardó sus valores previos.
+- hosts: webservers
+  tasks:
+    # state: absent borra el fichero; si ya no existe, no hace nada (idempotente).
+    - name: Remove file (delete file)
+      ansible.builtin.file:
+        path: /var/www/html/wordpress/data.html
+        state: absent
+    # Con state: absent sobre un directorio se borra él y todo su contenido. Úsalo con cuidado.
+    - name: Recursively remove directory
+      ansible.builtin.file:
+        path: /var/www/html/drupal
+        state: absent
+    - name: Remove the copied HTML file
+      ansible.builtin.file:
+        path: /var/www/html/data.html
+        state: absent
+    # stat consulta si la ruta existe sin modificar nada; register guarda el resultado en wordpress_dir.
+    - name: Check whether the example's WordPress directory exists
+      ansible.builtin.stat:
+        path: /var/www/html/wordpress
+      register: wordpress_dir
+    # rmdir solo borra directorios VACÍOS: es más seguro que state: absent, que borraría todo el contenido.
+    # Se ejecuta solo si el directorio existe (when) y, como command no sabe si cambió algo,
+    # changed_when: true lo marca como cambiado.
+    - name: Remove the empty directory created by the example
+      ansible.builtin.command:
+        argv:
+          - rmdir
+          - /var/www/html/wordpress
+      when: wordpress_dir.stat.exists
+      changed_when: true
+...
