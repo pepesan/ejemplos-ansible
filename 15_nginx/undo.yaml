@@ -1,0 +1,242 @@
+---
+# Playbook inverso: desinstala y restaura el estado previo a tasks.yaml
+# Este playbook es idempotente: una segunda ejecución produce changed=0.
+- name: Revertir instalación de Nginx y restaurar estado del sistema
+  hosts: webservers
+  become: true
+  vars:
+    nginx_state_dir: /var/lib/ansible-nginx-example
+    nginx_site_available: /etc/nginx/sites-available/default
+    nginx_site_enabled: /etc/nginx/sites-enabled/default
+    nginx_doc_root: /var/www/html/index.html
+  tasks:
+    # Comprobar si existe el directorio de estado generado por tasks.yaml
+    - name: Comprobar existencia del directorio de estado
+      ansible.builtin.stat:
+        path: "{{ nginx_state_dir }}"
+      register: estado_dir
+
+    # Lectura de marcadores de paquetes
+    - name: Comprobar marcadores de paquetes instalados
+      ansible.builtin.stat:
+        path: "{{ nginx_state_dir }}/pkg-{{ item }}"
+      loop:
+        - nginx
+        - elinks
+      register: paquete_marcadores
+      when: estado_dir.stat.exists
+
+    - name: Leer marcadores de propiedad de paquetes
+      ansible.builtin.slurp:
+        src: "{{ nginx_state_dir }}/pkg-{{ item }}"
+      loop:
+        - nginx
+        - elinks
+      register: paquete_propiedad
+      when:
+        - estado_dir.stat.exists
+        - paquete_marcadores.results[0].stat.exists
+        - paquete_marcadores.results[1].stat.exists
+
+    # Detener y deshabilitar el servicio si nginx fue instalado por el ejemplo
+    - name: Detener y deshabilitar servicio nginx
+      ansible.builtin.service:
+        name: nginx
+        state: stopped
+        enabled: false
+      failed_when: false
+      when:
+        - estado_dir.stat.exists
+        - paquete_propiedad.results is defined
+        - (paquete_propiedad.results[0].content | b64decode | trim) == 'owned'
+
+    # Desinstalar paquetes solo si fueron instalados por este ejemplo
+    - name: Desinstalar nginx si fue instalado por este ejemplo
+      ansible.builtin.apt:
+        name: nginx
+        state: absent
+        purge: true
+        autoremove: false
+      when:
+        - estado_dir.stat.exists
+        - paquete_propiedad.results is defined
+        - (paquete_propiedad.results[0].content | b64decode | trim) == 'owned'
+
+    - name: Desinstalar elinks si fue instalado por este ejemplo
+      ansible.builtin.apt:
+        name: elinks
+        state: absent
+      when:
+        - estado_dir.stat.exists
+        - paquete_propiedad.results is defined
+        - (paquete_propiedad.results[1].content | b64decode | trim) == 'owned'
+
+    # Restauración del fichero default
+    - name: Comprobar marcador de default previo
+      ansible.builtin.stat:
+        path: "{{ nginx_state_dir }}/default-state"
+      register: default_marcador
+      when: estado_dir.stat.exists
+
+    - name: Leer marcador de default previo
+      ansible.builtin.slurp:
+        src: "{{ nginx_state_dir }}/default-state"
+      register: default_contenido
+      when:
+        - estado_dir.stat.exists
+        - default_marcador.stat.exists
+
+    - name: Comprobar si existe copia original de default
+      ansible.builtin.stat:
+        path: "{{ nginx_state_dir }}/default.original"
+      register: default_backup
+      when: estado_dir.stat.exists
+
+    - name: Restaurar fichero default original
+      ansible.builtin.copy:
+        src: "{{ nginx_state_dir }}/default.original"
+        dest: "{{ nginx_site_available }}"
+        remote_src: true
+        mode: preserve
+      when:
+        - estado_dir.stat.exists
+        - default_backup.stat.exists
+        - (default_contenido.content | b64decode | trim) == 'present'
+
+    - name: Eliminar virtual host default si no existía previamente
+      ansible.builtin.file:
+        path: "{{ nginx_site_available }}"
+        state: absent
+      when:
+        - estado_dir.stat.exists
+        - default_contenido.content is defined
+        - (default_contenido.content | b64decode | trim) == 'absent'
+
+    - name: Eliminar enlace simbólico en sites-enabled si default no existía antes
+      ansible.builtin.file:
+        path: "{{ nginx_site_enabled }}"
+        state: absent
+      when:
+        - estado_dir.stat.exists
+        - default_contenido.content is defined
+        - (default_contenido.content | b64decode | trim) == 'absent'
+
+    # Restauración del fichero index.html
+    - name: Comprobar marcador de index.html previo
+      ansible.builtin.stat:
+        path: "{{ nginx_state_dir }}/index-state"
+      register: index_marcador
+      when: estado_dir.stat.exists
+
+    - name: Leer marcador de index.html previo
+      ansible.builtin.slurp:
+        src: "{{ nginx_state_dir }}/index-state"
+      register: index_contenido
+      when:
+        - estado_dir.stat.exists
+        - index_marcador.stat.exists
+
+    - name: Comprobar si existe copia original de index.html
+      ansible.builtin.stat:
+        path: "{{ nginx_state_dir }}/index.html.original"
+      register: index_backup
+      when: estado_dir.stat.exists
+
+    - name: Restaurar fichero index.html original
+      ansible.builtin.copy:
+        src: "{{ nginx_state_dir }}/index.html.original"
+        dest: "{{ nginx_doc_root }}"
+        remote_src: true
+        mode: preserve
+      when:
+        - estado_dir.stat.exists
+        - index_backup.stat.exists
+        - (index_contenido.content | b64decode | trim) == 'present'
+
+    - name: Eliminar index.html si no existía previamente
+      ansible.builtin.file:
+        path: "{{ nginx_doc_root }}"
+        state: absent
+      when:
+        - estado_dir.stat.exists
+        - index_contenido.content is defined
+        - (index_contenido.content | b64decode | trim) == 'absent'
+
+    # Reversión de reglas de firewall UFW
+    - name: Comprobar marcador de reglas UFW
+      ansible.builtin.stat:
+        path: "{{ nginx_state_dir }}/ufw-rules"
+      register: ufw_rules_marker
+      when: estado_dir.stat.exists
+
+    - name: Leer marcador de reglas UFW
+      ansible.builtin.slurp:
+        src: "{{ nginx_state_dir }}/ufw-rules"
+      register: ufw_rules_content
+      when:
+        - estado_dir.stat.exists
+        - ufw_rules_marker.stat.exists
+
+    - name: Comprobar marcador de estado general UFW
+      ansible.builtin.stat:
+        path: "{{ nginx_state_dir }}/ufw-status"
+      register: ufw_status_marker
+      when: estado_dir.stat.exists
+
+    - name: Leer marcador de estado general UFW
+      ansible.builtin.slurp:
+        src: "{{ nginx_state_dir }}/ufw-status"
+      register: ufw_status_content
+      when:
+        - estado_dir.stat.exists
+        - ufw_status_marker.stat.exists
+
+    - name: Eliminar regla de puerto 80 si fue creada por este ejemplo
+      community.general.ufw:
+        rule: allow
+        port: "80"
+        proto: tcp
+        delete: true
+      when:
+        - estado_dir.stat.exists
+        - ufw_rules_content.content is defined
+        - "'rule_80=owned' in (ufw_rules_content.content | b64decode)"
+
+    - name: Eliminar regla de puerto 443 si fue creada por este ejemplo
+      community.general.ufw:
+        rule: allow
+        port: "443"
+        proto: tcp
+        delete: true
+      when:
+        - estado_dir.stat.exists
+        - ufw_rules_content.content is defined
+        - "'rule_443=owned' in (ufw_rules_content.content | b64decode)"
+
+    - name: Eliminar regla de puerto 22 si fue creada por este ejemplo y UFW se va a desactivar
+      community.general.ufw:
+        rule: allow
+        port: "22"
+        proto: tcp
+        delete: true
+      when:
+        - estado_dir.stat.exists
+        - ufw_rules_content.content is defined
+        - "'rule_22=owned' in (ufw_rules_content.content | b64decode)"
+        - ufw_status_content.content is defined
+        - (ufw_status_content.content | b64decode | trim) == 'inactive'
+
+    - name: Desactivar UFW si estaba inactivo antes de ejecutar el ejemplo
+      community.general.ufw:
+        state: disabled
+      when:
+        - estado_dir.stat.exists
+        - ufw_status_content.content is defined
+        - (ufw_status_content.content | b64decode | trim) == 'inactive'
+
+    # Eliminación del directorio de estado
+    - name: Eliminar directorio de estado del ejemplo
+      ansible.builtin.file:
+        path: "{{ nginx_state_dir }}"
+        state: absent
+      when: estado_dir.stat.exists

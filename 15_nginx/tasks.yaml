@@ -1,65 +1,244 @@
 ---
-- hosts: webservers
+# Despliegue e instalación de Nginx con configuración de firewall y estado
+# Este playbook es idempotente: una segunda ejecución produce changed=0.
+- name: Despliegue de Nginx y configuración del servidor web
+  hosts: webservers
+  become: true
+  vars:
+    nginx_state_dir: /var/lib/ansible-nginx-example
+    nginx_packages:
+      - nginx
+      - elinks
+    nginx_site_available: /etc/nginx/sites-available/default
+    nginx_site_enabled: /etc/nginx/sites-enabled/default
+    nginx_doc_root: /var/www/html/index.html
   tasks:
-    - name: Instalando nginx
-      apt:
-        name: nginx
-        state: latest
-    - name: Servicio arrancado
-      service:
-        name: nginx
-        state: started
-        enabled: true
-    - name: Instalando elinks
-      apt:
-        name: elinks
-        state: latest
-    - name: Habilitar UFW
-      ufw:
-        state: enabled
-        policy: deny
-    - name: Habilitar el log
-      ufw:
-        logging: 'on'
-    - name: abrir el firewall para 22
-      ufw:
+    # Verificación de distribución antes de aplicar cambios
+    - name: Comprobar que el sistema operativo sea compatible
+      ansible.builtin.assert:
+        that:
+          - ansible_facts['distribution'] == 'Ubuntu'
+        fail_msg: "Este ejemplo está diseñado para sistemas Ubuntu."
+
+    # Directorio de estado para registrar qué paquetes, reglas y ficheros existían antes,
+    # permitiendo que undo.yaml revierta exactamente lo que creó este playbook.
+    - name: Crear directorio de estado para la reversión
+      ansible.builtin.file:
+        path: "{{ nginx_state_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0700'
+
+    # Consultar paquetes previos para no desinstalar software preexistente al deshacer
+    - name: Comprobar si los paquetes ya estaban instalados
+      ansible.builtin.command: dpkg-query -W -f='${Status}' {{ item }}
+      loop: "{{ nginx_packages }}"
+      register: paquetes_previos
+      changed_when: false
+      failed_when: false
+
+    - name: Anotar propiedad de cada paquete instalado
+      ansible.builtin.copy:
+        content: "{{ 'preexisting' if item.rc == 0 and ' installed' in item.stdout else 'owned' }}\n"
+        dest: "{{ nginx_state_dir }}/pkg-{{ item.item }}"
+        force: false
+        mode: '0600'
+      loop: "{{ paquetes_previos.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    # Consultar estado previo de UFW
+    - name: Consultar estado previo de UFW
+      ansible.builtin.command: ufw status verbose
+      register: ufw_previo
+      changed_when: false
+      failed_when: false
+
+    - name: Anotar si UFW ya estaba activo
+      ansible.builtin.copy:
+        content: "{{ 'active' if 'Status: active' in ufw_previo.stdout else 'inactive' }}\n"
+        dest: "{{ nginx_state_dir }}/ufw-status"
+        force: false
+        mode: '0600'
+
+    # Consultar reglas existentes en UFW
+    - name: Comprobar reglas preexistentes en UFW
+      ansible.builtin.shell: ufw status | grep -E '^22/tcp|^80/tcp|^443/tcp' || true
+      register: ufw_reglas_previas
+      changed_when: false
+      failed_when: false
+
+    - name: Anotar propiedad de las reglas de firewall
+      ansible.builtin.copy:
+        content: |
+          rule_22={{ 'preexisting' if '22/tcp' in ufw_reglas_previas.stdout else 'owned' }}
+          rule_80={{ 'preexisting' if '80/tcp' in ufw_reglas_previas.stdout else 'owned' }}
+          rule_443={{ 'preexisting' if '443/tcp' in ufw_reglas_previas.stdout else 'owned' }}
+        dest: "{{ nginx_state_dir }}/ufw-rules"
+        force: false
+        mode: '0600'
+
+    # Comprobar si ya se registraron los estados previos en una pasada anterior
+    - name: Comprobar si ya se registró el estado de default
+      ansible.builtin.stat:
+        path: "{{ nginx_state_dir }}/default-state"
+      register: default_marcador
+
+    - name: Comprobar si ya se registró el estado de index.html
+      ansible.builtin.stat:
+        path: "{{ nginx_state_dir }}/index-state"
+      register: index_marcador
+
+    # Copia de seguridad de fichero default si existe previamente
+    - name: Comprobar si /etc/nginx/sites-available/default ya existía
+      ansible.builtin.stat:
+        path: "{{ nginx_site_available }}"
+      register: default_previo
+      when: not default_marcador.stat.exists
+
+    - name: Guardar copia del default original
+      ansible.builtin.copy:
+        src: "{{ nginx_site_available }}"
+        dest: "{{ nginx_state_dir }}/default.original"
+        remote_src: true
+        force: false
+        mode: preserve
+      when:
+        - not default_marcador.stat.exists
+        - default_previo.stat.exists
+
+    - name: Anotar si default existía antes de ejecutar el ejemplo
+      ansible.builtin.copy:
+        content: "{{ 'present' if default_previo.stat.exists else 'absent' }}\n"
+        dest: "{{ nginx_state_dir }}/default-state"
+        force: false
+        mode: '0600'
+      when: not default_marcador.stat.exists
+
+    # Copia de seguridad de index.html si existe previamente
+    - name: Comprobar si /var/www/html/index.html ya existía
+      ansible.builtin.stat:
+        path: "{{ nginx_doc_root }}"
+      register: index_previo
+      when: not index_marcador.stat.exists
+
+    - name: Guardar copia del index.html original
+      ansible.builtin.copy:
+        src: "{{ nginx_doc_root }}"
+        dest: "{{ nginx_state_dir }}/index.html.original"
+        remote_src: true
+        force: false
+        mode: preserve
+      when:
+        - not index_marcador.stat.exists
+        - index_previo.stat.exists
+
+    - name: Anotar si index.html existía antes de ejecutar el ejemplo
+      ansible.builtin.copy:
+        content: "{{ 'present' if index_previo.stat.exists else 'absent' }}\n"
+        dest: "{{ nginx_state_dir }}/index-state"
+        force: false
+        mode: '0600'
+      when: not index_marcador.stat.exists
+    # Refrescar índice de paquetes (changed_when: false para idempotencia)
+    - name: Actualizar índice de paquetes APT
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+      changed_when: false
+
+    # Instalación de paquetes con state: present (evita falsos cambios de latest)
+    - name: Instalar paquetes nginx y elinks
+      ansible.builtin.apt:
+        name: "{{ nginx_packages }}"
+        state: present
+
+    # Configuración de UFW en orden seguro:
+    # 1. Abrir SSH (puerto 22) ANTES de habilitar política de denegación por defecto.
+    - name: Permitir tráfico SSH (puerto 22) en firewall
+      community.general.ufw:
         rule: allow
         port: "22"
         proto: tcp
-    - name: abrir el firewall para 80
-      ufw:
+
+    - name: Permitir tráfico HTTP (puerto 80) en firewall
+      community.general.ufw:
         rule: allow
         port: "80"
         proto: tcp
-    - name: abrir el firewall para 443
-      ufw:
+
+    - name: Permitir tráfico HTTPS (puerto 443) en firewall
+      community.general.ufw:
         rule: allow
         port: "443"
         proto: tcp
-    - name: Copia el fichero default
+
+    - name: Activar registro de eventos (logging) en UFW
+      community.general.ufw:
+        logging: 'on'
+
+    - name: Habilitar UFW con política de denegación por defecto
+      community.general.ufw:
+        state: enabled
+        policy: deny
+
+    # Despliegue de ficheros de configuración y sitio web
+    - name: Copiar configuración del virtual host default
       ansible.builtin.copy:
         src: default
-        dest: /etc/nginx/sites-available/default
+        dest: "{{ nginx_site_available }}"
         owner: root
         group: root
         mode: '0644'
-    - name: Copia el fichero index.html
+      notify: Reiniciar nginx
+
+    - name: Asegurar enlace simbólico en sites-enabled
+      ansible.builtin.file:
+        src: "{{ nginx_site_available }}"
+        dest: "{{ nginx_site_enabled }}"
+        state: link
+      notify: Reiniciar nginx
+
+    - name: Asegurar que el directorio raíz web existe
+      ansible.builtin.file:
+        path: /var/www/html
+        state: directory
+        owner: www-data
+        group: www-data
+        mode: '0755'
+
+    - name: Copiar fichero index.html
       ansible.builtin.copy:
         src: index.html
-        dest: /var/www/html/index.html
+        dest: "{{ nginx_doc_root }}"
         owner: www-data
         group: www-data
         mode: '0644'
-    - name: Servicio arrancado
-      service:
+
+    # Gestión idempotente del servicio: state: started no fuerza reinicio en ejecuciones sucesivas
+    - name: Asegurar que el servicio nginx está iniciado y habilitado
+      ansible.builtin.service:
+        name: nginx
+        state: started
+        enabled: true
+
+    # Forzar ejecución inmediata de handlers pendientes antes de consultar el endpoint
+    - name: Aplicar reinicio de nginx si la configuración cambió
+      ansible.builtin.meta: flush_handlers
+
+    # Comprobación de estado HTTP en el endpoint stub_status
+    - name: Obtener estadísticas HTTP desde nginx_status
+      community.general.nginx_status_info:
+        url: http://127.0.0.1/nginx_status
+      register: nginx_stats
+
+    - name: Mostrar estadísticas de Nginx
+      ansible.builtin.debug:
+        var: nginx_stats
+
+  handlers:
+    - name: Reiniciar nginx
+      ansible.builtin.service:
         name: nginx
         state: restarted
-        enabled: true
-    # Gather status info from nginx on localhost
-    - name: Get current http stats
-      community.general.nginx_status_info:
-        url: http://localhost/nginx_status
-      register: result
-    - name: show debug
-      debug: "msg={{result}}"
-...

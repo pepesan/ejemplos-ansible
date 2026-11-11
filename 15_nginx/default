@@ -48,6 +48,7 @@ server {
         location /nginx_status {
          	stub_status;
          	allow 127.0.0.1;	#only allow requests from localhost
+         	allow ::1;		#allow IPv6 localhost
          	# deny all;		#deny all other hosts
         }
 
