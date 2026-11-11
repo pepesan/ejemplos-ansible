@@ -6,9 +6,9 @@
     # file con state: directory crea el directorio si no existe (y ajusta el modo si ya existe).
     - name: Create a directory if it does not exist
       ansible.builtin.file:
-      path: /var/www/html/wordpress
-      state: directory
-      mode: '0755'
+        path: /var/www/html/wordpress
+        state: directory
+        mode: '0755'
     # copy sube un fichero del equipo de control (src) al servidor (dest) y fija propietario, grupo y
     # permisos. Es idempotente: solo copia si el contenido o los atributos son distintos.
     - name: Copy file with owner and permissions
