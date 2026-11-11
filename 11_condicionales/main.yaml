@@ -4,18 +4,25 @@
   hosts: localhost
   connection: local
   tasks:
+    # ansible_facts['os_family'] es un hecho (fact) recogido automáticamente al empezar:
+    # la familia del sistema operativo (Debian, RedHat...). Se usa en las condiciones de abajo.
     - name: debug ansible_facts.os_family
       ansible.builtin.debug:
         msg: "OS Family: {{ ansible_facts['os_family'] }}"
+    # when: la tarea solo se ejecuta si la condición es verdadera; si no, se salta (skipping).
+    # register guarda el resultado en 'result'. changed_when: true porque shell siempre se marca como
+    # cambiado y aquí lo dejamos explícito.
     - name: ejecuta comando condicionalmente (solo en la familia Debian)
       ansible.builtin.shell: echo cosa >> /tmp/condicionales-fichero.txt
       when: ansible_facts['os_family'] == "Debian"
       register: result
       changed_when: true
+    # var muestra una variable entera; verbosity: 2 hace que solo salga con -vv o más.
     - name: debug result
       ansible.builtin.debug:
         var: result
         verbosity: 2
+    # state: absent borra el fichero (limpieza del ejemplo). Es idempotente: si no existe, no cambia nada.
     - name: borrar el fichero de prueba
       ansible.builtin.file:
         path: /tmp/condicionales-fichero.txt
