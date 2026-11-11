@@ -6,6 +6,8 @@
     docker_ubuntu_codename: "{{ ansible_facts['distribution_release'] }}"
     docker_apt_keyring: /etc/apt/keyrings/docker-13-example.asc
     docker_apt_source_file: /etc/apt/sources.list.d/docker-13-example.sources
+    docker_prerequisites: [ca-certificates, curl]
+    docker_state_dir: /var/lib/ansible-docker-example
     docker_packages:
       - docker-ce
       - docker-ce-cli
@@ -37,13 +39,13 @@
         state: stopped
       failed_when: false
 
-    # state: absent desinstala los paquetes. purge: false conserva la configuración y autoremove: false no toca
-    # otras dependencias, para no borrar de más.
+    # state: absent desinstala los paquetes. purge: true borra también su configuración (/etc/docker...).
+    # autoremove: false no toca otras dependencias, para no borrar de más.
     - name: Remove Docker Engine and its plugins
       ansible.builtin.apt:
         name: "{{ docker_packages }}"
         state: absent
-        purge: false
+        purge: true
         autoremove: false
 
     # Elimina solo el fichero de repositorio creado por este ejemplo.
@@ -61,4 +63,43 @@
     - name: Remove Docker repository signing key
       ansible.builtin.file:
         path: "{{ docker_apt_keyring }}"
+        state: absent
+
+    # Borra los datos que deja Docker: imágenes, contenedores y volúmenes (/var/lib/docker) y los de
+    # containerd. loop recorre las rutas y state: absent borra cada directorio con todo su contenido.
+    # Es irreversible: se pierden los volúmenes de datos.
+    - name: Remove Docker and containerd data directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /var/lib/docker
+        - /var/lib/containerd
+        - /etc/docker
+
+    # Lee qué prerrequisitos instaló este ejemplo ('owned') y cuáles ya estaban ('preexisting').
+    # failed_when: false por si no existe el marcador (instalación hecha con una versión anterior).
+    - name: Read prerequisite ownership markers
+      ansible.builtin.command: cat {{ docker_state_dir }}/prereq-{{ item }}
+      loop: "{{ docker_prerequisites }}"
+      register: prerequisites_markers
+      changed_when: false
+      failed_when: false
+
+    # Solo se quita lo que instaló el ejemplo. Un paquete preexistente nunca se toca: quitar curl o
+    # ca-certificates de un sistema que ya los tenía arrastraría media distribución (ubuntu-server, snapd...).
+    - name: Remove prerequisites installed by docker_install.yaml
+      ansible.builtin.apt:
+        name: "{{ item.item }}"
+        state: absent
+        purge: true
+        autoremove: false
+      loop: "{{ prerequisites_markers.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: item.rc == 0 and (item.stdout | trim) == 'owned'
+
+    - name: Remove the state directory
+      ansible.builtin.file:
+        path: "{{ docker_state_dir }}"
         state: absent

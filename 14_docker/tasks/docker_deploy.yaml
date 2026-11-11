@@ -2,10 +2,6 @@
 - name: Deploy docker container
   hosts: docker
   tasks:
-    # Los módulos community.docker necesitan la librería Python 'docker' en el servidor.
-    - name: Install Docker Module for Python
-      pip:
-        name: docker
     # source: pull descarga la imagen del registro.
     - name: Pull an image
       community.docker.docker_image:

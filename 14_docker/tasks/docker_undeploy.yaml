@@ -1,10 +1,6 @@
 ---
 - hosts: docker
   tasks:
-    # Necesario para que los módulos de Docker funcionen.
-    - name: Install Docker Module for Python
-      pip:
-        name: docker
     # state: absent para y elimina el contenedor.
     - name: destroy nginx docker container
       community.docker.docker_container:

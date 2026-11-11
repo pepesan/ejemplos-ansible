@@ -6,6 +6,8 @@
     docker_ubuntu_codename: "{{ ansible_facts['distribution_release'] }}"
     docker_apt_keyring: /etc/apt/keyrings/docker-13-example.asc
     docker_apt_source_file: /etc/apt/sources.list.d/docker-13-example.sources
+    docker_prerequisites: [ca-certificates, curl]
+    docker_state_dir: /var/lib/ansible-docker-example
     docker_packages:
       - docker-ce
       - docker-ce-cli
@@ -27,12 +29,40 @@
         update_cache: true
       changed_when: false
 
+    # Directorio con lo que había antes de instalar, para que docker_uninstall.yaml pueda deshacerlo con precisión.
+    - name: Create state directory for the uninstall
+      ansible.builtin.file:
+        path: "{{ docker_state_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0700'
+
+    # dpkg-query solo consulta (changed_when/failed_when evitan marcarlo como cambio o error).
+    # Con loop, register guarda una lista 'results' con un resultado por paquete.
+    - name: Check which prerequisites are already installed
+      ansible.builtin.command: dpkg-query -W -f='${Status}' {{ item }}
+      loop: "{{ docker_prerequisites }}"
+      register: prerequisites_before
+      changed_when: false
+      failed_when: false
+
+    # Anota por paquete si ya estaba ('preexisting') o lo instala este ejemplo ('owned'). force: false:
+    # solo la primera vez, para que una segunda ejecución no convierta un paquete nuestro en 'preexisting'.
+    - name: Record ownership of each prerequisite
+      ansible.builtin.copy:
+        content: "{{ 'preexisting' if item.rc == 0 and ' installed' in item.stdout else 'owned' }}\n"
+        dest: "{{ docker_state_dir }}/prereq-{{ item.item }}"
+        force: false
+        mode: '0600'
+      loop: "{{ prerequisites_before.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
     # ca-certificates y curl hacen falta para descargar la clave del repositorio por HTTPS.
     - name: Install Docker repository prerequisites
       ansible.builtin.apt:
-        name:
-          - ca-certificates
-          - curl
+        name: "{{ docker_prerequisites }}"
         state: present
 
     # Directorio estándar de APT para guardar claves de repositorios.
