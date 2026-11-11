@@ -20,7 +20,7 @@
         state: started
         restart: yes
         ports:
-          - "80:80"
+          - "81:80"
         volumes:
           - "nginx-html-volume:/var/www/html:rw"
     

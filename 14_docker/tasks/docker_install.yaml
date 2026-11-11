@@ -8,6 +8,13 @@
     docker_apt_source_file: /etc/apt/sources.list.d/docker-13-example.sources
     docker_prerequisites: [ca-certificates, curl]
     docker_state_dir: /var/lib/ansible-docker-example
+    old_docker_packages:
+      - docker.io
+      - docker-compose
+      - docker-compose-v2
+      - docker-doc
+      - docker-buildx
+      - podman-docker
     docker_packages:
       - docker-ce
       - docker-ce-cli
@@ -22,7 +29,10 @@
           - ansible_facts['distribution'] == 'Ubuntu'
           - docker_ubuntu_codename == 'resolute'
         fail_msg: This example supports Ubuntu 26.04 Resolute only.
-
+    - name: Uninstall Old Docker Engine and unsupported plugins
+      ansible.builtin.apt:
+        name: "{{ old_docker_packages }}"
+        state: absent
     # update_cache actualiza el índice de paquetes. changed_when: false porque refrescar no es un cambio real.
     - name: Refresh Ubuntu APT metadata
       ansible.builtin.apt:

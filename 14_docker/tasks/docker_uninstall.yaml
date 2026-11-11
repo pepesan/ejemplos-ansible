@@ -88,16 +88,16 @@
 
     # Solo se quita lo que instaló el ejemplo. Un paquete preexistente nunca se toca: quitar curl o
     # ca-certificates de un sistema que ya los tenía arrastraría media distribución (ubuntu-server, snapd...).
-    - name: Remove prerequisites installed by docker_install.yaml
-      ansible.builtin.apt:
-        name: "{{ item.item }}"
-        state: absent
-        purge: true
-        autoremove: false
-      loop: "{{ prerequisites_markers.results }}"
-      loop_control:
-        label: "{{ item.item }}"
-      when: item.rc == 0 and (item.stdout | trim) == 'owned'
+#    - name: Remove prerequisites installed by docker_install.yaml
+#      ansible.builtin.apt:
+#        name: "{{ item.item }}"
+#        state: absent
+#        purge: true
+#        autoremove: false
+#      loop: "{{ prerequisites_markers.results }}"
+#      loop_control:
+#        label: "{{ item.item }}"
+#      when: item.rc == 0 and (item.stdout | trim) == 'owned'
 
     - name: Remove the state directory
       ansible.builtin.file:
