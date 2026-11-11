@@ -1,6 +1,7 @@
 ---
 - hosts: docker
   tasks:
+    # Directorio del servidor donde se dejará el docker-compose.yaml.
     - name: Create a directory if it does not exist
       file:
         path: /home/alumno/deploy
@@ -8,6 +9,7 @@
         owner: alumno
         group: alumno
         mode: '0755'
+    # Copia el fichero de compose desde ../files. Con loop se podrían copiar más ficheros añadiéndolos a la lista.
     - name: copy Docker Compose files
       copy:
         src: ../files/{{ item }}
@@ -17,10 +19,14 @@
         mode: '0744'
       loop:
         - docker-compose.yaml
+    # Levanta los servicios definidos en el compose (equivalente a docker compose up -d). docker_compose_v2 usa el plugin 'docker compose';
+    # el antiguo módulo docker_compose (docker-compose v1) ya no existe.
     - name: deploy Docker Compose stack
-      docker_compose:
+      community.docker.docker_compose_v2:
         project_src: /home/alumno/deploy
+        state: present
       register: output
+    # Muestra el resultado completo de la tarea anterior.
     - name: show debug
       ansible.builtin.debug:
         var: output

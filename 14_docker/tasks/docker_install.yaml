@@ -1,6 +1,6 @@
 ---
 - name: Install Docker Engine from Docker's Ubuntu repository
-  hosts: ubuntu
+  hosts: docker
   become: true
   vars:
     docker_ubuntu_codename: "{{ ansible_facts['distribution_release'] }}"

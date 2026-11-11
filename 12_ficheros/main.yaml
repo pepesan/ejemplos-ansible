@@ -3,6 +3,12 @@
 # Para deshacerlo: ansible-playbook main_uninstall.yaml
 - hosts: webservers
   tasks:
+    # file con state: directory crea el directorio si no existe (y ajusta el modo si ya existe).
+    - name: Create a directory if it does not exist
+      ansible.builtin.file:
+      path: /var/www/html/wordpress
+      state: directory
+      mode: '0755'
     # copy sube un fichero del equipo de control (src) al servidor (dest) y fija propietario, grupo y
     # permisos. Es idempotente: solo copia si el contenido o los atributos son distintos.
     - name: Copy file with owner and permissions
@@ -12,12 +18,6 @@
         owner: www-data
         group: www-data
         mode: '0644'
-    # file con state: directory crea el directorio si no existe (y ajusta el modo si ya existe).
-    - name: Create a directory if it does not exist
-      ansible.builtin.file:
-        path: /var/www/html/wordpress
-        state: directory
-        mode: '0755'
     # state: file exige que el fichero ya exista (no lo crea). modification_time/access_time: now
     # actualizan sus fechas, como un 'touch'. Esta tarea siempre sale como cambiada.
     - name: Update modification and access time of given file

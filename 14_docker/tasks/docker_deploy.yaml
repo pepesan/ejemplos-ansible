@@ -2,17 +2,21 @@
 - name: Deploy docker container
   hosts: docker
   tasks:
+    # Los módulos community.docker necesitan la librería Python 'docker' en el servidor.
     - name: Install Docker Module for Python
       pip:
         name: docker
+    # source: pull descarga la imagen del registro.
     - name: Pull an image
       community.docker.docker_image:
         name: nginx:latest
         source: pull
+    # Volumen persistente para los datos.
     - name: Create a volume
       community.docker.docker_volume:
         name: nginx-html-volume
         state: present
+    # Crea y arranca el contenedor. restart: yes lo reinicia en cada ejecución; ports y volumes igual que en docker run -p y -v.
     - name: deploy nginx docker container with volume and ports
       community.docker.docker_container:
         image: nginx:latest

@@ -1,14 +1,18 @@
 ---
 - hosts: docker
   tasks:
+    # Volumen con nombre: los datos persisten aunque se borre el contenedor.
     - name: Create a volume
       community.docker.docker_volume:
         name: nginx-html-volume
         state: present
+    # Red de Docker propia para conectar contenedores por nombre.
     - name: Create a network
       community.docker.docker_network:
         name: nginx
         state: present
+    # Crea el contenedor: ports mapea 80 del host al 80 del contenedor; volumes monta el volumen
+    # (rw = lectura y escritura); networks lo conecta a la red; la imagen está fija en 1.23.2 para repetibilidad.
     - name: deploy nginx docker container with volume, ports and network
       community.docker.docker_container:
         image: nginx:1.23.2

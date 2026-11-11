@@ -1,6 +1,6 @@
 ---
-- name: Remove Docker Engine installed by the companion example
-  hosts: ubuntu
+- name: Remove Docker Engine installed by docker_install.yaml
+  hosts: docker
   become: true
   vars:
     docker_ubuntu_codename: "{{ ansible_facts['distribution_release'] }}"

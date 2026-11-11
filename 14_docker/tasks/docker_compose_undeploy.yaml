@@ -1,6 +1,7 @@
 ---
 - hosts: docker
   tasks:
+    # Se asegura de que existe el directorio del despliegue.
     - name: Create a directory if it does not exist
       file:
         path: /home/alumno/deploy
@@ -8,6 +9,7 @@
         owner: alumno
         group: alumno
         mode: '0755'
+    # Deja el compose en el servidor para poder pararlo.
     - name: copy Docker Compose files
       copy:
         src: ../files/{{ item }}
@@ -17,11 +19,13 @@
         mode: '0744'
       loop:
         - docker-compose.yaml
+    # state: stopped para los contenedores sin eliminarlos (docker compose stop).
     - name: Stop all services
-      community.docker.docker_compose:
+      community.docker.docker_compose_v2:
         project_src: /home/alumno/deploy
-        stopped: yes
+        state: stopped
       register: output
+    # Muestra el resultado de la tarea anterior.
     - name: show debug
       ansible.builtin.debug:
         var: output
