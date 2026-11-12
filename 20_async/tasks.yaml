@@ -1,9 +1,61 @@
 ---
-- hosts: red
+# async / poll: lanzar tareas largas sin mantener la conexión SSH bloqueada.
+#   async: N  -> tiempo máximo (s) que la tarea puede tardar; si lo supera, falla.
+#   poll: N   -> cada cuántos segundos consulta Ansible si ha terminado (por defecto 15).
+#   poll: 0   -> "fire and forget": lanza la tarea y sigue sin esperar; luego hay que comprobarla con async_status.
+#   ansible-playbook tasks.yaml                   # todo
+#   ansible-playbook tasks.yaml --tags sincrona   # solo la espera con poll
+- name: Tareas asíncronas
+  hosts: ubuntu
+  gather_facts: false
   tasks:
-    - name: Simulate long running op (5 sec), wait for up to 15 sec, poll every 1 sec
-      command: /bin/sleep 5
+    # Con poll > 0 Ansible espera a que acabe, consultando cada 1 s. Se comporta como una tarea normal
+    # pero no se corta por timeout de conexión si tarda mucho.
+    - name: 1. async con poll - espera a que termine
+      ansible.builtin.command: /bin/sleep 5
+      async: 15
+      poll: 1
+      changed_when: false
+      tags: [sincrona]
+
+    # Con poll: 0 la tarea queda en segundo plano y Ansible pasa a la siguiente al instante.
+    # register guarda un job id (ansible_job_id) para consultarla luego.
+    - name: 2. async sin esperar (poll 0) - lanzar en segundo plano
+      ansible.builtin.command: /bin/sleep 5
       async: 15
       poll: 0
-...
+      register: tarea_larga
+      changed_when: false
+      tags: [segundo_plano]
 
+    - name: 3. trabajo mientras la tarea 2 sigue corriendo
+      ansible.builtin.debug:
+        msg: "Esto se ejecuta sin esperar a los 5 s de la tarea 2 (job {{ tarea_larga.ansible_job_id }})"
+      tags: [segundo_plano]
+
+    # async_status consulta el job id hasta que termine. Con retries x delay = 20 s máximo de espera.
+    - name: 4. async_status - esperar a que acabe la tarea 2
+      ansible.builtin.async_status:
+        jid: "{{ tarea_larga.ansible_job_id }}"
+      register: resultado
+      until: resultado.finished
+      retries: 20
+      delay: 1
+      tags: [segundo_plano]
+
+    # Si la tarea supera async, Ansible la mata y falla (el texto del error varía según la versión).
+    # ignore_errors permite verlo sin parar el playbook.
+    - name: 5. async demasiado corto - falla por tiempo
+      ansible.builtin.command: /bin/sleep 5
+      async: 2
+      poll: 1
+      ignore_errors: true
+      register: fallo
+      changed_when: false
+      tags: [timeout]
+
+    - name: 5b. mostrar el fallo por timeout
+      ansible.builtin.debug:
+        msg: "{{ fallo.msg | default('terminó a tiempo') }}"
+      tags: [timeout]
+...
