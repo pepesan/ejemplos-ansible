@@ -1,34 +1,70 @@
 ---
-- hosts: red
+# Etiquetas (tags): permiten ejecutar solo una parte del playbook. Todo ocurre en /tmp/ejemplo-etiquetas.
+#   ansible-playbook tasks.yaml --list-tags          # ver las etiquetas que existen
+#   ansible-playbook tasks.yaml --list-tasks         # ver qué tarea tiene qué etiqueta
+#   ansible-playbook tasks.yaml --tags copia         # solo las tareas con esa etiqueta
+#   ansible-playbook tasks.yaml --skip-tags copia    # todo menos esas
+#   ansible-playbook tasks.yaml --tags limpieza      # activa las tareas con la etiqueta especial "never"
+- name: Etiquetas
+  hosts: ubuntu
+  vars:
+    base: /tmp/ejemplo-etiquetas
   tasks:
-    - name: What is my ansible_facts
-      debug:
-        var: ansible_facts
-    - name: What is my ansible_facts.default_ipv4
-      debug:
-        var: ansible_facts.default_ipv4
-    - name: What is my ansible_facts.default_ipv4.address
-      debug:
+    # Sin etiqueta: se ejecuta en una ejecución normal, y también con --tags untagged.
+    - name: 1. tarea sin etiqueta
+      ansible.builtin.debug:
+        msg: "Esta tarea no tiene etiqueta"
+
+    # La etiqueta especial "always" hace que la tarea se ejecute SIEMPRE, incluso con --tags otra
+    # (solo se puede evitar con --skip-tags always).
+    - name: 2. tarea que siempre se ejecuta
+      ansible.builtin.debug:
         var: ansible_facts.default_ipv4.address
-    - name: What is my ansible_hostname
-      debug:
-        var: ansible_hostname
-    - name: Set a hostname
-      hostname:
-        name: u3
-      tags:
-      - hostname
-    - name: Copia el fichero de configuración
+      tags: [always]
+
+    # Una tarea puede tener varias etiquetas: sale con --tags preparacion o con --tags ficheros.
+    - name: 3. crear el directorio de trabajo
+      ansible.builtin.file:
+        path: "{{ base }}"
+        state: directory
+        mode: '0755'
+      tags: [preparacion, ficheros]
+
+    # Con --tags copia solo corre esta tarea. Si el directorio no existe porque se saltó la 3,
+    # fallará: las etiquetas no resuelven dependencias entre tareas.
+    - name: 4. copiar el fichero de configuración
       ansible.builtin.copy:
-        src: 50-cloud-init.yaml
-        dest: /etc/netplan/50-cloud-init.yaml
-        owner: root
-        group: root
+        src: ejemplo.conf
+        dest: "{{ base }}/ejemplo.conf"
         mode: '0644'
-      notify: start netplan
-      tags:
-      - copia
+      notify: avisar del cambio
+      tags: [copia, ficheros]
+
+    # Las etiquetas de un block se heredan en todas las tareas de dentro.
+    - name: 5. bloque de tareas con una etiqueta común
+      tags: [informe]
+      block:
+        - name: 5a. leer el fichero copiado
+          ansible.builtin.command: cat {{ base }}/ejemplo.conf
+          register: contenido
+          changed_when: false
+          # Con --skip-tags copia el fichero no existe: no es un error, solo no hay nada que leer.
+          failed_when: false
+        - name: 5b. mostrar el contenido
+          ansible.builtin.debug:
+            msg: "{{ contenido.stdout_lines if contenido.rc == 0 else 'El fichero no existe (se saltó la copia)' }}"
+
+    # "never" hace que la tarea NO se ejecute salvo que se pida otra de sus etiquetas (aquí: limpieza).
+    # Es la forma segura de dejar tareas destructivas dentro del playbook.
+    - name: 6. borrar el directorio de trabajo (solo con --tags limpieza)
+      ansible.builtin.file:
+        path: "{{ base }}"
+        state: absent
+      tags: [never, limpieza]
+
+  # Un handler solo se ejecuta si la tarea que lo notifica cambió algo, y al final del play.
   handlers:
-    - name: start netplan
-      shell: netplan apply
+    - name: avisar del cambio
+      ansible.builtin.debug:
+        msg: "El fichero de configuración ha cambiado"
 ...
