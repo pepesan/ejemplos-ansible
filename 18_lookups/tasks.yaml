@@ -1,28 +1,79 @@
 ---
-- hosts: otra
+# Lookups: leen datos de fuera del playbook (ficheros, entorno, comandos...).
+# IMPORTANTE: un lookup se ejecuta SIEMPRE en el equipo de control (donde lanzas ansible-playbook),
+# no en el servidor. Para leer algo del servidor hay que usar un módulo (command, slurp, stat...).
+# Es de solo lectura: no cambia nada en el servidor.
+- name: Lookups
+  hosts: ubuntu
+  gather_facts: true
+  vars:
+    nombre_usuario: alumno
+    puerto: 8080
   tasks:
-    - name: muestra /etc/hostname
-      debug:
-        msg: hostname {{ lookup('file', '/etc/hostname') }}
-      tags:
-        - lookup
-    - name: lookup from file
-      debug: msg="{{lookup('file', '/etc/fstab')}}"
-      register: result
-      tags:
-        - lookup
-    - name: show result
-      debug:
-        msg: "{{result}}"
-    - name: count to 3
-      debug: msg={{item}}
-      with_items: [1, 2, 3]
-    - name: lookup splits variables by default
-      debug: msg="{{item}}"
-      loop: "{{ lookup('varnames', '.+', wantlist=True)  }}"
-      register: result
-    - name: show result
-      debug:
-        msg: "{{result}}"
-...
+    # lookup('file', ruta) devuelve el contenido de un fichero del equipo de control.
+    - name: 1. file - /etc/hostname del equipo de control
+      ansible.builtin.debug:
+        msg: "El control se llama {{ lookup('ansible.builtin.file', '/etc/hostname') }}"
+      tags: [lookup]
 
+    # Para comparar: el hostname del servidor viene de un fact (o de un módulo que lea el servidor).
+    - name: 1b. el hostname del servidor (fact, no lookup)
+      ansible.builtin.debug:
+        msg: "El servidor se llama {{ ansible_facts['hostname'] }}"
+      tags: [lookup]
+
+    # env lee una variable de entorno del equipo de control.
+    - name: 2. env - variable de entorno del equipo de control
+      ansible.builtin.debug:
+        msg: "HOME del control: {{ lookup('ansible.builtin.env', 'HOME') }}"
+
+    # pipe ejecuta un comando en el equipo de control y devuelve su salida.
+    - name: 3. pipe - salida de un comando local
+      ansible.builtin.debug:
+        msg: "Año actual: {{ lookup('ansible.builtin.pipe', 'date +%Y') }}"
+
+    # password genera una contraseña aleatoria. Con /dev/null como ruta no guarda nada en disco:
+    # cada ejecución da una distinta. (Con una ruta real la guardaría y la reutilizaría.)
+    - name: 4. password - contraseña aleatoria
+      ansible.builtin.debug:
+        msg: "Contraseña de ejemplo: {{ lookup('ansible.builtin.password', '/dev/null length=12 chars=ascii_letters,digits') }}"
+
+    # fileglob lista ficheros que coinciden con un patrón (relativo al directorio del playbook).
+    # query siempre devuelve una lista, por eso se puede usar directamente en un loop.
+    - name: 5. fileglob - ficheros .yaml de este directorio
+      ansible.builtin.debug:
+        msg: "{{ item | basename }}"
+      loop: "{{ query('ansible.builtin.fileglob', 'tasks*.yaml', 'datos.ini') }}"
+
+    # first_found devuelve el primer fichero que exista de una lista (útil para valores por defecto).
+    - name: 6. first_found - el primer fichero que existe
+      ansible.builtin.debug:
+        msg: "{{ lookup('ansible.builtin.first_found', ['no-existe.conf', 'datos.ini']) | basename }}"
+
+    # ini lee un valor de un fichero .ini: section= indica la sección y file= el fichero.
+    - name: 7. ini - un valor de datos.ini
+      ansible.builtin.debug:
+        msg: "puerto = {{ lookup('ansible.builtin.ini', 'puerto section=servidor file=datos.ini') }}"
+
+    # template procesa una plantilla Jinja2 del equipo de control y devuelve el texto resultante.
+    - name: 8. template - plantilla con variables
+      ansible.builtin.debug:
+        msg: "{{ lookup('ansible.builtin.template', 'plantilla.j2') }}"
+
+    # varnames devuelve los nombres de variables que coinciden con una expresión regular.
+    # Con wantlist=True devuelve siempre una lista (si no, un texto separado por comas).
+    - name: 9. varnames - nombres de variables que empiezan por nombre_ o puerto
+      ansible.builtin.debug:
+        msg: "{{ item }}"
+      loop: "{{ lookup('ansible.builtin.varnames', '^nombre_.+|^puerto$', wantlist=True) }}"
+
+    # Forma antigua (with_*) frente a loop: hacen lo mismo. Hoy se prefiere loop.
+    - name: 10. with_items (forma antigua) frente a loop
+      ansible.builtin.debug:
+        msg: "with_items: {{ item }}"
+      with_items: [1, 2, 3]
+    - name: 10b. loop (forma actual)
+      ansible.builtin.debug:
+        msg: "loop: {{ item }}"
+      loop: [1, 2, 3]
+...
