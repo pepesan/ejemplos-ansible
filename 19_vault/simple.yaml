@@ -1,7 +1,10 @@
 ---
-- hosts: red
+# Variable cifrada dentro del playbook (ansible-vault encrypt_string). El resto del fichero es texto normal.
+# Se ejecuta con: ansible-playbook simple.yaml
+- name: Vault - variable cifrada
+  hosts: ubuntu
   vars:
-    - mi_variable: !vault |
+    mi_variable: !vault |
           $ANSIBLE_VAULT;1.1;AES256
           38386562643430666431346361326563316262376165613834313238356662323535643461383164
           3061636463373562303330323235356165346230326262660a343635663636336330383538316637
@@ -9,8 +12,12 @@
           3632333464613537380a646230393761323130343336666566663965326262336262646263653034
           3732
   tasks:
+    # no_log: true evita que el valor descifrado salga en la salida del playbook.
     - name: muestra mi_variable
-      debug:
+      ansible.builtin.debug:
         msg: "{{ mi_variable }}"
-      no_log: True
+      no_log: true
+    - name: comprobar que se descifró sin mostrar el valor
+      ansible.builtin.debug:
+        msg: "mi_variable descifrada, {{ mi_variable | length }} caracteres"
 ...

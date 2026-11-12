@@ -1,0 +1,10 @@
+---
+# Deshace main.yaml: borra el directorio de trabajo del servidor.
+- name: Vault - limpiar
+  hosts: ubuntu
+  tasks:
+    - name: borrar el directorio de trabajo
+      ansible.builtin.file:
+        path: /tmp/ejemplo-vault
+        state: absent
+...

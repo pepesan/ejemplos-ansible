@@ -1,0 +1,44 @@
+---
+# Ficheros cifrados con ansible-vault. Todo ocurre en /tmp/ejemplo-vault y se borra con main_uninstall.yaml.
+#   vars.yaml  -> fichero de variables cifrado; se carga con vars_files como si fuera normal.
+#   vault.yaml -> fichero cifrado cualquiera; copy lo DESCIFRA al copiarlo al servidor.
+# Ansible descifra con la contraseña de vault_password_file (ansible.cfg) o con --ask-vault-pass.
+- name: Vault - ficheros cifrados
+  hosts: ubuntu
+  vars_files:
+    - vars.yaml
+  tasks:
+    # Las variables de vars.yaml se usan igual que las normales. Aquí solo mostramos su longitud para no imprimir el valor.
+    - name: 1. usar una variable de un fichero cifrado
+      ansible.builtin.debug:
+        msg: "mysql_password tiene {{ mysql_password | length }} caracteres (valor oculto)"
+
+    - name: 2. crear el directorio de trabajo
+      ansible.builtin.file:
+        path: /tmp/ejemplo-vault
+        state: directory
+        mode: '0700'
+
+    # copy detecta que el origen está cifrado y lo guarda descifrado en el destino.
+    - name: 3. copiar un fichero cifrado (llega descifrado)
+      ansible.builtin.copy:
+        src: vault.yaml
+        dest: /tmp/ejemplo-vault/vault.txt
+        mode: '0600'
+
+    # Un fichero normal se copia tal cual: comparamos los dos.
+    - name: 4. copiar un fichero sin cifrar
+      ansible.builtin.copy:
+        src: fichero.yaml
+        dest: /tmp/ejemplo-vault/fichero.txt
+        mode: '0600'
+
+    - name: 5. leer lo copiado
+      ansible.builtin.command: cat /tmp/ejemplo-vault/vault.txt /tmp/ejemplo-vault/fichero.txt
+      register: copiados
+      changed_when: false
+
+    - name: 6. mostrar lo copiado
+      ansible.builtin.debug:
+        msg: "{{ copiados.stdout_lines }}"
+...
