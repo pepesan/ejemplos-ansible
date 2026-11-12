@@ -1,0 +1,7 @@
+---
+# Colecciones que AWX instala al sincronizar el proyecto: su imagen de ejecución
+# no incluye community.docker, que usan los playbooks de 14_docker.
+# Para ejecutar a mano: ansible-galaxy collection install -r collections/requirements.yml
+collections:
+  - name: community.docker
+    version: ">=5.0.0,<6.0.0"
