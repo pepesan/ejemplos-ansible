@@ -37,6 +37,21 @@ Ejecuta los comandos desde este directorio, por ejemplo `ansible-playbook tasks/
 
 Tanto el contenedor individual de Nginx (`docker_deploy.yaml`) como la aplicación WordPress en Compose (`compose.yaml`) exponen sus servicios en el puerto **81 del host (`81:80`)**. Esto evita fallos de tipo *address already in use* en máquinas que ya tengan el puerto 80 en uso por otros servicios o servidores web (por ejemplo, el Nginx del ejemplo 15).
 
+## Uso con AWX (`awx/`)
+
+AWX no incluye en su lista de playbooks los que están dentro de un directorio llamado `tasks/`, así que los de `tasks/` no se pueden elegir en una plantilla de trabajo. El directorio `awx/` contiene un envoltorio por cada playbook con una única línea `import_playbook: ../tasks/<nombre>.yaml`:
+
+| Playbook para AWX | Importa |
+|---|---|
+| `awx/docker_install.yaml` | `tasks/docker_install.yaml` |
+| `awx/docker_deploy.yaml` | `tasks/docker_deploy.yaml` |
+| `awx/docker_undeploy.yaml` | `tasks/docker_undeploy.yaml` |
+| `awx/docker_compose_deploy.yaml` | `tasks/docker_compose_deploy.yaml` |
+| `awx/docker_compose_undeploy.yaml` | `tasks/docker_compose_undeploy.yaml` |
+| `awx/docker_uninstall.yaml` | `tasks/docker_uninstall.yaml` |
+
+La lógica sigue en `tasks/`: no se duplica nada y las demás herramientas siguen ejecutando los mismos ficheros. La ruta `../files/compose.yaml` de `docker_compose_deploy.yaml` se resuelve igual desde `awx/` y desde `tasks/`.
+
 ## Uso
 
 Debemos ejecutar Docker donde pueda crear contenedores (en la máquina virtual LXD o en local).

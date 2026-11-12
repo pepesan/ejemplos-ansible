@@ -1,0 +1,7 @@
+---
+# Envoltorio para AWX: desinstala Docker Engine y borra sus datos.
+# AWX no ofrece en su lista los playbooks que están dentro de un directorio
+# "tasks/", así que este fichero los importa desde ../tasks/. No hay lógica
+# propia: se mantiene un único playbook (tasks/docker_uninstall.yaml), que sigue
+# usándose igual desde otras herramientas.
+- import_playbook: ../tasks/docker_uninstall.yaml
