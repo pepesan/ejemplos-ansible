@@ -22,7 +22,7 @@
         dest: /etc/netplan/50-cloud-init.yaml
         owner: root
         group: root
-        mode: '0644'
+        mode: '0600'
       notify: start netplan
   handlers:
     - name: start netplan

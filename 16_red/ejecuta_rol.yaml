@@ -1,0 +1,19 @@
+---
+- hosts: red
+  become: true
+  roles:
+    - role: mrlesmithjr.netplan
+      netplan_enabled: true
+      netplan_config_file: /etc/netplan/50-cloud-init.yaml
+      netplan_renderer: networkd
+      netplan_configuration:
+        network:
+          version: 2
+          ethernets:
+            enp5s0:
+              dhcp4: false
+              dhcp6: false
+              addresses: [ 10.207.154.161/24 ]
+              gateway4: 10.207.154.1
+              nameservers:
+                addresses: [ 8.8.8.8,8.8.4.4 ]
