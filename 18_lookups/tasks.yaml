@@ -67,6 +67,29 @@
         msg: "{{ item }}"
       loop: "{{ lookup('ansible.builtin.varnames', '^nombre_.+|^puerto$', wantlist=True) }}"
 
+    # csvfile busca en un CSV la fila cuya primera columna sea la clave y devuelve la columna indicada
+    # (col empieza en 0). Sirve para consultar UN valor; delimiter por defecto es el tabulador, de ahí delimiter=,
+    - name: 11. csvfile - el rol de luis en datos.csv
+      ansible.builtin.debug:
+        msg: "luis tiene el rol {{ lookup('ansible.builtin.csvfile', 'luis file=datos.csv delimiter=, col=1') }}"
+
+    # Para cargar el CSV ENTERO como lista de diccionarios (una fila = un diccionario) se usa el módulo
+    # read_csv. Un módulo se ejecuta en el servidor, así que se delega en localhost para leer el fichero local.
+    - name: 12a. read_csv - cargar todo datos.csv en una variable
+      community.general.read_csv:
+        path: datos.csv
+      register: usuarios_csv
+      delegate_to: localhost
+      run_once: true
+
+    - name: 12b. recorrer las filas cargadas
+      ansible.builtin.debug:
+        msg: "{{ item.usuario }} es {{ item.rol }} y usa el puerto {{ item.puerto }}"
+      loop: "{{ usuarios_csv.list }}"
+      loop_control:
+        label: "{{ item.usuario }}"
+      run_once: true
+
     # Forma antigua (with_*) frente a loop: hacen lo mismo. Hoy se prefiere loop.
     - name: 10. with_items (forma antigua) frente a loop
       ansible.builtin.debug:

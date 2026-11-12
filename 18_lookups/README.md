@@ -21,3 +21,7 @@ del equipo desde el que lanzas Ansible y la 1b muestra el del servidor (con un f
 | `ini` | Valor de un fichero `.ini` (`datos.ini`). |
 | `template` | Plantilla Jinja2 (`plantilla.j2`) ya procesada. |
 | `varnames` | Nombres de variables que coinciden con una expresión regular. |
+| `csvfile` | Un valor de un CSV buscando por clave (`datos.csv`). |
+
+Para cargar un CSV completo como lista de filas se usa el módulo `community.general.read_csv` (tarea 12),
+delegado en `localhost` porque lee el fichero del equipo de control.
