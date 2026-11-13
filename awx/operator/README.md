@@ -6,7 +6,7 @@ Guía oficial de referencia: <https://docs.ansible.com/projects/awx-operator/en/
 
 ## Lo aprendido, en resumen
 
-- **El operador y la instancia son dos pasos distintos.** Primero se instala el operador (`10_operador`); después se declara un recurso `kind: AWX` (`20_instancia_awx`) y es el operador quien crea PostgreSQL, la migración, `web` y `task`.
+- **El operador y la instancia son dos pasos distintos.** Primero se instala el operador (`10_operador`); después se aplica [`awx-demo.yml`](awx-demo.yml), un recurso `kind: AWX`, y es el operador quien crea PostgreSQL, la migración, `web` y `task`.
 - **Fija el mismo tag en `ref` y en `newTag`.** Si no coinciden, los manifiestos y la imagen del operador serán de versiones distintas.
 - **Kustomize descarga los manifiestos de GitHub**, así que hace falta Internet y la versión se decide en el `kustomization.yaml`, no con un `git checkout` local.
 - **No declares AWX hasta que el operador esté listo.** Y no mezcles `apply -k` con `make deploy`.
@@ -36,14 +36,12 @@ Antes de repetirlo comprueba la página de releases del operador y cambia el tag
 
 ```
 operator/
-├── 10_operador/          # solo el operador
+├── 10_operador/          # kustomization que instala el operador
 │   └── kustomization.yaml
-└── 20_instancia_awx/     # operador + una instancia AWX (recurso AWX)
-    ├── kustomization.yaml
-    └── awx-demo.yml
+└── awx-demo.yml          # instancia AWX (recurso kind: AWX)
 ```
 
-Los manifiestos se validaron contra un clúster Minikube real con `minikube kubectl -- apply -k <carpeta> --dry-run=server`.
+El operador se instala con Kustomize (`apply -k`) y la instancia se aplica después, como fichero suelto (`apply -f`). La instalación del operador se validó contra un clúster Minikube real con `minikube kubectl -- apply -k 10_operador --dry-run=server`; la instancia es el manifiesto que se aplicó en la prueba.
 
 ## Paso a paso
 
@@ -79,22 +77,31 @@ Kustomize instala los manifiestos del operador en el namespace `awx`. La guía o
 
 ### 4. Desplegar una instancia AWX
 
-La instancia es un recurso `kind: AWX` que el operador reconcilia:
+La instancia es un recurso `kind: AWX` que el operador reconcilia. Está en [`awx-demo.yml`](awx-demo.yml):
 
 ```yaml
 apiVersion: awx.ansible.com/v1beta1
 kind: AWX
 metadata:
   name: awx-demo
+  # Mismo namespace que el operador (lo crea 10_operador)
+  namespace: awx
 spec:
+  # Expone el servicio mediante un puerto del nodo (NodePort)
   service_type: nodeport
 ```
 
-`service_type: nodeport` expone el servicio en un puerto del nodo. `20_instancia_awx/kustomization.yaml` añade `awx-demo.yml` a los recursos del operador:
+| Campo | Para qué sirve |
+|---|---|
+| `metadata.name` | Nombre de la instancia. De él salen los nombres de los recursos que crea el operador: `awx-demo-web`, `awx-demo-task`, `awx-demo-service` y el secreto `awx-demo-admin-password` |
+| `metadata.namespace` | Debe ser el del operador (`awx`). Va explícito porque este fichero se aplica solo, sin Kustomize, y no hereda ningún namespace |
+| `spec.service_type: nodeport` | Expone el servicio en un puerto del nodo, para llegar a AWX desde fuera del clúster con `minikube service` |
+
+Es el mismo manifiesto que se aplicó en la prueba. Con el operador ya instalado en el paso 3 (estás en `10_operador`):
 
 ```bash
-cd ../20_instancia_awx
-minikube kubectl -- apply -k .
+cd ..
+minikube kubectl -- apply -f awx-demo.yml
 ```
 
 ### 5. Seguir el progreso

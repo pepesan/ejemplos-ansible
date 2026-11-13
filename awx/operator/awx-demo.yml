@@ -2,6 +2,8 @@ apiVersion: awx.ansible.com/v1beta1
 kind: AWX
 metadata:
   name: awx-demo
+  # Mismo namespace que el operador (lo crea 10_operador)
+  namespace: awx
 spec:
   # Expone el servicio mediante un puerto del nodo (NodePort)
   service_type: nodeport
