@@ -1,0 +1,11 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  # Manifiestos del operador en el tag elegido
+  - github.com/ansible/awx-operator/config/default?ref=2.19.1
+images:
+  # Misma versión que el ref de arriba
+  - name: quay.io/ansible/awx-operator
+    newTag: 2.19.1
+# Los recursos se instalan en este namespace
+namespace: awx

@@ -1,0 +1,7 @@
+apiVersion: awx.ansible.com/v1beta1
+kind: AWX
+metadata:
+  name: awx-demo
+spec:
+  # Expone el servicio mediante un puerto del nodo (NodePort)
+  service_type: nodeport
